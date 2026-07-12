@@ -1,0 +1,181 @@
+import {
+  Scene,
+  Mesh,
+  PlaneGeometry,
+  MeshBasicMaterial,
+  CanvasTexture,
+  RepeatWrapping,
+  FogExp2,
+  Points,
+  BufferGeometry,
+  BufferAttribute,
+  ShaderMaterial,
+  AdditiveBlending,
+  Color,
+  Vector3,
+} from 'three';
+
+const PLANE_SIZE = 420;
+const REPEAT = 70;
+const TILE_WORLD = PLANE_SIZE / REPEAT; // 텍스처 한 타일의 월드 크기
+const FIREFLY_COUNT = 240;
+const FIELD_RADIUS = 34;
+
+// 어두운 남흑색 전장: 절차 텍스처 지면 + 안개 + 떠다니는 불씨.
+export class Ground {
+  private readonly plane: Mesh;
+  private readonly tex: CanvasTexture;
+  private readonly fireflies: Points;
+  private readonly fireflyMat: ShaderMaterial;
+  private time = 0;
+
+  constructor(scene: Scene) {
+    scene.fog = new FogExp2(0x05060a, 0.017);
+
+    this.tex = makeGroundTexture();
+    this.tex.wrapS = RepeatWrapping;
+    this.tex.wrapT = RepeatWrapping;
+    this.tex.repeat.set(REPEAT, REPEAT);
+
+    const geo = new PlaneGeometry(PLANE_SIZE, PLANE_SIZE, 1, 1);
+    geo.rotateX(-Math.PI / 2);
+    const mat = new MeshBasicMaterial({ map: this.tex, toneMapped: true });
+    this.plane = new Mesh(geo, mat);
+    this.plane.renderOrder = -1;
+    scene.add(this.plane);
+
+    // 불씨/반딧불
+    const g = new BufferGeometry();
+    const pos = new Float32Array(FIREFLY_COUNT * 3);
+    const phase = new Float32Array(FIREFLY_COUNT);
+    const speed = new Float32Array(FIREFLY_COUNT);
+    for (let i = 0; i < FIREFLY_COUNT; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const r = Math.sqrt(Math.random()) * FIELD_RADIUS;
+      pos[i * 3] = Math.cos(ang) * r;
+      pos[i * 3 + 1] = 0.5 + Math.random() * 7;
+      pos[i * 3 + 2] = Math.sin(ang) * r;
+      phase[i] = Math.random() * Math.PI * 2;
+      speed[i] = 0.5 + Math.random() * 1.2;
+    }
+    g.setAttribute('position', new BufferAttribute(pos, 3));
+    g.setAttribute('aPhase', new BufferAttribute(phase, 1));
+    g.setAttribute('aSpeed', new BufferAttribute(speed, 1));
+
+    this.fireflyMat = new ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uSize: { value: 90 },
+        uColor: { value: new Color(1.5, 0.85, 0.4) },
+      },
+      vertexShader: /* glsl */ `
+        attribute float aPhase;
+        attribute float aSpeed;
+        uniform float uTime;
+        uniform float uSize;
+        varying float vTw;
+        void main() {
+          vec3 p = position;
+          p.x += sin(uTime * 0.5 * aSpeed + aPhase) * 0.9;
+          p.y += sin(uTime * 0.7 * aSpeed + aPhase * 1.7) * 0.6;
+          p.z += cos(uTime * 0.45 * aSpeed + aPhase) * 0.9;
+          vTw = 0.5 + 0.5 * sin(uTime * 2.0 * aSpeed + aPhase * 3.0);
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_PointSize = uSize / max(0.1, -mv.z);
+          gl_Position = projectionMatrix * mv;
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        uniform vec3 uColor;
+        varying float vTw;
+        void main() {
+          float d = length(gl_PointCoord - 0.5);
+          if (d > 0.5) discard;
+          float a = smoothstep(0.5, 0.0, d);
+          gl_FragColor = vec4(uColor * (0.4 + vTw) * a, 1.0);
+        }
+      `,
+      transparent: true,
+      blending: AdditiveBlending,
+      depthWrite: false,
+      depthTest: true,
+    });
+    this.fireflies = new Points(g, this.fireflyMat);
+    this.fireflies.frustumCulled = false;
+    scene.add(this.fireflies);
+  }
+
+  update(dt: number, playerX: number, playerZ: number): void {
+    this.time += dt;
+    // 지면은 플레이어를 따라가고, 텍스처 오프셋으로 세계 고정감(무한 지면).
+    this.plane.position.set(playerX, 0, playerZ);
+    this.tex.offset.set(playerX / TILE_WORLD, -playerZ / TILE_WORLD);
+    // 불씨는 플레이어 주변을 감싼다.
+    this.fireflies.position.set(playerX, 0, playerZ);
+    this.fireflyMat.uniforms.uTime.value = this.time;
+  }
+}
+
+// 수묵 노이즈 얼룩 + 희미한 격자/균열 캔버스 텍스처.
+function makeGroundTexture(): CanvasTexture {
+  const S = 256;
+  const cv = document.createElement('canvas');
+  cv.width = S;
+  cv.height = S;
+  const ctx = cv.getContext('2d')!;
+
+  // 베이스
+  ctx.fillStyle = '#080a11';
+  ctx.fillRect(0, 0, S, S);
+
+  // 노이즈 얼룩
+  for (let i = 0; i < 900; i++) {
+    const x = Math.random() * S;
+    const y = Math.random() * S;
+    const r = 2 + Math.random() * 18;
+    const shade = 8 + Math.random() * 26;
+    ctx.fillStyle = `rgba(${shade},${shade + 4},${shade + 12},0.06)`;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 희미한 격자
+  ctx.strokeStyle = 'rgba(90,110,150,0.05)';
+  ctx.lineWidth = 1;
+  const cells = 4;
+  const step = S / cells;
+  for (let i = 0; i <= cells; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * step, 0);
+    ctx.lineTo(i * step, S);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, i * step);
+    ctx.lineTo(S, i * step);
+    ctx.stroke();
+  }
+
+  // 균열
+  ctx.strokeStyle = 'rgba(20,24,34,0.5)';
+  for (let i = 0; i < 14; i++) {
+    ctx.lineWidth = 0.5 + Math.random() * 1.5;
+    let x = Math.random() * S;
+    let y = Math.random() * S;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    const segs = 3 + (Math.random() * 4) | 0;
+    for (let s = 0; s < segs; s++) {
+      x += (Math.random() * 2 - 1) * 40;
+      y += (Math.random() * 2 - 1) * 40;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  const tex = new CanvasTexture(cv);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+export const _groundTmp = new Vector3();
