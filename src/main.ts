@@ -206,7 +206,11 @@ loadAtlas()
     loop.start();
 
     // === 테스트 훅 (playtest 봇) ===
-    (window as unknown as { __GAME_TEST__: unknown }).__GAME_TEST__ = {
+    // 공개 Pages 빌드에서는 치트/계측 전역을 노출하지 않는다. 로컬 dev/preview에서만 활성화.
+    const allowTestHooks =
+      import.meta.env.DEV || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if (allowTestHooks) {
+      (window as unknown as { __GAME_TEST__: unknown }).__GAME_TEST__ = {
       // 씬 제어
       goToTitle: () => goTitle(),
       selectHero: (id: string) => startRun(id),
@@ -252,18 +256,19 @@ loadAtlas()
       get stats() {
         return run.testStats;
       },
-    };
+      };
 
-    // 성능/디버그 계측 훅
-    (window as unknown as { __DEBUG__: unknown }).__DEBUG__ = {
-      info: () => ({
-        fps: Math.round(fpsEma),
-        calls: renderer.info.render.calls,
-        tris: renderer.info.render.triangles,
-        geometries: renderer.info.memory.geometries,
-        textures: renderer.info.memory.textures,
-      }),
-    };
+      // 성능/디버그 계측 훅
+      (window as unknown as { __DEBUG__: unknown }).__DEBUG__ = {
+        info: () => ({
+          fps: Math.round(fpsEma),
+          calls: renderer.info.render.calls,
+          tris: renderer.info.render.triangles,
+          geometries: renderer.info.memory.geometries,
+          textures: renderer.info.memory.textures,
+        }),
+      };
+    }
   })
   .catch((err) => {
     console.error(err);
