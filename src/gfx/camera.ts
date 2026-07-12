@@ -20,16 +20,19 @@ function pseudoNoise(t: number, seed: number): number {
   return (x - Math.floor(x)) * 2 - 1;
 }
 
+const BASE_FOV = 40;
+
 export class CameraRig {
   readonly camera: PerspectiveCamera;
   private readonly sx = { x: 0, z: 0 }; // 스무딩된 추적 중심
   private trauma = 0;
   private time = 0;
   private inited = false;
+  private fovPunch = 0; // 가산 FOV(도) — 처치 시 미세 펀치줌
   private readonly look = new Vector3();
 
   constructor() {
-    this.camera = new PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 300);
+    this.camera = new PerspectiveCamera(BASE_FOV, window.innerWidth / window.innerHeight, 0.1, 300);
   }
 
   onResize(w: number, h: number): void {
@@ -42,6 +45,11 @@ export class CameraRig {
     this.trauma = Math.min(1, this.trauma + amount);
   }
 
+  // FOV 펀치(도). 처치 순간 미세 펄스(음수 = 살짝 당김).
+  punchFov(degrees: number): void {
+    this.fovPunch = Math.max(-3, Math.min(3, this.fovPunch + degrees));
+  }
+
   update(dt: number, targetX: number, targetZ: number): void {
     this.time += dt;
     if (!this.inited) {
@@ -52,6 +60,14 @@ export class CameraRig {
     const k = 1 - Math.exp(-FOLLOW_RATE * dt);
     this.sx.x += (targetX - this.sx.x) * k;
     this.sx.z += (targetZ - this.sx.z) * k;
+
+    // FOV 펀치 감쇠 (~180ms 시정수)
+    if (Math.abs(this.fovPunch) > 0.001) {
+      this.fovPunch *= Math.exp(-dt / 0.18);
+      if (Math.abs(this.fovPunch) < 0.001) this.fovPunch = 0;
+      this.camera.fov = BASE_FOV + this.fovPunch;
+      this.camera.updateProjectionMatrix();
+    }
 
     // 기본 트랜스폼
     this.camera.position.set(this.sx.x, OFF_Y, this.sx.z + OFF_Z);

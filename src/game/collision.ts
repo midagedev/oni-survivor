@@ -54,6 +54,32 @@ export class SpatialHash {
   }
 }
 
+// (px,pz)에서 maxR 이내 가장 가까운 살아있는 적 인덱스. 없으면 -1.
+export function findNearestEnemy(
+  enemies: { alive: Uint8Array; x: Float32Array; z: Float32Array },
+  hash: SpatialHash,
+  px: number,
+  pz: number,
+  maxR: number,
+  scratch: number[],
+): number {
+  const n = hash.query(px, pz, maxR, scratch);
+  let best = -1;
+  let bestD = maxR * maxR;
+  for (let c = 0; c < n; c++) {
+    const j = scratch[c];
+    if (enemies.alive[j] === 0) continue;
+    const dx = enemies.x[j] - px;
+    const dz = enemies.z[j] - pz;
+    const d2 = dx * dx + dz * dz;
+    if (d2 < bestD) {
+      bestD = d2;
+      best = j;
+    }
+  }
+  return best;
+}
+
 // 점 p가 선분 a→b에서 떨어진 거리의 제곱. 부채꼴/캡슐 판정에 재사용.
 export function distToSegmentSq(
   px: number,

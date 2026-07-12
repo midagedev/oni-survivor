@@ -9,6 +9,7 @@ import {
   CanvasTexture,
   DynamicDrawUsage,
   DoubleSide,
+  AdditiveBlending,
   Vector2,
   Vector3,
   Color,
@@ -25,6 +26,13 @@ export const SPRITE_TILT = -ELEVATION;
 
 const QUAD_W_RATIO = 48 / 64; // 셀 가로/세로 비
 
+// 지면 안개 파라미터 (ground.ts의 FogExp2와 동기화). 오프스크린 선형 버퍼에서
+// 직접 계산해 원거리 스프라이트가 밤의 어둠으로 페이드 → 팝인 방지.
+const FOG_COLOR = new Vector3(0.00018, 0.00026, 0.0008); // 0x05060a 선형
+const FOG_DENSITY = 0.019;
+// 앰비언트 리프트: 라이팅 없는 스프라이트가 어두워 보여 전체 밝기를 올림.
+const AMBIENT_LIFT = 1.15;
+
 // 발이 y=0에 오도록 아래 정렬 후 X축으로 기울인 유닛 쿼드(높이 1).
 function makeUnitSpriteGeometry(): PlaneGeometry {
   const geo = new PlaneGeometry(QUAD_W_RATIO, 1, 1, 1);
@@ -32,6 +40,14 @@ function makeUnitSpriteGeometry(): PlaneGeometry {
   geo.rotateX(SPRITE_TILT); // 발을 축으로 상단이 카메라 반대쪽으로 기울어짐
   return geo;
 }
+
+// 공용 fog GLSL (vertex: vFogDepth 계산 / fragment: exp2 페이드)
+const FOG_PARS_V = 'varying float vFogDepth;';
+const FOG_PARS_F = `
+  varying float vFogDepth;
+  uniform vec3 uFogColor;
+  uniform float uFogDensity;
+`;
 
 const VERT_INSTANCED = /* glsl */ `
   attribute vec2 aUvOffset;
@@ -41,11 +57,14 @@ const VERT_INSTANCED = /* glsl */ `
   varying vec2 vUv;
   varying float vFlash;
   varying vec3 vTint;
+  ${FOG_PARS_V}
   void main() {
     vUv = aUvOffset + uv * uCellUv;
     vFlash = aFlash;
     vTint = aTint;
-    gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+    vec4 mv = modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+    vFogDepth = -mv.z;
+    gl_Position = projectionMatrix * mv;
   }
 `;
 
@@ -53,9 +72,12 @@ const VERT_SINGLE = /* glsl */ `
   uniform vec2 uCellUv;
   uniform vec2 uUvOffset;
   varying vec2 vUv;
+  ${FOG_PARS_V}
   void main() {
     vUv = uUvOffset + uv * uCellUv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vFogDepth = -mv.z;
+    gl_Position = projectionMatrix * mv;
   }
 `;
 
@@ -65,11 +87,14 @@ const FRAG_INSTANCED = /* glsl */ `
   varying vec2 vUv;
   varying float vFlash;
   varying vec3 vTint;
+  ${FOG_PARS_F}
   void main() {
     vec4 tex = texture2D(uMap, vUv);
     if (tex.a < 0.5) discard;
-    vec3 col = pow(tex.rgb, vec3(2.2)) * vTint;
+    vec3 col = pow(tex.rgb, vec3(2.2)) * vTint * ${AMBIENT_LIFT.toFixed(3)};
     col = mix(col, vec3(2.0), vFlash); // 피격 화이트 플래시(HDR로 블룸)
+    float fog = 1.0 - exp(-uFogDensity * uFogDensity * vFogDepth * vFogDepth);
+    col = mix(col, uFogColor, clamp(fog, 0.0, 1.0));
     gl_FragColor = vec4(col, 1.0);
   }
 `;
@@ -78,15 +103,27 @@ const FRAG_SINGLE = /* glsl */ `
   uniform sampler2D uMap;
   uniform float uFlash;
   uniform vec3 uTint;
+  uniform float uPlayer; // 1이면 플레이어 밝기 강화
   varying vec2 vUv;
+  ${FOG_PARS_F}
   void main() {
     vec4 tex = texture2D(uMap, vUv);
     if (tex.a < 0.5) discard;
-    vec3 col = pow(tex.rgb, vec3(2.2)) * uTint;
+    float lift = ${AMBIENT_LIFT.toFixed(3)} * mix(1.0, 1.28, uPlayer);
+    vec3 col = pow(tex.rgb, vec3(2.2)) * uTint * lift;
     col = mix(col, vec3(2.0), uFlash);
+    float fog = 1.0 - exp(-uFogDensity * uFogDensity * vFogDepth * vFogDepth);
+    col = mix(col, uFogColor, clamp(fog, 0.0, 1.0));
     gl_FragColor = vec4(col, 1.0);
   }
 `;
+
+function fogUniforms() {
+  return {
+    uFogColor: { value: FOG_COLOR.clone() },
+    uFogDensity: { value: FOG_DENSITY },
+  };
+}
 
 // 시트별 인스턴스드 스프라이트 렌더러. 프레임마다 begin→push*→end.
 export class InstancedSpriteRenderer {
@@ -119,6 +156,7 @@ export class InstancedSpriteRenderer {
       uniforms: {
         uMap: { value: sheet.texture },
         uCellUv: { value: new Vector2(sheet.cellUvW, sheet.cellUvH) },
+        ...fogUniforms(),
       },
       vertexShader: VERT_INSTANCED,
       fragmentShader: FRAG_INSTANCED,
@@ -180,13 +218,16 @@ export class InstancedSpriteRenderer {
   }
 }
 
-// 단일 스프라이트(플레이어). 인스턴싱과 동일한 UV 수학 재사용.
+// 단일 스프라이트(플레이어/보스). 인스턴싱과 동일한 UV 수학 재사용.
 export class SpriteQuad {
   readonly mesh: Mesh;
   private readonly mat: ShaderMaterial;
+  private halo: Mesh | null = null;
+  private haloMat: ShaderMaterial | null = null;
+  private readonly sheet: SheetInfo;
 
   constructor(sheet: SheetInfo, worldH = SPRITE_WORLD_H) {
-    const geo = makeUnitSpriteGeometry();
+    this.sheet = sheet;
     this.mat = new ShaderMaterial({
       uniforms: {
         uMap: { value: sheet.texture },
@@ -194,6 +235,8 @@ export class SpriteQuad {
         uUvOffset: { value: new Vector2(0, 0) },
         uFlash: { value: 0 },
         uTint: { value: new Color(1, 1, 1) },
+        uPlayer: { value: 0 },
+        ...fogUniforms(),
       },
       vertexShader: VERT_SINGLE,
       fragmentShader: FRAG_SINGLE,
@@ -201,10 +244,54 @@ export class SpriteQuad {
       depthWrite: true,
       depthTest: true,
     });
-    this.mesh = new Mesh(geo, this.mat);
+    this.mesh = new Mesh(makeUnitSpriteGeometry(), this.mat);
     this.mesh.frustumCulled = false;
     this.mesh.scale.setScalar(worldH);
     this.mesh.renderOrder = 2;
+  }
+
+  // 플레이어 강조: 밝기 강화 + 골드 림 헤일로(확대 애디티브 실루엣).
+  setPlayer(on: boolean): void {
+    this.mat.uniforms.uPlayer.value = on ? 1 : 0;
+    if (on && !this.halo) {
+      this.haloMat = new ShaderMaterial({
+        uniforms: {
+          uMap: { value: this.sheet.texture },
+          uCellUv: this.mat.uniforms.uCellUv,
+          uUvOffset: this.mat.uniforms.uUvOffset,
+          uColor: { value: new Color(1.15, 0.85, 0.35) },
+        },
+        vertexShader: /* glsl */ `
+          uniform vec2 uCellUv;
+          uniform vec2 uUvOffset;
+          varying vec2 vUv;
+          void main() {
+            vUv = uUvOffset + uv * uCellUv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: /* glsl */ `
+          uniform sampler2D uMap;
+          uniform vec3 uColor;
+          varying vec2 vUv;
+          void main() {
+            float a = texture2D(uMap, vUv).a;
+            if (a < 0.5) discard;
+            gl_FragColor = vec4(uColor, 1.0);
+          }
+        `,
+        transparent: true,
+        blending: AdditiveBlending,
+        depthWrite: false,
+        depthTest: false,
+      });
+      this.halo = new Mesh(makeUnitSpriteGeometry(), this.haloMat);
+      this.halo.frustumCulled = false;
+      this.halo.scale.setScalar(1.05); // 부모(mesh) 스케일에 곱해짐
+      this.halo.position.y = 0;
+      this.halo.renderOrder = 1; // 본체보다 먼저 그려 테두리만 남음
+      this.mesh.add(this.halo);
+    }
   }
 
   setUv(u: number, v: number): void {
@@ -215,8 +302,16 @@ export class SpriteQuad {
     this.mat.uniforms.uFlash.value = f;
   }
 
+  setTint(r: number, g: number, b: number): void {
+    (this.mat.uniforms.uTint.value as Color).setRGB(r, g, b);
+  }
+
   setPosition(x: number, y: number, z: number): void {
     this.mesh.position.set(x, y, z);
+  }
+
+  setScale(s: number): void {
+    this.mesh.scale.setScalar(s);
   }
 }
 

@@ -16,7 +16,7 @@ import {
 } from 'three';
 
 const PLANE_SIZE = 420;
-const REPEAT = 70;
+const REPEAT = 42;
 const TILE_WORLD = PLANE_SIZE / REPEAT; // 텍스처 한 타일의 월드 크기
 const FIREFLY_COUNT = 240;
 const FIELD_RADIUS = 34;
@@ -116,64 +116,53 @@ export class Ground {
   }
 }
 
-// 수묵 노이즈 얼룩 + 희미한 격자/균열 캔버스 텍스처.
+// 수묵 노이즈 얼룩 + 희미한 균열 캔버스 텍스처(고해상도, 다중 스케일로 반복감 완화).
+// wrap 이음새가 안 보이도록 좌표를 S로 모듈로해 얼룩/균열이 경계를 넘어 반복되게 그린다.
 function makeGroundTexture(): CanvasTexture {
-  const S = 256;
+  const S = 512;
   const cv = document.createElement('canvas');
   cv.width = S;
   cv.height = S;
   const ctx = cv.getContext('2d')!;
 
-  // 베이스
   ctx.fillStyle = '#080a11';
   ctx.fillRect(0, 0, S, S);
 
-  // 노이즈 얼룩
-  for (let i = 0; i < 900; i++) {
-    const x = Math.random() * S;
-    const y = Math.random() * S;
-    const r = 2 + Math.random() * 18;
-    const shade = 8 + Math.random() * 26;
-    ctx.fillStyle = `rgba(${shade},${shade + 4},${shade + 12},0.06)`;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  // 이음새 없는 얼룩: 3×3 타일 위치에 함께 찍어 경계를 매끄럽게
+  const blot = (x: number, y: number, r: number, shade: number, alpha: number) => {
+    for (let ox = -1; ox <= 1; ox++) {
+      for (let oy = -1; oy <= 1; oy++) {
+        ctx.fillStyle = `rgba(${shade},${shade + 4},${shade + 12},${alpha})`;
+        ctx.beginPath();
+        ctx.arc(x + ox * S, y + oy * S, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  };
+  // 다중 스케일 얼룩 (큰 것 → 작은 것)
+  for (let i = 0; i < 40; i++) blot(Math.random() * S, Math.random() * S, 40 + Math.random() * 90, 6 + Math.random() * 14, 0.04);
+  for (let i = 0; i < 240; i++) blot(Math.random() * S, Math.random() * S, 8 + Math.random() * 30, 8 + Math.random() * 26, 0.05);
+  for (let i = 0; i < 900; i++) blot(Math.random() * S, Math.random() * S, 1 + Math.random() * 6, 10 + Math.random() * 30, 0.05);
 
-  // 희미한 격자
-  ctx.strokeStyle = 'rgba(90,110,150,0.05)';
-  ctx.lineWidth = 1;
-  const cells = 4;
-  const step = S / cells;
-  for (let i = 0; i <= cells; i++) {
-    ctx.beginPath();
-    ctx.moveTo(i * step, 0);
-    ctx.lineTo(i * step, S);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(0, i * step);
-    ctx.lineTo(S, i * step);
-    ctx.stroke();
-  }
-
-  // 균열
-  ctx.strokeStyle = 'rgba(20,24,34,0.5)';
-  for (let i = 0; i < 14; i++) {
-    ctx.lineWidth = 0.5 + Math.random() * 1.5;
+  // 균열 (이음새 넘어 이어지게 wrap)
+  ctx.strokeStyle = 'rgba(20,24,34,0.45)';
+  for (let i = 0; i < 22; i++) {
+    ctx.lineWidth = 0.5 + Math.random() * 1.6;
     let x = Math.random() * S;
     let y = Math.random() * S;
     ctx.beginPath();
     ctx.moveTo(x, y);
-    const segs = 3 + (Math.random() * 4) | 0;
+    const segs = 3 + ((Math.random() * 5) | 0);
     for (let s = 0; s < segs; s++) {
-      x += (Math.random() * 2 - 1) * 40;
-      y += (Math.random() * 2 - 1) * 40;
+      x += (Math.random() * 2 - 1) * 55;
+      y += (Math.random() * 2 - 1) * 55;
       ctx.lineTo(x, y);
     }
     ctx.stroke();
   }
 
   const tex = new CanvasTexture(cv);
+  tex.anisotropy = 4;
   tex.needsUpdate = true;
   return tex;
 }
