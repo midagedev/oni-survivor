@@ -58,6 +58,15 @@ const b = await chromium.launch({ args: ['--use-angle=metal', '--autoplay-policy
   log('저장 골드(적립):', saveAfter?.gold, '최고기록:', JSON.stringify(saveAfter?.best));
   await p.screenshot({ path: OUT + '/p3_result.png' });
 
+  // 전과 공유 버튼 → 프리뷰 모달 확인
+  await p.getByText('전과 공유 戰果', { exact: true }).click();
+  await p.waitForTimeout(700);
+  const previewShown = await p.evaluate(() => !!document.querySelector('img[src^="data:image/png"]'));
+  log('공유 프리뷰 모달:', previewShown);
+  await p.screenshot({ path: OUT + '/p3_share.png' });
+  await p.getByText('닫기', { exact: true }).click();
+  await p.waitForTimeout(300);
+
   // 결과 → 본진(타이틀)
   await p.getByText('본진으로 本陣', { exact: true }).click();
   await p.waitForTimeout(500);
@@ -90,6 +99,14 @@ const b = await chromium.launch({ args: ['--use-angle=metal', '--autoplay-policy
   await p.locator('.hero-card').first().click();
   await p.waitForTimeout(600);
   log('재출진 씬:', await scene(), '메타적용 확인 stats:', JSON.stringify(await stats()));
+
+  // 승리 강제(시간 만료) → 업적 달성 토스트 확인
+  await p.evaluate(() => window.__GAME_TEST__.setTime(600));
+  await p.waitForTimeout(600);
+  log('승리 후 씬:', await scene());
+  const winSave = await gsave();
+  log('업적:', JSON.stringify(winSave?.achievements), '누적킬:', winSave?.totalKills, '누적승:', winSave?.totalWins);
+  await p.screenshot({ path: OUT + '/p3_result_win.png' });
 
   const dbg = await p.evaluate(() => window.__DEBUG__?.info());
   log('디버그:', JSON.stringify(dbg));

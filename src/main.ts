@@ -12,6 +12,7 @@ import { audio } from './core/audio';
 import { loadSave, writeSave, updateBest } from './core/save';
 import type { SaveData } from './core/save';
 import { computeMeta, UPGRADE_BY_ID, upgradeCost, LVBU_UNLOCK_COST } from './data/upgrades';
+import { evaluateAchievements, bestTitle } from './data/achievements';
 
 type Scene = 'title' | 'select' | 'run' | 'result' | 'shop' | 'pause';
 
@@ -67,7 +68,7 @@ loadAtlas()
       },
       onResume: () => resumeRun(),
       onAbandon: () => run.abandon(),
-    });
+    }, atlas);
     screens.setMuted(save.muted);
 
     // === 씬 전환 ===
@@ -99,7 +100,7 @@ loadAtlas()
       scene = 'result';
       lastResult = result;
       joystick.setVisible(false);
-      // 골드 적립 + 최고기록 + 보스 도감 저장
+      // 골드 적립 + 최고기록 + 보스 도감 + 누적 통계 저장
       save.gold += result.goldEarned;
       const records = updateBest(save.best, {
         time: result.time,
@@ -108,9 +109,25 @@ loadAtlas()
         combo: result.maxCombo,
       });
       for (const b of result.bosses) if (!save.bosses.includes(b)) save.bosses.push(b);
+      save.totalKills += result.kills;
+      if (result.victory) save.totalWins += 1;
+      // 업적 판정 (결과 확정 시 1회) — 누적 통계 반영, 신규 달성분 저장
+      const earned = evaluateAchievements({
+        victory: result.victory,
+        kills: result.kills,
+        maxCombo: result.maxCombo,
+        time: result.time,
+        level: result.level,
+        bosses: result.bosses,
+        weapons: result.weapons,
+        totalKills: save.totalKills,
+        totalWins: save.totalWins,
+      });
+      const newAchievements = earned.filter((id) => !save.achievements.includes(id));
+      for (const id of newAchievements) save.achievements.push(id);
       writeSave(save);
       audio.playJingle(result.victory ? 'victory' : 'defeat');
-      screens.showResult(result, save, records);
+      screens.showResult(result, save, records, { title: bestTitle(earned), newAchievements });
     }
     function onPause(): void {
       scene = 'pause';
@@ -204,7 +221,16 @@ loadAtlas()
         return scene;
       },
       get save() {
-        return { gold: save.gold, upgrades: { ...save.upgrades }, lvbuUnlocked: save.lvbuUnlocked, best: { ...save.best }, bosses: [...save.bosses] };
+        return {
+          gold: save.gold,
+          upgrades: { ...save.upgrades },
+          lvbuUnlocked: save.lvbuUnlocked,
+          best: { ...save.best },
+          bosses: [...save.bosses],
+          achievements: [...save.achievements],
+          totalKills: save.totalKills,
+          totalWins: save.totalWins,
+        };
       },
       // 런 제어 (기존 유지)
       setTime: (s: number) => run.testSetTime(s),

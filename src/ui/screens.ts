@@ -3,8 +3,17 @@ import { WEAPON_DEFS } from '../data/weapons';
 import { PASSIVE_BY_ID } from '../data/passives';
 import { UPGRADE_DEFS, upgradeCost, LVBU_UNLOCK_COST } from '../data/upgrades';
 import { BOSS_DEFS } from '../game/boss';
+import { ACHIEVEMENT_BY_ID } from '../data/achievements';
+import { openSharePreview } from './shareCard';
 import type { SaveData } from '../core/save';
 import type { RunResult } from '../game/run';
+import type { Atlas } from '../gfx/atlas';
+
+// 결과 확정 시 App이 계산해 넘기는 공유/업적 정보.
+export interface ShareInfo {
+  title: { name: string; hanja: string }; // 공유 카드 대표 칭호
+  newAchievements: string[]; // 이번 런에 새로 달성한 업적 id
+}
 
 // 장수 선택 순서.
 const HERO_ORDER = ['zhaoyun', 'guanyu', 'zhangfei', 'zhugeliang', 'huangzhong', 'lvbu'];
@@ -59,13 +68,15 @@ function heroPortrait(charIndex: number, scale: number): HTMLDivElement {
 // 게임의 모든 메뉴 화면(타이틀/선택/결과/상점/도감/일시정지) + 페이드 전환.
 export class Screens {
   private readonly cb: ScreenCallbacks;
+  private readonly atlas: Atlas; // 공유 카드 초상 렌더용
   private readonly overlay: HTMLDivElement;
   private readonly fade: HTMLDivElement;
   private muted = false;
   current: 'none' | 'title' | 'select' | 'result' | 'shop' | 'pause' = 'none';
 
-  constructor(cb: ScreenCallbacks) {
+  constructor(cb: ScreenCallbacks, atlas: Atlas) {
     this.cb = cb;
+    this.atlas = atlas;
 
     this.fade = el('div');
     this.fade.id = 'fade';
@@ -211,13 +222,29 @@ export class Screens {
   }
 
   // ===== 결과 =====
-  showResult(result: RunResult, save: SaveData, records: { time: boolean; kills: boolean; level: boolean; combo: boolean }): void {
+  showResult(
+    result: RunResult,
+    save: SaveData,
+    records: { time: boolean; kills: boolean; level: boolean; combo: boolean },
+    share: ShareInfo,
+  ): void {
     this.current = 'result';
     this.show(() => {
       const s = el('div', 'screen');
       const win = result.victory;
       s.appendChild(el('div', `result-title ${win ? 'win' : 'lose'}`, win ? '天下統一' : '戰死'));
       s.appendChild(el('div', 'result-sub', win ? '천하통일' : '전사'));
+
+      // 업적 달성 토스트 (새로 달성한 것만)
+      if (share.newAchievements.length > 0) {
+        const names = share.newAchievements
+          .map((id) => ACHIEVEMENT_BY_ID[id])
+          .filter((a) => !!a)
+          .map((a) => `${a.name} ${a.hanja}`)
+          .join(' · ');
+        const toast = el('div', 'ach-toast', `업적 달성! <b>${names}</b>`);
+        s.appendChild(toast);
+      }
 
       const stats = el('div', 'result-stats');
       stats.appendChild(this.stat('생존', fmtTime(result.time), records.time));
@@ -252,6 +279,24 @@ export class Screens {
 
       const row = el('div', 'btn-row');
       row.appendChild(this.button('다시 출진 再出陣', this.cb.onRetry, { primary: true }));
+      row.appendChild(
+        this.button('전과 공유 戰果', () =>
+          openSharePreview(
+            {
+              victory: result.victory,
+              heroId: result.heroId,
+              time: result.time,
+              kills: result.kills,
+              maxCombo: result.maxCombo,
+              level: result.level,
+              goldEarned: result.goldEarned,
+              weapons: result.weapons,
+              title: share.title,
+            },
+            this.atlas,
+          ),
+        ),
+      );
       row.appendChild(this.button('본진으로 本陣', this.cb.onBackToTitle));
       s.appendChild(row);
       this.overlay.appendChild(s);

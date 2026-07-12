@@ -450,6 +450,35 @@ canvas {
   color: #9affc0;
   margin-left: 6px;
 }
+.ach-toast {
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: #ffe9a8;
+  background: rgba(232, 198, 103, 0.12);
+  border: 1px solid rgba(255, 220, 120, 0.5);
+  box-shadow: 0 0 18px rgba(255, 220, 120, 0.25);
+  animation: ach-pop 0.5s ease-out;
+}
+.ach-toast b {
+  color: #fff2c0;
+  font-weight: normal;
+}
+@keyframes ach-pop {
+  0% {
+    transform: scale(0.7) translateY(-8px);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
 .build-summary {
   display: flex;
   gap: 6px;
