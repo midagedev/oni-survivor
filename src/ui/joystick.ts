@@ -68,7 +68,8 @@ export class Joystick {
     this.musouBtn.style.cssText = [
       'position:fixed',
       'right:calc(env(safe-area-inset-right,0px) + 22px)',
-      'bottom:calc(env(safe-area-inset-bottom,0px) + 32px)',
+      // 하단 HP바(중앙)와 겹치지 않도록 위로 띄움 (QA #모바일HUD 겹침 수정)
+      'bottom:calc(env(safe-area-inset-bottom,0px) + 64px)',
       'width:92px',
       'height:92px',
       'border-radius:50%',
