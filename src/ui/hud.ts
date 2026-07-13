@@ -1,4 +1,8 @@
-import { t } from '../core/i18n';
+import { t, getLang } from '../core/i18n';
+
+// 슬롯 프레임 캡 (DESIGN 13.4). run.ts의 MAX_WEAPONS/MAX_PASSIVES와 동일.
+const WEAPON_SLOTS = 6;
+const PASSIVE_SLOTS = 6;
 
 export interface HudState {
   time: number;
@@ -45,11 +49,14 @@ export class Hud {
   private readonly bossFill: HTMLDivElement;
   private readonly bossName: HTMLDivElement;
   private readonly bannerLayer: HTMLDivElement;
+  private readonly quoteLayer: HTMLDivElement; // 전투 중 원군 대사 — 상단(조이스틱 존 회피, #31)
+  private bossActiveNow = false; // 대사 박스 상단 오프셋을 보스바 유무에 맞춰 조정
   private readonly feverEl: HTMLDivElement;
   private feverOn = false;
   private readonly slotBar: HTMLDivElement;
   private readonly bottom: HTMLDivElement;
   private readonly seenSlots = new Set<string>();
+  private weaponsFullSeen = false; // 무기 6칸 만석 배너 1회 트리거용
   private lastCombo = 0;
   private wasReady = false;
   private readonly touch: boolean;
@@ -236,6 +243,23 @@ export class Hud {
     ].join(';');
     document.body.appendChild(this.bannerLayer);
 
+    // 원군 대사 레이어 — 상단 배치(조이스틱/무쌍 버튼이 있는 하단 회피, #31).
+    // top은 보스바 유무에 맞춰 quote()에서 조정. 상단 HUD(z20) 위, 중앙 배너(z32) 아래.
+    this.quoteLayer = document.createElement('div');
+    this.quoteLayer.style.cssText = [
+      'position:fixed',
+      'top:calc(env(safe-area-inset-top,0px) + 96px)',
+      'left:0',
+      'right:0',
+      'display:flex',
+      'justify-content:center',
+      'padding:0 12px',
+      'pointer-events:none',
+      'z-index:21',
+      'font-family:"Nanum Myeongjo","Times New Roman",serif',
+    ].join(';');
+    document.body.appendChild(this.quoteLayer);
+
     // 콤보 피버: 화면 가장자리 금색 불꽃(inset 글로우). opacity 토글.
     this.feverEl = document.createElement('div');
     this.feverEl.style.cssText = [
@@ -274,22 +298,29 @@ export class Hud {
     if (!v) {
       this.comboEl.style.display = 'none';
       this.bossWrap.style.display = 'none';
-      this.bannerLayer.querySelectorAll('.battle-quote').forEach((el) => el.remove());
+      this.quoteLayer.textContent = '';
       this.setFever(false);
     }
   }
 
   // 무기/패시브 슬롯 갱신 (변경 시에만 호출 → 프레임당 할당 회피). 신규 슬롯은 반짝임.
+  // 좌상단은 무기 6칸/패시브 6칸 고정 프레임 — 빈칸이 보여 "채워간다/꽉 찼다"가 체감된다(DESIGN 13.4).
   setLoadout(weapons: SlotView[], passives: SlotView[]): void {
     const wRow = (this.slotBar as unknown as { _w: HTMLDivElement })._w;
     const pRow = (this.slotBar as unknown as { _p: HTMLDivElement })._p;
-    this.renderSlots(wRow, weapons);
-    this.renderSlots(pRow, passives);
+    this.renderSlots(wRow, weapons, WEAPON_SLOTS);
+    this.renderSlots(pRow, passives, PASSIVE_SLOTS);
+    // 무기 슬롯 만석 최초 도달 → "병법 만진" 배너 1회 (한자 공통, 라벨만 언어별).
+    if (!this.weaponsFullSeen && weapons.length >= WEAPON_SLOTS) {
+      this.weaponsFullSeen = true;
+      const label = getLang() === 'en' ? 'Full Arsenal' : '병법 만진';
+      this.banner(`${label} 兵法滿陣`, '#e8c667', 54, 1700);
+    }
   }
 
-  private renderSlots(row: HTMLDivElement, slots: SlotView[]): void {
-    // 슬롯 엘리먼트 개수 맞추기 (glyph span + level span 구조 유지)
-    while (row.children.length < slots.length) {
+  private renderSlots(row: HTMLDivElement, slots: SlotView[], cap: number): void {
+    // 고정 cap칸: 빈칸도 프레임을 유지한다. (셀은 최초 1회 생성, 이후 재사용 → 프레임당 할당 없음)
+    while (row.children.length < cap) {
       const el = document.createElement('div');
       el.style.cssText = [
         'position:relative',
@@ -301,9 +332,8 @@ export class Hud {
         'justify-content:center',
         'font-size:16px',
         'font-family:"Nanum Myeongjo",serif',
-        'background:rgba(14,15,21,0.8)',
-        'border:1px solid rgba(232,198,103,0.4)',
         'box-shadow:0 1px 4px rgba(0,0,0,0.6)',
+        'transition:border-color 0.2s,background 0.2s',
       ].join(';');
       const glyph = document.createElement('span');
       const lv = document.createElement('span');
@@ -313,31 +343,47 @@ export class Hud {
       el.appendChild(lv);
       row.appendChild(el);
     }
-    while (row.children.length > slots.length) row.removeChild(row.lastChild!);
-    for (let i = 0; i < slots.length; i++) {
-      const s = slots[i];
+    for (let i = 0; i < cap; i++) {
       const el = row.children[i] as HTMLDivElement;
       const glyph = el.children[0] as HTMLSpanElement;
       const lvEl = el.children[1] as HTMLSpanElement;
-      el.style.borderColor = s.accent;
-      glyph.style.color = s.accent;
-      glyph.textContent = s.glyph;
-      lvEl.textContent = String(s.level);
-      if (!this.seenSlots.has(s.id)) {
-        this.seenSlots.add(s.id);
-        el.animate(
-          [
-            { transform: 'scale(1.6)', filter: 'brightness(2.2)' },
-            { transform: 'scale(1)', filter: 'brightness(1)' },
-          ],
-          { duration: 420, easing: 'ease-out' },
-        );
+      const s = slots[i];
+      if (s) {
+        el.style.borderStyle = 'solid';
+        el.style.borderWidth = '1px';
+        el.style.borderColor = s.accent;
+        el.style.background = 'rgba(14,15,21,0.8)';
+        glyph.style.color = s.accent;
+        glyph.textContent = s.glyph;
+        lvEl.style.display = '';
+        lvEl.textContent = String(s.level);
+        if (!this.seenSlots.has(s.id)) {
+          this.seenSlots.add(s.id);
+          el.animate(
+            [
+              { transform: 'scale(1.6)', filter: 'brightness(2.2)' },
+              { transform: 'scale(1)', filter: 'brightness(1)' },
+            ],
+            { duration: 420, easing: 'ease-out' },
+          );
+        }
+      } else {
+        // 빈칸: 점선 프레임 + 희미한 중앙 점 (본체를 압도하지 않게 절제).
+        el.style.borderStyle = 'dashed';
+        el.style.borderWidth = '1px';
+        el.style.borderColor = 'rgba(232,198,103,0.16)';
+        el.style.background = 'rgba(10,11,16,0.4)';
+        glyph.style.color = 'rgba(232,198,103,0.22)';
+        glyph.textContent = '·';
+        lvEl.style.display = 'none';
+        lvEl.textContent = '';
       }
     }
   }
 
   resetSlots(): void {
     this.seenSlots.clear();
+    this.weaponsFullSeen = false;
     const wRow = (this.slotBar as unknown as { _w: HTMLDivElement })._w;
     const pRow = (this.slotBar as unknown as { _p: HTMLDivElement })._p;
     wRow.textContent = '';
@@ -393,6 +439,11 @@ export class Hud {
     } else {
       this.bossWrap.style.display = 'none';
     }
+    // 보스바가 뜨면 상단 대사 박스를 그만큼 아래로 (겹침 방지, #31).
+    if (s.bossActive !== this.bossActiveNow) {
+      this.bossActiveNow = s.bossActive;
+      this.quoteLayer.style.top = `calc(env(safe-area-inset-top,0px) + ${s.bossActive ? 164 : 96}px)`;
+    }
   }
 
   punchLevel(): void {
@@ -437,46 +488,44 @@ export class Hud {
     anim.onfinish = () => el.remove();
   }
 
-  // 전투 중 짧은 원군 대사. 중앙 경고 배너와 겹치지 않게 화면 아래쪽에 둔다.
+  // 전투 중 짧은 원군 대사. 조이스틱/무쌍 버튼이 있는 하단을 피해 상단(quoteLayer)에 둔다(#31).
+  // top은 update()가 보스바 유무에 맞춰 조정 → 상단 HUD/보스바와 비겹침, 중앙 배너와도 분리.
   quote(name: string, line: string, durationMs = 3600): void {
     if (!line) return;
-    this.bannerLayer.querySelectorAll('.battle-quote').forEach((el) => el.remove());
+    this.quoteLayer.textContent = ''; // 이전 대사 교체
     const el = document.createElement('div');
     el.className = 'battle-quote';
     el.style.cssText = [
-      'position:absolute',
-      'bottom:max(16%,110px)',
-      'left:50%',
-      'transform:translateX(-50%)',
-      'width:min(760px,86vw)',
-      'padding:12px 18px',
+      'width:min(680px,92vw)',
+      'padding:10px 16px',
       'border:1px solid rgba(126,200,255,0.45)',
       'border-radius:10px',
-      'background:linear-gradient(90deg,rgba(8,14,24,0.9),rgba(15,25,38,0.82))',
-      'box-shadow:0 0 24px rgba(80,160,240,0.2)',
+      'background:linear-gradient(90deg,rgba(8,14,24,0.92),rgba(15,25,38,0.86))',
+      'box-shadow:0 4px 22px rgba(0,0,0,0.5),0 0 20px rgba(80,160,240,0.16)',
       'display:flex',
-      'gap:12px',
-      'align-items:center',
+      'gap:10px',
+      'align-items:baseline',
       'color:#e9f4ff',
-      'font-size:min(16px,3.7vw)',
+      'font-size:min(15px,3.6vw)',
       'letter-spacing:0.4px',
       'white-space:normal',
     ].join(';');
     const who = document.createElement('b');
     who.textContent = name;
-    who.style.cssText = 'color:#7ec8ff;white-space:nowrap;letter-spacing:2px;';
+    who.style.cssText = 'color:#7ec8ff;white-space:nowrap;letter-spacing:2px;flex-shrink:0;';
     const lineEl = document.createElement('span');
     lineEl.textContent = `“${line}”`;
-    lineEl.style.cssText = 'line-height:1.45;';
+    lineEl.style.cssText = 'line-height:1.4;';
     el.appendChild(who);
     el.appendChild(lineEl);
-    this.bannerLayer.appendChild(el);
+    this.quoteLayer.appendChild(el);
+    // 위에서 미끄러져 들어오고, 잠깐 머문 뒤 위로 사라짐.
     const anim = el.animate(
       [
-        { transform: 'translateX(-50%) translateY(12px)', opacity: 0 },
-        { transform: 'translateX(-50%) translateY(0)', opacity: 1, offset: 0.15 },
-        { transform: 'translateX(-50%) translateY(0)', opacity: 1, offset: 0.82 },
-        { transform: 'translateX(-50%) translateY(-6px)', opacity: 0 },
+        { transform: 'translateY(-12px)', opacity: 0 },
+        { transform: 'translateY(0)', opacity: 1, offset: 0.15 },
+        { transform: 'translateY(0)', opacity: 1, offset: 0.82 },
+        { transform: 'translateY(-6px)', opacity: 0 },
       ],
       { duration: durationMs, easing: 'ease-out' },
     );

@@ -406,6 +406,80 @@ canvas {
   margin-top: 4px;
 }
 
+/* 병법(무기) 도감 + 진화 비전 (DESIGN 13.1/13.3) */
+.wpn-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+.wpn-cell {
+  padding: 10px 12px;
+  border: 1px solid #3a3f4d;
+  border-radius: 10px;
+  background: rgba(14, 15, 21, 0.7);
+  text-align: left;
+}
+.wpn-cell.evo {
+  border-color: #6b4a2e;
+  background: rgba(28, 18, 10, 0.7);
+  box-shadow: 0 0 14px rgba(255, 154, 60, 0.12);
+}
+/* 미해금 무기 실루엣 (#32 해금 데이터 도착 시 사용) */
+.wpn-cell.locked {
+  opacity: 0.55;
+  border-style: dashed;
+  border-color: #2b2f39;
+}
+.wpn-cell .wpn-name {
+  font-size: 14.5px;
+  color: #f0e4c0;
+}
+.wpn-cell.evo .wpn-name {
+  color: #ffcf8a;
+}
+.wpn-cell.locked .wpn-name {
+  color: #6b7080;
+}
+.wpn-cell .wpn-name .wh {
+  font-size: 12px;
+  color: #e8c667;
+  margin-left: 4px;
+}
+.wpn-cell.evo .wpn-name .wh {
+  color: #ff9a3c;
+}
+.wpn-cell .wpn-desc {
+  font-size: 11.5px;
+  color: #b6bac6;
+  margin-top: 3px;
+  line-height: 1.4;
+}
+.wpn-cell .wpn-recipe {
+  font-size: 11.5px;
+  color: #ffcf8a;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 154, 60, 0.2);
+  letter-spacing: 0.5px;
+}
+.wpn-cell .wpn-recipe b {
+  color: #ffe9a8;
+  font-weight: normal;
+}
+/* 미해금 조건 텍스트 (#32) */
+.wpn-cell .wpn-cond {
+  font-size: 11px;
+  color: #7f8496;
+  margin-top: 5px;
+}
+.weapon-unlock-toast {
+  color: #ffd9a8;
+  background: rgba(255, 154, 60, 0.12);
+  border-color: rgba(255, 180, 90, 0.5);
+  box-shadow: 0 0 18px rgba(255, 154, 60, 0.22);
+}
+
 /* 업적 목록 */
 .ach-grid {
   display: grid;
@@ -671,6 +745,41 @@ canvas {
   opacity: 0.85;
   text-align: center;
 }
+/* 슬롯 카운트 병기 ("무기 4/6") — 태그 옆 절제된 핀 (DESIGN 13.4) */
+.lc-count {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: 0.92em;
+  letter-spacing: 1px;
+  color: #d8dae2;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-variant-numeric: tabular-nums;
+}
+.lc-count.full {
+  color: #ffe9a8;
+  background: rgba(232, 198, 103, 0.16);
+  border-color: rgba(255, 220, 120, 0.45);
+}
+/* 진화 임박 서브텍스트 ("進化 임박 — 현철갑주 필요") — 빌드 목표 가시화 (DESIGN 13.3) */
+.lc-evohint {
+  font-size: clamp(9.5px, 1.5vh, 11.5px);
+  line-height: 1.35;
+  letter-spacing: 0.5px;
+  color: #ffcf8a;
+  text-align: center;
+  padding: 3px 6px;
+  border-radius: 7px;
+  background: rgba(255, 154, 60, 0.1);
+  border: 1px dashed rgba(255, 180, 90, 0.4);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
 .lc-title {
   color: #f0e4c0;
   font-size: clamp(15px, 2.6vh, 20px);
@@ -733,7 +842,8 @@ canvas {
   }
   .hero-grid,
   .codex-grid,
-  .ach-grid {
+  .ach-grid,
+  .wpn-grid {
     grid-template-columns: repeat(2, 1fr);
   }
   .records {

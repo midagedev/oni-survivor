@@ -14,6 +14,7 @@ import type { SaveData } from './core/save';
 import { computeMeta, UPGRADE_BY_ID, upgradeCost, LVBU_UNLOCK_COST } from './data/upgrades';
 import { evaluateAchievements, bestTitle } from './data/achievements';
 import { isHeroUnlocked, unlockedHeroIds } from './data/heroUnlocks';
+import { unlockedWeaponIds } from './data/weaponUnlocks';
 
 type Scene = 'title' | 'select' | 'run' | 'result' | 'shop' | 'pause';
 
@@ -131,10 +132,13 @@ loadAtlas()
       const newAchievements = earned.filter((id) => !save.achievements.includes(id));
       for (const id of newAchievements) save.achievements.push(id);
       const newHeroes = unlockedHeroIds(save).filter((id) => !unlockedBefore.has(id));
+      // 무기(병법) 해금 판정 — save에서 파생(단조 증가), 신규분만 토스트 (DESIGN 13.1)
+      const newWeapons = unlockedWeaponIds(save).filter((id) => !save.unlockedWeapons.includes(id));
+      for (const id of newWeapons) save.unlockedWeapons.push(id);
       writeSave(save);
       audio.playJingle(result.victory ? 'victory' : 'defeat');
-      if (newAchievements.length > 0) audio.sfx('achievement');
-      screens.showResult(result, save, records, { title: bestTitle(earned), newAchievements, newHeroes });
+      if (newAchievements.length > 0 || newWeapons.length > 0) audio.sfx('achievement');
+      screens.showResult(result, save, records, { title: bestTitle(earned), newAchievements, newHeroes, newWeapons });
     }
     function onPause(): void {
       scene = 'pause';

@@ -12,6 +12,8 @@ export interface CardView {
   symbol: string; // 심볼 글자(한자 1자) — CSS 원형에 표시
   badge?: string; // 뱃지 텍스트 (신규/강화/진화)
   rare?: boolean; // 희귀(진화 가능/희귀 패시브) → 금테
+  count?: string; // 슬롯 카운트 병기 ("무기 4/6" 등) — 만석 선택압 체감(DESIGN 13.4)
+  evoHint?: string; // 진화 임박 서브텍스트 ("進化 임박 — 현철갑주 필요") — 빌드 목표 가시화(DESIGN 13.3)
 }
 
 export class LevelUp {
@@ -85,13 +87,19 @@ export class LevelUp {
         const badge = c.badge
           ? `<div class="lc-badge" style="background:${c.accent}22;color:${c.accent};border-color:${c.accent}66;">${c.badge}</div>`
           : '';
+        // 카운트가 N/N(만석)이면 금색 강조로 "꽉 찼다"를 부각(DESIGN 13.4).
+        const cm = c.count ? /(\d+)\s*\/\s*(\d+)/.exec(c.count) : null;
+        const full = cm ? cm[1] === cm[2] : false;
+        const count = c.count ? `<span class="lc-count${full ? ' full' : ''}">${c.count}</span>` : '';
+        const evoHint = c.evoHint ? `<div class="lc-evohint">${c.evoHint}</div>` : '';
         el.innerHTML =
           badge +
           `<div class="lc-symbol" style="color:${c.accent};border-color:${c.accent};box-shadow:0 0 14px ${c.accent}55;">${c.symbol}</div>` +
-          `<div class="lc-tag" style="color:${c.accent};">${c.tag}</div>` +
+          `<div class="lc-tag" style="color:${c.accent};">${c.tag}${count}</div>` +
           `<div class="lc-title">${c.title}</div>` +
           `<div class="lc-hanja" style="color:${c.accent};">${c.hanja}</div>` +
           `<div class="lc-desc">${c.desc}</div>` +
+          evoHint +
           `<div class="lc-num">${i + 1}</div>`;
         // 순차 슬라이드+스케일 등장
         el.animate(

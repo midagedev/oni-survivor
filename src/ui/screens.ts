@@ -1,11 +1,12 @@
 import { HEROES } from '../data/heroes';
-import { WEAPON_DEFS } from '../data/weapons';
+import { WEAPON_DEFS, EVOLUTIONS } from '../data/weapons';
 import { PASSIVE_BY_ID } from '../data/passives';
 import { UPGRADE_DEFS, upgradeCost, LVBU_UNLOCK_COST } from '../data/upgrades';
 import { BOSS_DEFS } from '../game/boss';
 import { ACHIEVEMENT_BY_ID, ACHIEVEMENTS } from '../data/achievements';
 import { anyRandomLine, dialogueSelect } from '../data/dialogue';
 import { heroUnlockText, isHeroUnlocked } from '../data/heroUnlocks';
+import { WEAPON_UNLOCK_ORDER, isWeaponUnlocked, weaponUnlockText } from '../data/weaponUnlocks';
 import { t, getLang, toggleLang, onLangChange, nameOf, WEAPON_DESC_EN, ACH_EN, HERO_BONUS_EN, HERO_MUSOU_EN } from '../core/i18n';
 import { openSharePreview } from './shareCard';
 import type { SaveData } from '../core/save';
@@ -17,10 +18,11 @@ export interface ShareInfo {
   title: { name: string; hanja: string }; // 공유 카드 대표 칭호
   newAchievements: string[]; // 이번 런에 새로 달성한 업적 id
   newHeroes: string[]; // 이번 런 결과로 새로 열린 장수 id
+  newWeapons?: string[]; // 이번 런 결과로 새로 해금된 무기 id (DESIGN 13.1)
 }
 
 // 장수 선택 순서.
-const HERO_ORDER = ['zhaoyun', 'guanyu', 'zhangfei', 'zhugeliang', 'huangzhong', 'lvbu'];
+const HERO_ORDER = ['zhaoyun', 'guanyu', 'sunshangxiang', 'zhangfei', 'zhugeliang', 'huangzhong', 'lvbu'];
 // 도감 보스 순서.
 const BOSS_ORDER = ['yuanshao', 'dongzhuo', 'lvbu'];
 
@@ -57,7 +59,7 @@ function heroPortrait(charIndex: number, scale: number): HTMLDivElement {
   const base = import.meta.env.BASE_URL + 'assets/sprites/sgrade.png';
   const cellW = 48;
   const cellH = 64;
-  const sheetW = 80 * cellW; // 3840
+  const sheetW = 84 * cellW; // 4032 — sgrade 시트 열 수(manifest cols)와 일치해야 함
   const sheetH = 4 * cellH; // 256
   const x = charIndex * 4 * cellW; // 블록 원점(정면 idle = 열0, 행0)
   const d = el('div', 'hero-portrait');
@@ -252,6 +254,7 @@ export class Screens {
       zhangfei: '무쌍 장판교 포효 — 전화면 스턴',
       zhugeliang: '무쌍 천뢰소환 — 낙뢰 폭풍',
       huangzhong: '무쌍 백보천양 — 전방위 화살',
+      sunshangxiang: '무쌍 홍련난무 — 붉은 화살 폭풍',
       lvbu: '무쌍 적토무쌍 — 조작 가능 무적 돌진',
     };
     return map[id] ?? '무쌍난무';
@@ -288,6 +291,17 @@ export class Screens {
           .filter((x): x is string => !!x)
           .join(' · ');
         s.appendChild(el('div', 'ach-toast hero-unlock-toast', `${t('heroUnlockGet')} <b>${names}</b>`));
+      }
+      // 신규 병법(무기) 해금 토스트 (DESIGN 13.1) — 라벨만 언어별, 무기명 nameOf/한자 공통.
+      if (share.newWeapons && share.newWeapons.length > 0) {
+        const names = share.newWeapons
+          .map((id) => (WEAPON_DEFS[id] ? `${nameOf('weapon', id, WEAPON_DEFS[id].name)} ${WEAPON_DEFS[id].hanja}` : null))
+          .filter((x): x is string => !!x)
+          .join(' · ');
+        if (names) {
+          const label = getLang() === 'en' ? 'New tactic unlocked' : '신규 병법 해금';
+          s.appendChild(el('div', 'ach-toast weapon-unlock-toast', `${label} — <b>${names}</b>`));
+        }
       }
 
       const stats = el('div', 'result-stats');
@@ -474,13 +488,56 @@ export class Screens {
     }
     wrap.appendChild(grid);
 
+    // 병법(무기) 도감 — 보유 병법 + 진화 비전 (DESIGN 13.1/13.3)
+    const en = getLang() === 'en';
+    wrap.appendChild(el('div', 'controls-hint', en ? 'Tactics Codex 兵法' : '병법 도감 兵法'));
+    const wpnGrid = el('div', 'wpn-grid');
+    for (const id in WEAPON_DEFS) {
+      const d = WEAPON_DEFS[id];
+      if (d.evolution) continue; // 진화 무기는 아래 비전 섹션에서 레시피로
+      // 미해금 무기는 실루엣(???)+조건 텍스트로 노출(욕망 설계, DESIGN 13.1).
+      const locked = WEAPON_UNLOCK_ORDER.includes(id) && !isWeaponUnlocked(id, save);
+      const cell = el('div', locked ? 'wpn-cell locked' : 'wpn-cell');
+      if (locked) {
+        cell.appendChild(el('div', 'wpn-name', '？？？'));
+        cell.appendChild(el('div', 'wpn-cond', weaponUnlockText(id, save)));
+      } else {
+        cell.appendChild(el('div', 'wpn-name', `${nameOf('weapon', id, d.name)} <span class="wh">${d.hanja}</span>`));
+        cell.appendChild(el('div', 'wpn-desc', en ? WEAPON_DESC_EN[id] ?? d.desc : d.desc));
+      }
+      wpnGrid.appendChild(cell);
+    }
+    wrap.appendChild(wpnGrid);
+
+    // 진화 비전(레시피): 베이스 MAX + 파트너 패시브 → 진화 무기
+    wrap.appendChild(el('div', 'controls-hint', en ? 'Evolutions 秘傳' : '진화 비전 秘傳'));
+    const maxLabel = en ? 'MAX' : 'MAX';
+    const evoGrid = el('div', 'wpn-grid');
+    for (const rule of EVOLUTIONS) {
+      const to = WEAPON_DEFS[rule.to];
+      const from = WEAPON_DEFS[rule.from];
+      const pas = PASSIVE_BY_ID[rule.passive];
+      if (!to || !from || !pas) continue;
+      const cell = el('div', 'wpn-cell evo');
+      cell.appendChild(el('div', 'wpn-name', `${nameOf('weapon', rule.to, to.name)} <span class="wh">${to.hanja}</span>`));
+      cell.appendChild(el('div', 'wpn-desc', en ? WEAPON_DESC_EN[rule.to] ?? to.desc : to.desc));
+      cell.appendChild(
+        el(
+          'div',
+          'wpn-recipe',
+          `${nameOf('weapon', rule.from, from.name)} <b>${maxLabel}</b> + ${nameOf('passive', rule.passive, pas.name)}`,
+        ),
+      );
+      evoGrid.appendChild(cell);
+    }
+    wrap.appendChild(evoGrid);
+
     // 업적 목록 (이름/설명 언어별, 한자 공통)
     const earned = save.achievements ?? [];
     wrap.appendChild(el('div', 'controls-hint', `${t('achSection')} (${earned.length}/${ACHIEVEMENTS.length})`));
     const achGrid = el('div', 'ach-grid');
     for (const a of ACHIEVEMENTS) {
       const done = earned.includes(a.id);
-      const en = getLang() === 'en';
       const aName = en ? ACH_EN[a.id]?.name ?? a.name : a.name;
       const aDesc = en ? ACH_EN[a.id]?.desc ?? a.desc : a.desc;
       const cell = el('div', done ? 'ach-cell done' : 'ach-cell');

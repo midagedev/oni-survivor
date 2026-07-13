@@ -1267,12 +1267,24 @@ export class Run {
     const en = getLang() === 'en';
     if (c.kind === 'newWeapon') {
       const d = WEAPON_DEFS[c.id];
-      return { title: nameOf('weapon', c.id, d.name), hanja: d.hanja, desc: en ? WEAPON_DESC_EN[c.id] ?? d.desc : d.desc, tag: `${t('catWeapon')} · ${t('tagNew')}`, accent: '#e8c667', symbol: d.hanja[0], badge: t('tagNew') };
+      return { title: nameOf('weapon', c.id, d.name), hanja: d.hanja, desc: en ? WEAPON_DESC_EN[c.id] ?? d.desc : d.desc, tag: `${t('catWeapon')} · ${t('tagNew')}`, accent: '#e8c667', symbol: d.hanja[0], badge: t('tagNew'), count: `${en ? 'Weapons' : '무기'} ${this.weapons.length}/${MAX_WEAPONS}` };
     }
     if (c.kind === 'upWeapon') {
       const d = WEAPON_DEFS[c.id];
       const w = this.weapons.find((x) => x.id === c.id)!;
       const willMax = w.level + 1 >= 8;
+      // 진화 임박 힌트(DESIGN 13.3): MAX 도달 시 파트너 패시브 보유 여부로 레시피 노출
+      let evoHint: string | undefined;
+      if (willMax) {
+        const rule = EVOLUTIONS.find((r) => r.from === c.id);
+        if (rule && !this.weapons.some((x) => x.id === rule.to)) {
+          const pName = nameOf('passive', rule.passive, PASSIVE_BY_ID[rule.passive]?.name ?? rule.passive);
+          const hasPartner = (this.passives[rule.passive] ?? 0) >= 1;
+          evoHint = hasPartner
+            ? (en ? 'Evolution ready · elite chest 進化' : '進化 준비 완료 · 정예 보물상자')
+            : (en ? `Evolve soon · needs ${pName} 進化` : `進化 임박 · ${pName} 필요`);
+        }
+      }
       return {
         title: nameOf('weapon', c.id, d.name),
         hanja: d.hanja,
@@ -1282,16 +1294,18 @@ export class Run {
         symbol: d.hanja[0],
         badge: willMax ? t('tagMax') : t('tagUp'),
         rare: willMax, // Lv8 도달 → 진화 조건 근접 강조
+        count: `${en ? 'Weapons' : '무기'} ${this.weapons.length}/${MAX_WEAPONS}`,
+        evoHint,
       };
     }
     if (c.kind === 'newPassive') {
       const d = PASSIVE_BY_ID[c.id];
-      return { title: nameOf('passive', c.id, d.name), hanja: d.hanja, desc: d.desc(1), tag: `${t('catPassive')} · ${t('tagNew')}`, accent: '#7ec8ff', symbol: d.hanja[0], badge: t('tagNew'), rare: d.rare };
+      return { title: nameOf('passive', c.id, d.name), hanja: d.hanja, desc: d.desc(1), tag: `${t('catPassive')} · ${t('tagNew')}`, accent: '#7ec8ff', symbol: d.hanja[0], badge: t('tagNew'), rare: d.rare, count: `${en ? 'Passives' : '패시브'} ${Object.keys(this.passives).length}/${MAX_PASSIVES}` };
     }
     if (c.kind === 'upPassive') {
       const d = PASSIVE_BY_ID[c.id];
       const lvl = this.passives[c.id];
-      return { title: nameOf('passive', c.id, d.name), hanja: d.hanja, desc: d.desc(lvl + 1), tag: `${t('catPassive')} ${t('tagUp')} Lv${lvl}→${lvl + 1}`, accent: '#7ec8ff', symbol: d.hanja[0], badge: t('tagUp'), rare: d.rare };
+      return { title: nameOf('passive', c.id, d.name), hanja: d.hanja, desc: d.desc(lvl + 1), tag: `${t('catPassive')} ${t('tagUp')} Lv${lvl}→${lvl + 1}`, accent: '#7ec8ff', symbol: d.hanja[0], badge: t('tagUp'), rare: d.rare, count: `${en ? 'Passives' : '패시브'} ${Object.keys(this.passives).length}/${MAX_PASSIVES}` };
     }
     if (c.kind === 'relic') {
       const d = RELIC_BY_ID[c.id];
