@@ -256,6 +256,7 @@ const NAME_EN: Record<'hero' | 'weapon' | 'passive' | 'upgrade', Record<string, 
     zhangfei: 'Zhang Fei',
     zhugeliang: 'Zhuge Liang',
     huangzhong: 'Huang Zhong',
+    sunshangxiang: 'Sun Shangxiang',
     lvbu: 'Lü Bu',
     yuanshao: 'Yuan Shao',
     dongzhuo: 'Dong Zhuo',
@@ -344,6 +345,7 @@ export const HERO_BONUS_EN: Record<string, string> = {
   zhangfei: 'Max HP +25%',
   zhugeliang: 'Cooldown -10%',
   huangzhong: 'Range & projectile speed +20%',
+  sunshangxiang: 'Range & projectile speed +15%, move speed +10%',
   lvbu: 'Attack +25%, damage taken +25%',
 };
 
@@ -354,5 +356,6 @@ export const HERO_MUSOU_EN: Record<string, string> = {
   zhangfei: 'Musou · Roar of Changban — full-screen stun',
   zhugeliang: 'Musou · Heavenly Thunder — lightning storm',
   huangzhong: 'Musou · Hundred-Pace Volley — omnidirectional arrows',
+  sunshangxiang: 'Musou · Crimson Lotus Dance — storm of red arrows',
   lvbu: 'Musou · Red Hare Rampage — steerable invincible dash',
 };

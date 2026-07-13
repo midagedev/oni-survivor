@@ -110,6 +110,24 @@ export const HEROES: Record<string, HeroDef> = {
     bonusText: '사거리·투사체속도 +20%',
     musou: 'huangzhong',
   },
+  sunshangxiang: {
+    id: 'sunshangxiang',
+    name: '손상향',
+    hanja: '孫尚香',
+    sheet: 'sgrade',
+    charIndex: 20,
+    baseHp: 90,
+    baseSpeed: 5.3,
+    speedMul: 1.1, // 이동속도 +10%
+    damageMul: 1,
+    maxHpMul: 1,
+    cooldownMul: 1,
+    rangeMul: 1.15, // 사거리·투사체속도 +15% (궁술)
+    dmgTakenMul: 1,
+    startWeapon: 'twinring', // 쌍륜 雙輪 (roster.ts TwinringWeapon)
+    bonusText: '사거리·투사체속도 +15%, 이동속도 +10%',
+    musou: 'sunshangxiang',
+  },
   lvbu: {
     id: 'lvbu',
     name: '여포',

@@ -23,7 +23,7 @@
  "sheets": {
   "sgrade": {
    "file": "sgrade.png",
-   "cols": 80,
+   "cols": 84,
    "rows": 4,
    "chars": {
     "caocao": 0,
@@ -45,7 +45,8 @@
     "zhangliao": 16,
     "zhaoyun": 17,
     "zhouyu": 18,
-    "zhugeliang": 19
+    "zhugeliang": 19,
+    "sunshangxiang": 20
    }
   },
   "apriority": {
@@ -1364,6 +1365,7 @@
   "merchant": "상인",
   "worker": "인부",
   "guard": "수문병",
-  "runner": "전령"
+  "runner": "전령",
+  "sunshangxiang": "손상향"
  }
 }

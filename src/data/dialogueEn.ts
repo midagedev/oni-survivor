@@ -275,4 +275,22 @@ export const DIALOGUE_EN: Record<string, CharDialogueEn> = {
       'At night I beat the sand of Mount Bailang from my bow-case.',
     ],
   },
+  sunshangxiang: {
+    name: 'Sun Shangxiang',
+    select: 'A daughter of the Sun house belongs at the archery range, not the inner chambers.',
+    lines: [
+      'Elder brother Sun Ce’s daring, younger brother Sun Quan’s composure — both ride on my arrows.',
+      'My handmaids wore blades, not trinkets. My chambers were a barracks.',
+      'The moment I draw the bow, no one calls me princess.',
+      'What I aim at, I strike. If it missed, I never truly aimed.',
+      'My brothers built Jiangdong, but guarding it is not for men alone.',
+      'Even if I am wed away to Jing Province, this bow stays at my side.',
+      'Men gawk at my bow. They would do better to string their own.',
+      'An arrow does not hesitate. Neither do I.',
+      'At dawn I restring the bow and check the calluses on my fingertips.',
+      'At noon I read the grain of the river wind and reset my aim.',
+      'At dusk I send word of my brothers on the fletching of an arrow.',
+      'At night I keep my bow at my pillow and sleep light.',
+    ],
+  },
 };

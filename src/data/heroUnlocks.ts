@@ -7,12 +7,13 @@ export interface HeroUnlockProgress {
   lvbuUnlocked: boolean;
 }
 
-export const HERO_UNLOCK_ORDER = ['zhaoyun', 'guanyu', 'zhangfei', 'zhugeliang', 'huangzhong', 'lvbu'];
+export const HERO_UNLOCK_ORDER = ['zhaoyun', 'guanyu', 'sunshangxiang', 'zhangfei', 'zhugeliang', 'huangzhong', 'lvbu'];
 
 export function isHeroUnlocked(id: string, progress: HeroUnlockProgress): boolean {
   switch (id) {
     case 'zhaoyun':
     case 'guanyu':
+    case 'sunshangxiang': // 기본 해금 (처음부터 선택 가능)
       return true;
     case 'zhangfei':
       return progress.totalKills >= 100;
