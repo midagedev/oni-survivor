@@ -23,6 +23,7 @@ export const PK_TALISMAN = 1;
 export const PK_SLASHWAVE = 2;
 export const PK_ORB = 3;
 export const PK_CAVALRY = 4;
+export const PK_FIRE_ARROW = 5; // 원융노(진화) 화염 화살
 
 // 플레이어 투사체 풀. SoA 시뮬 + 지면정렬 발광 쿼드 InstancedMesh 렌더.
 // 관통/유도/궤도(팔진도)/기마(서량철기) 모드를 하나로 처리.
@@ -137,11 +138,17 @@ export class ProjectilePool {
             float disc = smoothstep(1.0, 0.0, r);
             float swirl = 0.5 + 0.5 * sin(atan(p.y, p.x) * 2.0 + uTime * 6.0 + r * 4.0);
             b = disc * (0.6 + 0.5 * swirl);
-          } else {
+          } else if (vKind < 4.5) {
             // 기마 돌격: 길고 강한 스트릭
             float body = smoothstep(1.0, 0.2, across);
             float streak = smoothstep(0.0, 0.3, along) * (1.0 - smoothstep(0.7, 1.0, along) * 0.5);
             b = body * streak * 1.3;
+          } else {
+            // 화염 화살(원융노): 화살형 후광
+            float body = smoothstep(1.0, 0.35, across);
+            float head = smoothstep(0.2, 1.0, along);
+            float tail = smoothstep(0.0, 0.5, along);
+            b = body * mix(tail, 1.0, head) * (0.6 + head);
           }
           if (b <= 0.001) discard;
           // 생성 스프라이트가 본체를 담당한다. 이 셰이더는 뒤쪽 후광/속도선만 얇게 맡는다.
@@ -168,6 +175,7 @@ export class ProjectilePool {
       new RetroProjectileBatch(scene, 'slash-wave', CAP),
       new RetroProjectileBatch(scene, 'bagua-orb', CAP),
       new RetroProjectileBatch(scene, 'cavalry', CAP),
+      new RetroProjectileBatch(scene, 'player-arrow', CAP), // 원융노 화염 화살
     ];
   }
 
@@ -469,8 +477,9 @@ export class ProjectilePool {
         : this.kind[i] === PK_SLASHWAVE
           ? Math.max(this.len[i], this.wid[i])
           : this.len[i] * 1.18;
-      const artScaleX = this.kind[i] === PK_ARROW ? this.len[i] * 1.22 : artScale;
-      const artScaleZ = this.kind[i] === PK_ARROW ? this.wid[i] * 1.18 : artScale;
+      const isArrow = this.kind[i] === PK_ARROW || this.kind[i] === PK_FIRE_ARROW;
+      const artScaleX = isArrow ? this.len[i] * 1.22 : artScale;
+      const artScaleZ = isArrow ? this.wid[i] * 1.18 : artScale;
       this.spriteBatches[this.kind[i]].push(
         this.x[i], this.hy[i] + 0.055, this.z[i], theta, artScaleX, artScaleZ, fade,
       );

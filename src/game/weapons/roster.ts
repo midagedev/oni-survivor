@@ -5,6 +5,7 @@ import {
   PK_TALISMAN,
   PK_SLASHWAVE,
   PK_CAVALRY,
+  PK_FIRE_ARROW,
 } from '../projectiles';
 import { ATTACK_HALBERD } from '../../gfx/attackSprites';
 
@@ -435,7 +436,7 @@ export class YuanrongWeapon extends TimedWeapon {
       const a = (k / dirs) * Math.PI * 2;
       ctx.projectiles.spawn(
         ctx.px, ctx.pz, Math.cos(a), Math.sin(a), speed, d, 0.45, 2, 1.5,
-        PK_ARROW, 2.2, 1.6, 0.7, 1.5, 0.55,
+        PK_FIRE_ARROW, 2.6, 1.4, 0.5, 1.5, 0.55,
       );
     }
   }

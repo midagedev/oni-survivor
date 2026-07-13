@@ -115,8 +115,8 @@ export class EnemyProjectilePool {
     this.matArr = this.mesh.instanceMatrix.array as Float32Array;
     scene.add(this.mesh);
     this.spriteBatches = [
-      new RetroProjectileBatch(scene, 'enemy-arrow-volley', CAP, 5, 0.92),
-      new RetroProjectileBatch(scene, 'enemy-talisman', CAP, 5, 0.92),
+      new RetroProjectileBatch(scene, 'enemy-arrow', CAP, 5, 0.92), // 기본 궁수: 깔끔한 단발 화살
+      new RetroProjectileBatch(scene, 'enemy-orb', CAP, 5, 0.92), // 책사 마탄: 어두운 구체(플레이어 부적과 구분)
       new RetroProjectileBatch(scene, 'boss-fireball', CAP, 5, 0.92),
       new RetroProjectileBatch(scene, 'boss-poison-orb', CAP, 5, 0.92),
       new RetroProjectileBatch(scene, 'boss-lightning-spear', CAP, 5, 0.92),
