@@ -144,8 +144,8 @@ export class ProjectilePool {
             b = body * streak * 1.3;
           }
           if (b <= 0.001) discard;
-          // 생성 스프라이트가 본체를 담당한다. 이 셰이더는 뒤쪽 후광/속도선만 맡는다.
-          gl_FragColor = vec4(vColor * b * 0.72, b * vFade * 0.38);
+          // 생성 스프라이트가 본체를 담당한다. 이 셰이더는 뒤쪽 후광/속도선만 얇게 맡는다.
+          gl_FragColor = vec4(vColor * b * 0.34, b * vFade * 0.2);
         }
       `,
       transparent: true,

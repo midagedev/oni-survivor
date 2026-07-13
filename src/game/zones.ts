@@ -175,7 +175,7 @@ export class ZonePool {
         continue;
       }
       // 상승 불꽃 (프레임당 확률적, 풀 부담·블룸 억제)
-      if (Math.random() < 0.4) particles.fireEmber(this.x[i], this.z[i], this.radius[i] * 0.8);
+      if (Math.random() < 0.22) particles.fireEmber(this.x[i], this.z[i], this.radius[i] * 0.8);
       this.tickT[i] -= dt;
       if (this.tickT[i] > 0) continue;
       this.tickT[i] = TICK;

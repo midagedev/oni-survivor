@@ -88,11 +88,13 @@ export class RenderPipeline {
     // (밝은 코어만 블룸을 태워 가독성 유지 — technical-art: 블룸은 디테일의 주원천이 아님)
     // 모바일은 블룸 해상도 절반으로 낮춰 성능 확보.
     this.bloomScale = isMobile() ? 0.5 : 1;
+    // P0 투사체 가독성: 블룸이 본체를 태우지 않도록 반경/세기를 더 조인다.
+    // 밝은 후광만 은은히 번지고, 불투명 본체는 또렷하게 남는다.
     this.bloom = new UnrealBloomPass(
       new Vector2(window.innerWidth * this.bloomScale, window.innerHeight * this.bloomScale),
-      0.42, // strength
-      0.5, // radius
-      0.9, // threshold
+      0.34, // strength
+      0.4, // radius
+      0.88, // threshold
     );
     this.composer.addPass(this.bloom);
 
