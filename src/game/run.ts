@@ -707,12 +707,17 @@ export class Run {
     this.hash.clear();
     this.enemies.insertAll(this.hash);
 
-    // 45초에 한 명만 합류하는 간단한 원군. 기존 선택/경제/저장 흐름은 바꾸지 않는다.
-    if (this.companion.update(gdt, this.gameTime, this.player, this.ctx)) {
+    // 45초에 한 명 합류하는 원군(#22: 세트피스/광역/특기/무쌍 시너지). 세트피스 이펙트는 companion이 담당.
+    if (this.companion.update(gdt, this.gameTime, this.player, this.ctx, this.level, this.musou.active)) {
       const ally = this.companion.definition;
-      this.effects.spawnRing(this.companion.x, this.companion.z, 7, 0.7, 1.5, 2.4, 0.6);
       this.hud.banner(`${t('bannerAlly')} ${ally.name} ${ally.hanja}`, '#7ec8ff', 46, 1600);
       this.hud.quote(ally.name, pickLine(ally.id, 0));
+      audio.sfx('buff');
+    }
+    // 특기 발동 → 대사 + 사운드
+    const sp = this.companion.consumeSpecialEvent();
+    if (sp) {
+      this.hud.quote(this.companion.definition.name, sp.line);
       audio.sfx('buff');
     }
 
@@ -1588,6 +1593,7 @@ export class Run {
       bossActive: this.boss.active,
       companion: this.companion.active ? this.companion.definition.id : null,
       companionAttacks: this.companion.attacks,
+      companionKills: this.companion.kills,
       relics: [...this.relicIds],
       endless: this.endless,
       fever: this.combo.fever,

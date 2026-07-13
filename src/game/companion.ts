@@ -4,7 +4,7 @@ import type { LightUniforms } from '../gfx/lightField';
 import { cellUvOffset } from '../gfx/atlas';
 import { SpriteQuad, dirFromVelocity } from '../gfx/sprites';
 import { CELL_W } from '../data/spriteManifest';
-import { COMPANION_BY_HERO, COMPANION_JOIN_TIME } from '../data/companions';
+import { COMPANION_BY_HERO, COMPANION_JOIN_TIME, companionLine } from '../data/companions';
 import type { CompanionDef } from '../data/companions';
 import type { Player } from './player';
 import type { WeaponContext } from './weapons/types';
@@ -12,12 +12,20 @@ import type { WeaponContext } from './weapons/types';
 const FOLLOW_RATE = 4.5;
 const ATTACK_RANGE = 15;
 const ANIM_FPS = 7;
+const CONE_COS = 0.64; // 부채꼴 반각 ≈50°
 
-// 한 런에 한 명만 등장하는 가벼운 원군. 관계·성장·경제를 만들지 않고
-// 따라오기 + 자동 공격 + 대사 이벤트만 담당한다.
+export interface SpecialEvent {
+  line: string;
+  cr: number;
+  cg: number;
+  cb: number;
+}
+
+// 원군: 합류 세트피스 + 광역 기본공격 + 특기(쿨다운 광역기) + 무쌍 시너지 (#22).
 export class Companion {
   active = false;
   attacks = 0;
+  kills = 0; // 밸런스 측정: 원군 킬 수(kill share)
   x = 0;
   z = 0;
   readonly radius = 0.45;
@@ -30,6 +38,10 @@ export class Companion {
   private frame = 0;
   private animTime = 0;
   private attackTimer = 0;
+  private specialTimer = 0;
+  private playerLevel = 1;
+  private musouActive = false;
+  private pendingSpecial: SpecialEvent | null = null;
   private readonly uv = { u: 0, v: 0 };
 
   constructor(scene: Scene, atlas: Atlas, light: LightUniforms) {
@@ -44,18 +56,30 @@ export class Companion {
     return this.def;
   }
 
+  // 특기 발동 이벤트 소비(run이 대사/사운드 표시). 프레임당 한 번.
+  consumeSpecialEvent(): SpecialEvent | null {
+    const e = this.pendingSpecial;
+    this.pendingSpecial = null;
+    return e;
+  }
+
   reset(heroId: string): void {
     this.def = COMPANION_BY_HERO[heroId] ?? COMPANION_BY_HERO.zhaoyun;
     this.blockPx = this.def.charIndex * 4 * CELL_W;
     this.active = false;
     this.attacks = 0;
+    this.kills = 0;
     this.animTime = 0;
     this.attackTimer = 0;
+    this.specialTimer = 0;
+    this.pendingSpecial = null;
     this.quad.mesh.visible = false;
   }
 
   // 합류한 프레임에 true를 반환해 Run이 UI/대사를 한 번만 띄운다.
-  update(dt: number, gameTime: number, player: Player, ctx: WeaponContext): boolean {
+  update(dt: number, gameTime: number, player: Player, ctx: WeaponContext, playerLevel: number, musouActive: boolean): boolean {
+    this.playerLevel = playerLevel;
+    this.musouActive = musouActive;
     let joined = false;
     if (!this.active) {
       if (gameTime < COMPANION_JOIN_TIME) return false;
@@ -63,6 +87,8 @@ export class Companion {
       this.x = player.x - player.faceX * 2.2 + player.faceZ * 1.4;
       this.z = player.z - player.faceZ * 2.2 - player.faceX * 1.4;
       this.quad.mesh.visible = true;
+      this.specialTimer = this.def.specialCd * 0.5; // 합류 후 절반 쿨다운
+      this.joinSetpiece(ctx, player);
       joined = true;
     }
 
@@ -91,6 +117,13 @@ export class Companion {
       this.frame = 0;
     }
 
+    // 특기(광역기): 쿨다운 + 사거리 내 적 존재 시 발동
+    this.specialTimer -= dt;
+    if (this.specialTimer <= 0 && this.nearestEnemy(ctx, 18) >= 0) {
+      this.useSpecial(ctx, player);
+      this.specialTimer = this.def.specialCd;
+    }
+
     this.attackTimer -= dt;
     if (this.attackTimer <= 0) this.attack(ctx);
 
@@ -100,11 +133,16 @@ export class Companion {
     return joined;
   }
 
-  private attack(ctx: WeaponContext): void {
+  // 레벨 스케일 적용 대미지.
+  private dmg(base: number, ctx: WeaponContext): number {
+    return base * ctx.stats.damageMul * (1 + this.playerLevel * 0.05);
+  }
+
+  private nearestEnemy(ctx: WeaponContext, range: number): number {
     const en = ctx.enemies;
-    const n = ctx.hash.query(this.x, this.z, ATTACK_RANGE, ctx.scratch);
+    const n = ctx.hash.query(this.x, this.z, range, ctx.scratch);
     let best = -1;
-    let bestD2 = ATTACK_RANGE * ATTACK_RANGE;
+    let bestD2 = range * range;
     for (let c = 0; c < n; c++) {
       const i = ctx.scratch[c];
       if (en.alive[i] === 0) continue;
@@ -116,27 +154,223 @@ export class Companion {
         best = i;
       }
     }
+    return best;
+  }
+
+  // 합류 세트피스: 착지 광역 충격(반경 6 넉백+피해) + 링/플래시(자동 광원). 절제된 1회 임팩트.
+  private joinSetpiece(ctx: WeaponContext, player: Player): void {
+    const d = this.def;
+    // 돌진 진입 잔상
+    const fx = player.faceX || 0;
+    const fz = player.faceZ || 1;
+    ctx.effects.spawnThrust(this.x - fx * 5, this.z - fz * 5, fx, fz, 6, 1.6, d.cr, d.cg, d.cb, 0.22);
+    ctx.effects.spawnFlash(this.x, this.z, d.cr, d.cg, d.cb, 3.2);
+    ctx.effects.spawnRing(this.x, this.z, 6, d.cr, d.cg, d.cb, 0.5);
+    this.aoe(ctx, this.x, this.z, 6, this.dmg(60, ctx), 7);
+  }
+
+  private attack(ctx: WeaponContext): void {
+    const best = this.nearestEnemy(ctx, ATTACK_RANGE);
     if (best < 0) {
       this.attackTimer = 0.25;
       return;
     }
-
+    const en = ctx.enemies;
     const dx = en.x[best] - this.x;
     const dz = en.z[best] - this.z;
-    const d = Math.hypot(dx, dz) || 1;
-    const nx = dx / d;
-    const nz = dz / d;
-    const damage = this.def.damage * ctx.stats.damageMul;
+    const dd = Math.hypot(dx, dz) || 1;
+    const nx = dx / dd;
+    const nz = dz / dd;
+    const base = this.dmg(this.def.damage, ctx);
+    const boost = this.musouActive ? 1.3 : 1; // 무쌍 중 이펙트/위력 강화
+
     if (this.def.attack === 'lightning') {
-      ctx.effects.spawnLightning(en.x[best], en.z[best]);
+      // 2체인: 대상 + 근처 1명
+      ctx.effects.spawnLightning(en.x[best], en.z[best], this.def.cr, this.def.cg, this.def.cb);
+      this.hit(ctx, best, nx, nz, base * boost, 3);
+      const chain = this.nearestOther(ctx, en.x[best], en.z[best], best, 6);
+      if (chain >= 0) {
+        ctx.effects.spawnChainArc(en.x[best], en.z[best], en.x[chain], en.z[chain], this.def.cr, this.def.cg, this.def.cb);
+        this.hit(ctx, chain, nx, nz, base * 0.8 * boost, 2);
+      }
     } else {
-      ctx.effects.spawnThrust(this.x, this.z, nx, nz, Math.min(8, d), 0.9, 0.55, 1.35, 2.2);
+      // 부채꼴 광역: 아크 + 콘 내 다수 타격
+      ctx.effects.spawnSlashArc(this.x, this.z, nx, nz, 7, 0.9, this.def.cr, this.def.cg, this.def.cb, 0.2);
+      this.cone(ctx, nx, nz, 7.5, base * boost, 4);
     }
-    const died = en.damageAt(best, damage);
-    ctx.damageText.spawn(damage, en.x[best], en.scale[best] * 0.7, en.z[best], false);
-    en.push(best, nx, nz, 3.5);
-    if (died) ctx.onKill(best);
+
     this.attacks++;
-    this.attackTimer = this.def.cooldown * ctx.stats.cooldownMul;
+    let cd = this.def.cooldown * ctx.stats.cooldownMul;
+    if (this.musouActive) cd *= 0.5; // 무쌍 시너지: 공속 2배
+    this.attackTimer = cd;
+  }
+
+  // 특기(광역기) — 장수별 1종.
+  private useSpecial(ctx: WeaponContext, player: Player): void {
+    const d = this.def;
+    switch (d.special) {
+      case 'rally': {
+        // 유비 격려: 광역 격려파 + 플레이어 소폭 회복
+        ctx.effects.spawnRing(this.x, this.z, 9, d.cr, d.cg, d.cb, 0.6);
+        ctx.effects.spawnFlash(this.x, this.z, d.cr, d.cg, d.cb, 4);
+        this.aoe(ctx, this.x, this.z, 9, this.dmg(70, ctx), 6);
+        player.heal(player.maxHp * 0.05);
+        break;
+      }
+      case 'triplebolt': {
+        // 조조 낙뢰 3연발
+        for (let k = 0; k < 3; k++) {
+          const t = this.nthEnemy(ctx, 18, k);
+          if (t < 0) break;
+          ctx.effects.spawnLightning(ctx.enemies.x[t], ctx.enemies.z[t], d.cr, d.cg, d.cb);
+          this.aoe(ctx, ctx.enemies.x[t], ctx.enemies.z[t], 3.2, this.dmg(55, ctx), 3);
+        }
+        break;
+      }
+      case 'pierce': {
+        // 조운 돌진 관통
+        const t = this.nearestEnemy(ctx, 18);
+        const dx = t >= 0 ? ctx.enemies.x[t] - this.x : player.faceX;
+        const dz = t >= 0 ? ctx.enemies.z[t] - this.z : player.faceZ;
+        const dd = Math.hypot(dx, dz) || 1;
+        const nx = dx / dd;
+        const nz = dz / dd;
+        ctx.effects.spawnThrust(this.x, this.z, nx, nz, 11, 2.2, d.cr, d.cg, d.cb, 0.24);
+        this.capsule(ctx, this.x, this.z, nx, nz, 11, 1.4, this.dmg(85, ctx), 9);
+        this.x += nx * 8;
+        this.z += nz * 8;
+        ctx.effects.spawnFlash(this.x, this.z, d.cr, d.cg, d.cb, 3);
+        break;
+      }
+      case 'firefan': {
+        // 주유 화염 부채: 광역 아크 + 화염 장판
+        const t = this.nearestEnemy(ctx, 18);
+        const dx = t >= 0 ? ctx.enemies.x[t] - this.x : player.faceX;
+        const dz = t >= 0 ? ctx.enemies.z[t] - this.z : player.faceZ;
+        const dd = Math.hypot(dx, dz) || 1;
+        const nx = dx / dd;
+        const nz = dz / dd;
+        ctx.effects.spawnSlashArc(this.x, this.z, nx, nz, 9, 1.3, d.cr, d.cg, d.cb, 0.24);
+        this.cone(ctx, nx, nz, 9, this.dmg(60, ctx), 5);
+        ctx.zones.spawn(this.x + nx * 5, this.z + nz * 5, 4, 3, this.dmg(24, ctx), 2.4, 0.9, 0.25);
+        break;
+      }
+      case 'chargesweep': {
+        // 장료 돌격 스윕: 대형 아크 + 강넉백
+        ctx.effects.spawnRing(this.x, this.z, 9, d.cr, d.cg, d.cb, 0.5);
+        ctx.effects.spawnSlashArc(this.x, this.z, this.dir === 2 ? 1 : -1, 0, 9, 1.5, d.cr, d.cg, d.cb, 0.26);
+        this.aoe(ctx, this.x, this.z, 9, this.dmg(75, ctx), 9);
+        break;
+      }
+    }
+    this.pendingSpecial = { line: companionLine(d), cr: d.cr, cg: d.cg, cb: d.cb };
+  }
+
+  // 단일 타격.
+  private hit(ctx: WeaponContext, i: number, nx: number, nz: number, damage: number, knockback: number): void {
+    const en = ctx.enemies;
+    if (en.alive[i] === 0) return;
+    const died = en.damageAt(i, damage);
+    ctx.damageText.spawn(damage, en.x[i], en.scale[i] * 0.7, en.z[i], false);
+    en.push(i, nx, nz, knockback);
+    if (died) ctx.onKill(i);
+  }
+
+  // 원형 광역.
+  private aoe(ctx: WeaponContext, cx: number, cz: number, radius: number, damage: number, knockback: number): void {
+    const en = ctx.enemies;
+    const n = ctx.hash.query(cx, cz, radius, ctx.scratch);
+    for (let c = 0; c < n; c++) {
+      const j = ctx.scratch[c];
+      if (en.alive[j] === 0) continue;
+      const dx = en.x[j] - cx;
+      const dz = en.z[j] - cz;
+      const d2 = dx * dx + dz * dz;
+      if (d2 > radius * radius) continue;
+      const d = Math.sqrt(d2) || 1;
+      const died = en.damageAt(j, damage);
+      ctx.damageText.spawn(damage, en.x[j], en.scale[j] * 0.7, en.z[j], false);
+      en.push(j, dx / d, dz / d, knockback);
+      if (died) { this.kills++; ctx.onKill(j); }
+    }
+  }
+
+  // 부채꼴 광역(진행 방향 콘).
+  private cone(ctx: WeaponContext, dirX: number, dirZ: number, range: number, damage: number, knockback: number): void {
+    const en = ctx.enemies;
+    const n = ctx.hash.query(this.x, this.z, range, ctx.scratch);
+    for (let c = 0; c < n; c++) {
+      const j = ctx.scratch[c];
+      if (en.alive[j] === 0) continue;
+      const dx = en.x[j] - this.x;
+      const dz = en.z[j] - this.z;
+      const d2 = dx * dx + dz * dz;
+      if (d2 > range * range) continue;
+      const d = Math.sqrt(d2) || 1;
+      if ((dx / d) * dirX + (dz / d) * dirZ < CONE_COS) continue;
+      const died = en.damageAt(j, damage);
+      ctx.damageText.spawn(damage, en.x[j], en.scale[j] * 0.7, en.z[j], false);
+      en.push(j, dx / d, dz / d, knockback);
+      if (died) { this.kills++; ctx.onKill(j); }
+    }
+  }
+
+  // 캡슐(선분) 광역 — 돌진 관통.
+  private capsule(ctx: WeaponContext, ax: number, az: number, dx: number, dz: number, len: number, w: number, damage: number, knockback: number): void {
+    const en = ctx.enemies;
+    const bx = ax + dx * len;
+    const bz = az + dz * len;
+    const mx = (ax + bx) * 0.5;
+    const mz = (az + bz) * 0.5;
+    const n = ctx.hash.query(mx, mz, len * 0.5 + w + 1.2, ctx.scratch);
+    for (let c = 0; c < n; c++) {
+      const j = ctx.scratch[c];
+      if (en.alive[j] === 0) continue;
+      const hitR = w + en.radius[j];
+      let t = ((en.x[j] - ax) * dx + (en.z[j] - az) * dz) / (len || 1);
+      if (t < 0) t = 0; else if (t > len) t = len;
+      const px = ax + dx * t;
+      const pz = az + dz * t;
+      const ex = en.x[j] - px;
+      const ez = en.z[j] - pz;
+      if (ex * ex + ez * ez > hitR * hitR) continue;
+      const died = en.damageAt(j, damage);
+      ctx.damageText.spawn(damage, en.x[j], en.scale[j] * 0.7, en.z[j], false);
+      en.push(j, dx, dz, knockback);
+      if (died) { this.kills++; ctx.onKill(j); }
+    }
+  }
+
+  private nearestOther(ctx: WeaponContext, cx: number, cz: number, exclude: number, range: number): number {
+    const en = ctx.enemies;
+    const n = ctx.hash.query(cx, cz, range, ctx.scratch);
+    let best = -1;
+    let bestD2 = range * range;
+    for (let c = 0; c < n; c++) {
+      const i = ctx.scratch[c];
+      if (i === exclude || en.alive[i] === 0) continue;
+      const dx = en.x[i] - cx;
+      const dz = en.z[i] - cz;
+      const d2 = dx * dx + dz * dz;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        best = i;
+      }
+    }
+    return best;
+  }
+
+  // 특기 다중 타겟용: 자신 주변 n번째 후보(대충 분산).
+  private nthEnemy(ctx: WeaponContext, range: number, k: number): number {
+    const en = ctx.enemies;
+    const n = ctx.hash.query(this.x, this.z, range, ctx.scratch);
+    let found = 0;
+    for (let c = 0; c < n; c++) {
+      const i = ctx.scratch[c];
+      if (en.alive[i] === 0) continue;
+      if (found === k) return i;
+      found++;
+    }
+    return -1;
   }
 }
