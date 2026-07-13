@@ -47,6 +47,11 @@ const BOSS_DEATH_AZI = 0.62; // ≈35° 궤도
 const BOSS_DEATH_ZOOM = -0.12; // 줌인
 const BOSS_DEATH_REACH = 6; // 처치 지점으로 프레이밍 오프셋
 
+// 동료 합류 팬 (보스 팬의 경량판 — #16.1: 짧고 작게, 우선순위 최하)
+const ALLY_PAN_DUR = 0.7;
+const ALLY_PAN_REACH = 4; // 합류 방향 평행이동(월드) — 보스 9의 경량판
+const ALLY_PAN_ZOOM = 0.05; // 팬 중 미세 줌아웃(+5%) — 보스 팬(+10%)의 절반
+
 export class Cinematics {
   private readonly rig: CameraRig;
   private readonly onReplay: (() => void) | null;
@@ -72,6 +77,11 @@ export class Cinematics {
   private deathT = -1;
   private deathDirX = 0;
   private deathDirZ = 0;
+
+  // 동료 합류 팬 (경량, 우선순위 최하)
+  private allyT = -1;
+  private allyDirX = 0;
+  private allyDirZ = 0;
 
   // 킬캠 비네트 DOM (카메라 측 연출 — 렌더러/run 배선 불필요)
   private readonly vignette: HTMLDivElement;
@@ -153,6 +163,17 @@ export class Cinematics {
     else this.replayPending = true;
   }
 
+  // 동료 합류(#16.1): 합류 방향으로 짧은 경량 팬 + 미세 줌(0.7s). 전투 수치 무변경.
+  // 우선순위 최하 — 무쌍/보스/킬캠 시네마틱이 진행 중이면 발동하지 않고 양보한다.
+  // 비차단: 플레이(이동/공격)는 그대로 유지되고 프레이밍만 살짝 트럭 후 복귀하므로 별도 스킵 불필요.
+  onAllyJoin(dirX: number, dirZ: number): void {
+    if (this.musouActive || this.musouEndT >= 0 || this.panT >= 0 || this.deathT >= 0 || this.killcamT >= 0) return;
+    const l = Math.hypot(dirX, dirZ) || 1;
+    this.allyDirX = dirX / l;
+    this.allyDirZ = dirZ / l;
+    this.allyT = 0;
+  }
+
   // 대시: 짧고 강한 줌인 킥 (run의 대시 훅에서 호출 — 선택).
   onDash(): void {
     this.rig.cinematic(-0.1);
@@ -166,6 +187,7 @@ export class Cinematics {
 
   skip(): void {
     if (this.panT >= 0) this.panT = -1;
+    if (this.allyT >= 0) this.allyT = -1;
   }
 
   // main이 매 프레임 소비: true면 pipeline.playReplay() 호출. (onReplay 콜백 미주입 시 경로)
@@ -182,6 +204,7 @@ export class Cinematics {
     this.killcamCooldown = 0;
     this.panT = -1;
     this.deathT = -1;
+    this.allyT = -1;
     this.replayPending = false;
     this.rig.setCinematicPose(0, 0, 0, 0, 0);
   }
@@ -243,6 +266,22 @@ export class Cinematics {
       offX += this.deathDirX * BOSS_DEATH_REACH * env;
       offZ += this.deathDirZ * BOSS_DEATH_REACH * env;
       if (this.deathT >= BOSS_DEATH_DUR) this.deathT = -1;
+    }
+
+    // --- 동료 합류 팬 (경량 트럭 + 미세 줌아웃, 산 모양 엔벨로프) ---
+    // 우선순위 최하: 무쌍/보스/킬캠 시네마틱이 도중에 시작되면 즉시 양보(취소).
+    if (this.allyT >= 0) {
+      if (this.musouActive || this.musouEndT >= 0 || this.panT >= 0 || this.deathT >= 0 || this.killcamT >= 0) {
+        this.allyT = -1;
+      } else {
+        this.allyT += dt;
+        const t = this.allyT / ALLY_PAN_DUR;
+        const env = t < 0.5 ? easeOutCubic(t / 0.5) : 1 - easeInOutCubic((t - 0.5) / 0.5);
+        offX += this.allyDirX * ALLY_PAN_REACH * env;
+        offZ += this.allyDirZ * ALLY_PAN_REACH * env;
+        zoom += ALLY_PAN_ZOOM * env;
+        if (this.allyT >= ALLY_PAN_DUR) this.allyT = -1;
+      }
     }
 
     this.rig.setCinematicPose(azi, elev, zoom, offX, offZ);
