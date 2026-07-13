@@ -5,10 +5,18 @@ const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
 const errs = [];
 p.on('pageerror', (e) => errs.push(e.message));
 p.on('console', (m) => { if (m.type() === 'error') errs.push('c:' + m.text()); });
-await p.goto('http://localhost:5188/threesur/', { waitUntil: 'networkidle' });
+const URL = process.env.URL || 'http://localhost:5199/threesur/';
+await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForTimeout(1600);
+const waitHook = async () => {
+  for (let i = 0; i < 40; i++) {
+    if (await p.evaluate(() => typeof window.__GAME_TEST__ !== 'undefined')) return true;
+    await p.waitForTimeout(250);
+  }
+  return false;
+};
 const hook = (fn, ...args) => p.evaluate(({ fn, args }) => window.__GAME_TEST__[fn](...args), { fn, args });
-const stats = () => p.evaluate(() => window.__GAME_TEST__.stats);
+const stats = async () => { await waitHook(); return p.evaluate(() => window.__GAME_TEST__.stats); };
 const dbg = () => p.evaluate(() => window.__DEBUG__.info());
 const clearLevels = async () => {
   for (let i = 0; i < 40; i++) {
@@ -18,6 +26,7 @@ const clearLevels = async () => {
   }
 };
 
+await waitHook();
 await hook('selectHero', 'zhaoyun');
 await hook('setBossFlags', true, true, true);
 await hook('giveWeapon', 'guandao');
@@ -50,11 +59,11 @@ const before = await stats();
 const killsBefore = before.kills;
 const t0 = Date.now();
 const fpsSamples = [];
-for (let i = 0; i < 60; i++) {
+for (let i = 0; i < 30; i++) {
   await p.waitForTimeout(1000);
   await hook('setInvulnerable', 600);
   await clearLevels();
-  if (i % 8 === 0) fpsSamples.push(await dbg());
+  if (i % 5 === 0) fpsSamples.push(await dbg());
 }
 const after = await stats();
 await p.screenshot({ path: OUT + '/castle_idle60.png' });

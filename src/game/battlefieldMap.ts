@@ -7,6 +7,43 @@ const FLOW_CELL = 1.5;
 const FLOW_SIZE = 64;
 const FLOW_INF = 0xffff;
 
+// === 정적 성곽 구역(낙양 외성) ===
+// 오픈필드 안의 유일한 상시 지형. 스폰 원점 북쪽(-Z)에 세우는 국지 요새.
+// 외성(3성문) + 안뜰 + 내성(본성) 2겹 성벽. 나머지 맵은 오픈필드 유지.
+const CASTLE_CX = 0;
+const CASTLE_CZ = -48; // 원점에서 남성문까지 28m, 중심까지 48m (스펙 40~60m)
+const CASTLE_GATE = 9; // 외성 성문 폭(스펙 8m+)
+const CASTLE_OHX = 22; // 외성 반폭 X (44m)
+const CASTLE_OHZ = 20; // 외성 반폭 Z (40m)
+const CASTLE_IHX = 9; // 내성 반폭 X (18m)
+const CASTLE_IHZ = 8; // 내성 반폭 Z (16m)
+const CASTLE_KEEP_GATE = 8; // 내성 성문 폭
+const CASTLE_FLOW_ON = 34; // 이 반경 안이면 flow-field 경로탐색 활성
+const CASTLE_FLOW_OFF = 41; // 히스테리시스: 이 밖이면 비활성
+const CASTLE_TITLE_R = 30; // 구역 이름표 페이드 반경
+
+// 성문/군영 깃발 정의(버텍스 셰이더 펄럭임용). markers.ts가 소비.
+export interface CastleBanner {
+  x: number;
+  z: number;
+  poleH: number; // 깃대 높이
+  w: number; // 천 폭
+  h: number; // 천 높이
+  ry: number; // Y축 회전(향하는 방향)
+  r: number;
+  g: number;
+  b: number;
+}
+
+// battlefieldMap(게임 로직) → markers(gfx) 렌더 데이터 채널.
+// worldKit이 map.walls/gates를 소비하듯, markers는 이 채널로 깃발·구역 이름표를 소비한다.
+// 이렇게 하면 run.ts 수정 없이 map 초기화만으로 성곽 시각요소가 자기완결된다.
+export const castleRenderData = {
+  banners: [] as CastleBanner[],
+  bannerVersion: 0,
+  title: { text: '낙양 외성 洛陽外城', x: CASTLE_CX, y: 6.4, z: CASTLE_CZ + CASTLE_OHZ - 8, alpha: 0 },
+};
+
 export interface MapWall {
   x: number;
   z: number;
@@ -128,13 +165,18 @@ export class BattlefieldMap {
 
   private readonly colliders: Collider[] = [];
   private readonly breached = new Set<string>();
-  // 오픈필드가 기본. 성벽/게이트는 호로관 세트피스 동안만 존재.
+  // 오픈필드가 기본. 정적 성곽 구역은 상시 존재, 호로관 성벽/게이트는 세트피스 동안만 존재.
   private hulaoActive = false;
   private hulaoTimer = 0;
   private hulaoX = 0;
   private hulaoZ = 0;
   private playerX = 0;
   private playerZ = 0;
+  // 성곽 flow-field 활성 상태(플레이어가 성곽 근처일 때만). 이름표 페이드.
+  private castleFlow = false;
+  private flowActive = false;
+  private castleTitleAlpha = 0;
+  private readonly castleBannerDefs: CastleBanner[] = [];
   private flowOriginX = 0;
   private flowOriginZ = 0;
   private flowTargetCell = -1;
@@ -146,13 +188,29 @@ export class BattlefieldMap {
   update(playerX: number, playerZ: number, dt: number): void {
     this.playerX = playerX;
     this.playerZ = playerZ;
-    // 오픈필드: 성벽 없음. 호로관 세트피스 동안만 성벽/게이트 + flow-field 유지.
-    if (!this.hulaoActive) return;
-    this.hulaoTimer -= dt;
-    if (this.hulaoTimer <= 0 || this.breached.has('hulao')) {
-      this.endHulao();
-      return;
+
+    // 호로관 세트피스 타이머(성곽과 독립적으로 유지).
+    if (this.hulaoActive) {
+      this.hulaoTimer -= dt;
+      if (this.hulaoTimer <= 0 || this.breached.has('hulao')) this.endHulao();
     }
+
+    // 성곽 근접도 → 구역 이름표 페이드 + flow-field 활성 히스테리시스.
+    const dcx = playerX - CASTLE_CX;
+    const dcz = playerZ - CASTLE_CZ;
+    const dist = Math.hypot(dcx, dcz);
+    this.castleTitleAlpha += ((dist < CASTLE_TITLE_R ? 1 : 0) - this.castleTitleAlpha) * Math.min(1, dt * 2.4);
+    castleRenderData.title.alpha = this.castleTitleAlpha;
+    if (this.castleFlow) {
+      if (dist > CASTLE_FLOW_OFF) this.castleFlow = false;
+    } else if (dist < CASTLE_FLOW_ON) {
+      this.castleFlow = true;
+      this.flowTimer = 0; // 전이 즉시 flow 재구성
+    }
+
+    // flow-field는 성곽 근처이거나 호로관 세트피스 중일 때만 돈다(오픈필드는 직접 추적).
+    this.flowActive = this.hulaoActive || this.castleFlow;
+    if (!this.flowActive) return;
     this.flowTimer -= dt;
     const tx = Math.floor(playerX / FLOW_CELL);
     const tz = Math.floor(playerZ / FLOW_CELL);
@@ -170,19 +228,43 @@ export class BattlefieldMap {
     this.gateKills = 0;
     this.hulaoActive = false;
     this.hulaoTimer = 0;
-    this.rebuild(); // 오픈필드로 초기화(모든 지형 배열 비움)
+    this.castleFlow = false;
+    this.flowActive = false;
+    this.castleTitleAlpha = 0;
+    castleRenderData.title.alpha = 0;
+    this.rebuild(); // 오픈필드 + 정적 성곽으로 초기화
   }
 
   // 호로관 세트피스 시작: 플레이어 북쪽에 성문 벽을 세운다(제한 시간 또는 파성 시 소멸).
   triggerHulao(px: number, pz: number, durationSec = 45): void {
     this.hulaoActive = true;
+    // 정적 성곽과 겹치지 않는 가장 가까운 배치를 고른다.
+    // 성곽 안이면 첫 둘(플레이어 남/북)이 실패하므로 성곽 바깥(남 우선)으로 밀어낸다.
+    const candidates = [pz - 14, pz + 14, CASTLE_CZ + CASTLE_OHZ + 15, CASTLE_CZ - CASTLE_OHZ - 15];
+    let hz = candidates[0];
+    for (const c of candidates) {
+      if (!this.hulaoOverlapsCastle(px, c)) {
+        hz = c;
+        break;
+      }
+    }
     this.hulaoX = px;
-    this.hulaoZ = pz - 14;
+    this.hulaoZ = hz;
     this.hulaoTimer = durationSec;
     this.gateKills = 0;
     this.breached.delete('hulao');
     this.rebuild();
     this.rebuildFlow();
+  }
+
+  // 호로관 가로 성벽(중심 x, z / 폭 ±20)이 성곽 외성 영역과 겹치는지(AABB, 여유 3m).
+  private hulaoOverlapsCastle(x: number, z: number): boolean {
+    const m = 3;
+    const halfSpan = 20;
+    const zOverlap = z >= CASTLE_CZ - CASTLE_OHZ - m && z <= CASTLE_CZ + CASTLE_OHZ + m;
+    const xOverlap =
+      x + halfSpan >= CASTLE_CX - CASTLE_OHX - m && x - halfSpan <= CASTLE_CX + CASTLE_OHX + m;
+    return zOverlap && xOverlap;
   }
 
   private endHulao(): void {
@@ -203,7 +285,9 @@ export class BattlefieldMap {
     this.gates.length = 0;
     this.colliders.length = 0;
     this.buildLandmarks(); // 오픈필드 전술 랜드마크(항상, 충돌 없음)
+    this.buildCastle(); // 정적 성곽 구역(항상, 실제 충돌 벽 + 통행 성문)
     if (this.hulaoActive) this.buildHulao();
+    if (this.castleBannerDefs.length === 0) this.buildBanners(); // 깃발 정의는 정적: 1회만
     this.revision++;
   }
 
@@ -222,6 +306,102 @@ export class BattlefieldMap {
         name: t.name, glow: t.glow, gr: t.gr, gg: t.gg, gb: t.gb,
       });
     }
+  }
+
+  // 정적 성곽 구역(낙양 외성): 외성(남·동·서 3성문, 북 폐쇄) + 안뜰 + 내성(본성).
+  // 성벽 세그먼트는 addWall로 실제 충돌 콜라이더가 되고, 성문은 콜라이더 없는 통행구로 둔다.
+  private buildCastle(): void {
+    const T = WALL_THICKNESS;
+    const cx = CASTLE_CX;
+    const cz = CASTLE_CZ;
+    const ohx = CASTLE_OHX;
+    const ohz = CASTLE_OHZ;
+    const g = CASTLE_GATE * 0.5;
+    const oSeg = ohx - g; // 남벽 세그먼트 길이
+    const oSegZ = ohz - g; // 동/서벽 세그먼트 길이
+
+    // 외성 북벽(폐쇄)
+    this.addWall(cx, cz - ohz, ohx * 2, T, true, true);
+    // 외성 남벽(성문 — 원점을 마주본다)
+    this.addWall(cx - g - oSeg * 0.5, cz + ohz, oSeg, T, true, true);
+    this.addWall(cx + g + oSeg * 0.5, cz + ohz, oSeg, T, true, true);
+    this.gates.push({ key: 'castle-s', x: cx, z: cz + ohz, horizontal: true, visible: true });
+    // 외성 동벽(성문)
+    this.addWall(cx + ohx, cz - g - oSegZ * 0.5, T, oSegZ, false, true);
+    this.addWall(cx + ohx, cz + g + oSegZ * 0.5, T, oSegZ, false, true);
+    this.gates.push({ key: 'castle-e', x: cx + ohx, z: cz, horizontal: false, visible: true });
+    // 외성 서벽(성문)
+    this.addWall(cx - ohx, cz - g - oSegZ * 0.5, T, oSegZ, false, true);
+    this.addWall(cx - ohx, cz + g + oSegZ * 0.5, T, oSegZ, false, true);
+    this.gates.push({ key: 'castle-w', x: cx - ohx, z: cz, horizontal: false, visible: true });
+
+    // 내성(본성): 남쪽 성문 1개로 안뜰을 형성. 나머지 3면 폐쇄.
+    const ihx = CASTLE_IHX;
+    const ihz = CASTLE_IHZ;
+    const kg = CASTLE_KEEP_GATE * 0.5;
+    const kSeg = ihx - kg;
+    this.addWall(cx, cz - ihz, ihx * 2, T, true, true); // 북
+    this.addWall(cx - kg - kSeg * 0.5, cz + ihz, kSeg, T, true, true); // 남(좌)
+    this.addWall(cx + kg + kSeg * 0.5, cz + ihz, kSeg, T, true, true); // 남(우)
+    this.gates.push({ key: 'castle-keep-s', x: cx, z: cz + ihz, horizontal: true, visible: true });
+    this.addWall(cx + ihx, cz, T, ihz * 2, false, true); // 동
+    this.addWall(cx - ihx, cz, T, ihz * 2, false, true); // 서
+
+    // 프롭 스프라이트: 남성문 봉화 2 + 북측 망루 2(실루엣)
+    this.props.push({ x: cx - 6, z: cz + ohz + 1, kind: 11, width: 2.6, height: 4.4 });
+    this.props.push({ x: cx + 6, z: cz + ohz + 1, kind: 11, width: 2.6, height: 4.4 });
+    this.props.push({ x: cx - ohx + 2, z: cz - ohz, kind: 2, width: 3.2, height: 5.4 });
+    this.props.push({ x: cx + ohx - 2, z: cz - ohz, kind: 2, width: 3.2, height: 5.4 });
+
+    // 랜드마크(글로우 + 이름표 + 앰비언트): run.ts의 기존 랜드마크 루프가 그대로 소비.
+    this.landmarks.push({
+      x: cx, z: cz + ohz + 1.2, kind: 11, width: 2.6, height: 4.4,
+      name: '성문 城門', glow: 3.2, gr: 1.7, gg: 0.85, gb: 0.32,
+    });
+    this.landmarks.push({
+      x: cx, z: cz, kind: 2, width: 3.4, height: 5.6,
+      name: '본성 本城', glow: 1.7, gr: 1.35, gg: 1.05, gb: 0.5,
+    });
+  }
+
+  // 성문·군영 깃발 정의(정적). markers.ts가 castleRenderData로 소비해 버텍스 셰이더로 펄럭인다.
+  private buildBanners(): void {
+    // 색은 블룸 임계(0.6) 아래로 눌러 천이 광원처럼 타지 않게 한다.
+    const red: [number, number, number] = [0.6, 0.11, 0.1];
+    const gold: [number, number, number] = [0.56, 0.42, 0.14];
+    const defs = this.castleBannerDefs;
+    const push = (
+      x: number, z: number, poleH: number, w: number, h: number, ry: number, c: [number, number, number],
+    ): void => {
+      defs.push({ x, z, poleH, w, h, ry, r: c[0], g: c[1], b: c[2] });
+    };
+    const cx = CASTLE_CX;
+    const cz = CASTLE_CZ;
+    const ohx = CASTLE_OHX;
+    const ohz = CASTLE_OHZ;
+    // 남성문 양옆(카메라를 마주보게 ry≈0). 봉화 블룸과 겹치므로 붉은색(외성은 군기 적색 통일).
+    push(cx - 5.4, cz + ohz, 3.6, 1.8, 1.2, 0.28, red);
+    push(cx + 5.4, cz + ohz, 3.6, 1.8, 1.2, -0.28, red);
+    // 동/서성문
+    push(cx + ohx, cz - 5.6, 3.4, 1.7, 1.1, 0.2, red);
+    push(cx + ohx, cz + 5.6, 3.4, 1.7, 1.1, -0.2, red);
+    push(cx - ohx, cz - 5.6, 3.4, 1.7, 1.1, 0.2, red);
+    push(cx - ohx, cz + 5.6, 3.4, 1.7, 1.1, -0.2, red);
+    // 북벽 모서리 장식
+    push(cx - ohx + 1.6, cz - ohz, 3.7, 1.6, 1.05, 0.35, red);
+    push(cx + ohx - 1.6, cz - ohz, 3.7, 1.6, 1.05, -0.35, red);
+    // 본성(내성) — 조금 크고 금색
+    push(cx - CASTLE_IHX + 1.2, cz - CASTLE_IHZ, 4.3, 2.1, 1.4, 0.35, gold);
+    push(cx + CASTLE_IHX - 1.2, cz - CASTLE_IHZ, 4.3, 2.1, 1.4, -0.35, gold);
+    // 오픈필드 군영(kind 5) 깃발
+    let seed = 0;
+    for (const lm of this.landmarks) {
+      if (lm.kind !== 5) continue;
+      push(lm.x + lm.width * 0.42, lm.z, 3.0, 1.7, 1.1, 0.6 + seed, red);
+      seed += 0.7;
+    }
+    castleRenderData.banners = defs;
+    castleRenderData.bannerVersion++;
   }
 
   // 호로관 성문: 가로 성벽 한 줄 + 중앙 게이트(파성 전까지 콜라이더). 세트피스 전용.
@@ -460,7 +640,7 @@ export class BattlefieldMap {
   }
 
   flowDirection(x: number, z: number, targetX: number, targetZ: number, out: { x: number; z: number }): void {
-    if (!this.hulaoActive) {
+    if (!this.flowActive) {
       // 오픈필드: 곧장 플레이어로 추적(flow-field 불필요).
       this.directDirection(x, z, targetX, targetZ, out);
       return;
@@ -507,6 +687,26 @@ export class BattlefieldMap {
 
   get activeColliderCount(): number {
     return this.colliders.length;
+  }
+
+  // === 성곽 구역 조회(테스트/디버그) ===
+  get castleFlowActive(): boolean {
+    return this.castleFlow;
+  }
+  get castleCenterX(): number {
+    return CASTLE_CX;
+  }
+  get castleCenterZ(): number {
+    return CASTLE_CZ;
+  }
+  // 외성 안뜰(내성 밖) 안에 있는지 — 스폰/텔레포트 판정용.
+  insideCastleBounds(x: number, z: number, margin = 0): boolean {
+    return (
+      x >= CASTLE_CX - CASTLE_OHX - margin &&
+      x <= CASTLE_CX + CASTLE_OHX + margin &&
+      z >= CASTLE_CZ - CASTLE_OHZ - margin &&
+      z <= CASTLE_CZ + CASTLE_OHZ + margin
+    );
   }
 }
 

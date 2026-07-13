@@ -4,12 +4,19 @@ import {
   SpriteMaterial,
   CanvasTexture,
   PlaneGeometry,
+  BoxGeometry,
+  MeshBasicMaterial,
+  Object3D,
+  DoubleSide,
+  Vector3,
   ShaderMaterial,
   AdditiveBlending,
   InstancedMesh,
   InstancedBufferAttribute,
   DynamicDrawUsage,
 } from 'three';
+import { castleRenderData } from '../game/battlefieldMap';
+import type { CastleBanner } from '../game/battlefieldMap';
 
 // 맵 오브젝트/랜드마크용 표식 레이어.
 // (1) 지면 발광 원반(상시 글로우), (2) 이름표, (3) 근접 상호작용 힌트를 한데 묶어
@@ -41,6 +48,18 @@ const HINT_STYLE: TextStyle = {
   strokeW: 6,
   scale: 1.18,
 };
+
+// 구역 진입 이름표(크고 금빛, 페이드 인). 성곽 구역 상단에 배너처럼 뜬다.
+const TITLE_STYLE: TextStyle = {
+  font: 'bold 32px "Nanum Myeongjo","Times New Roman",serif',
+  fill: '#ffe6a2',
+  stroke: 'rgba(0,0,0,0.94)',
+  strokeW: 7,
+  scale: 2.35,
+};
+
+const BANNER_FOG_COLOR = new Vector3(0.00018, 0.00026, 0.0008);
+const BANNER_FOG_DENSITY = 0.019;
 
 interface TextSlot {
   sprite: Sprite;
@@ -218,17 +237,149 @@ class GlowBatch {
   }
 }
 
+// 성곽 성문·군영 깃발. 버텍스 셰이더 사인파로 펄럭이는 천 + 어두운 깃대.
+// 정적 배치(성곽은 상시 지형) — 데이터 버전이 바뀔 때만 인스턴스를 다시 굽고, 매 프레임 uTime만 갱신.
+class BannerBatch {
+  private readonly cloth: InstancedMesh;
+  private readonly poles: InstancedMesh;
+  private readonly clothMat: ShaderMaterial;
+  private readonly seeds: Float32Array;
+  private readonly cols: Float32Array;
+  private readonly seedAttr: InstancedBufferAttribute;
+  private readonly colAttr: InstancedBufferAttribute;
+  private readonly dummy = new Object3D();
+  private readonly cap: number;
+  private version = -1;
+
+  constructor(scene: Scene, cap = 24) {
+    this.cap = cap;
+    const clothGeo = new PlaneGeometry(1, 1, 14, 3);
+    clothGeo.translate(0.5, 0.5, 0); // 로컬 원점 = 깃대쪽 하단, +X로 자유단, +Y로 위
+    this.seeds = new Float32Array(cap);
+    this.cols = new Float32Array(cap * 3);
+    this.seedAttr = new InstancedBufferAttribute(this.seeds, 1);
+    this.colAttr = new InstancedBufferAttribute(this.cols, 3);
+    this.seedAttr.setUsage(DynamicDrawUsage);
+    this.colAttr.setUsage(DynamicDrawUsage);
+    clothGeo.setAttribute('aSeed', this.seedAttr);
+    clothGeo.setAttribute('aColor', this.colAttr);
+    this.clothMat = new ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uFogColor: { value: BANNER_FOG_COLOR.clone() },
+        uFogDensity: { value: BANNER_FOG_DENSITY },
+      },
+      vertexShader: /* glsl */ `
+        attribute float aSeed;
+        attribute vec3 aColor;
+        uniform float uTime;
+        varying vec3 vColor;
+        varying float vShade;
+        varying float vFogDepth;
+        void main() {
+          vColor = aColor;
+          vec3 p = position;
+          float t = uTime + aSeed * 6.2831;
+          float amp = p.x; // 깃대(0)에서 자유단(1)으로 갈수록 진폭 증가
+          float w = sin(p.x * 6.5 - t * 5.5) * 0.17 * amp
+                  + sin(p.x * 3.0 - t * 3.2 + 1.3) * 0.09 * amp;
+          p.z += w;
+          p.y += sin(p.x * 4.5 - t * 4.8) * 0.05 * amp;
+          vShade = 0.66 + 0.28 * cos(p.x * 6.5 - t * 5.5); // 사인 기울기로 가짜 음영
+          vec4 mv = modelViewMatrix * instanceMatrix * vec4(p, 1.0);
+          vFogDepth = -mv.z;
+          gl_Position = projectionMatrix * mv;
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        uniform vec3 uFogColor;
+        uniform float uFogDensity;
+        varying vec3 vColor;
+        varying float vShade;
+        varying float vFogDepth;
+        void main() {
+          vec3 col = vColor * vShade;
+          float fog = 1.0 - exp(-uFogDensity * uFogDensity * vFogDepth * vFogDepth);
+          col = mix(col, uFogColor, clamp(fog, 0.0, 1.0));
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `,
+      side: DoubleSide,
+      transparent: false,
+      depthWrite: true,
+      depthTest: true,
+    });
+    this.cloth = new InstancedMesh(clothGeo, this.clothMat, cap);
+    this.cloth.count = 0;
+    this.cloth.frustumCulled = false;
+    this.cloth.renderOrder = 1;
+    this.cloth.instanceMatrix.setUsage(DynamicDrawUsage);
+
+    const poleGeo = new BoxGeometry(1, 1, 1);
+    poleGeo.translate(0, 0.5, 0); // 바닥 피벗
+    const poleMat = new MeshBasicMaterial({ color: 0x241d19, toneMapped: true });
+    this.poles = new InstancedMesh(poleGeo, poleMat, cap);
+    this.poles.count = 0;
+    this.poles.frustumCulled = false;
+    this.poles.instanceMatrix.setUsage(DynamicDrawUsage);
+
+    scene.add(this.cloth);
+    scene.add(this.poles);
+  }
+
+  private rebuild(defs: CastleBanner[]): void {
+    const n = Math.min(defs.length, this.cap);
+    for (let i = 0; i < n; i++) {
+      const d = defs[i];
+      // 깃대
+      this.dummy.position.set(d.x, 0, d.z);
+      this.dummy.rotation.set(0, 0, 0);
+      this.dummy.scale.set(0.16, d.poleH, 0.16);
+      this.dummy.updateMatrix();
+      this.poles.setMatrixAt(i, this.dummy.matrix);
+      // 천(깃대 상단에 부착)
+      this.dummy.position.set(d.x, d.poleH - d.h - 0.15, d.z);
+      this.dummy.rotation.set(0, d.ry, 0);
+      this.dummy.scale.set(d.w, d.h, 1);
+      this.dummy.updateMatrix();
+      this.cloth.setMatrixAt(i, this.dummy.matrix);
+      this.seeds[i] = (i * 0.37) % 1;
+      this.cols[i * 3] = d.r;
+      this.cols[i * 3 + 1] = d.g;
+      this.cols[i * 3 + 2] = d.b;
+    }
+    this.cloth.count = n;
+    this.poles.count = n;
+    this.cloth.instanceMatrix.needsUpdate = true;
+    this.poles.instanceMatrix.needsUpdate = true;
+    this.seedAttr.needsUpdate = true;
+    this.colAttr.needsUpdate = true;
+  }
+
+  update(time: number): void {
+    if (castleRenderData.bannerVersion !== this.version) {
+      this.version = castleRenderData.bannerVersion;
+      this.rebuild(castleRenderData.banners);
+    }
+    this.clothMat.uniforms.uTime.value = time;
+  }
+}
+
 // 지면 글로우 + 이름표 + 근접 힌트를 묶은 표식 레이어.
 export class MarkerLayer {
   private readonly glow: GlowBatch;
   private readonly names: TextSprites;
   private readonly hints: TextSprites;
+  private readonly titles: TextSprites;
+  private readonly banners: BannerBatch;
   private time = 0;
 
   constructor(scene: Scene, glowCap = 24, nameCap = 18, hintCap = 6) {
     this.glow = new GlowBatch(scene, glowCap);
     this.names = new TextSprites(scene, nameCap, NAME_STYLE, 11);
     this.hints = new TextSprites(scene, hintCap, HINT_STYLE, 12);
+    this.titles = new TextSprites(scene, 2, TITLE_STYLE, 13);
+    this.banners = new BannerBatch(scene);
   }
 
   begin(time: number): void {
@@ -236,6 +387,11 @@ export class MarkerLayer {
     this.glow.begin();
     this.names.begin();
     this.hints.begin();
+    // 성곽 깃발(정적) 애니 + 구역 이름표(페이드). run.ts 수정 없이 castleRenderData로 구동.
+    this.banners.update(time);
+    this.titles.begin();
+    const t = castleRenderData.title;
+    if (t.alpha > 0.02) this.titles.place(t.text, t.x, t.y, t.z, Math.min(1, t.alpha));
   }
 
   glowAt(x: number, z: number, radius: number, r: number, g: number, b: number): void {
@@ -256,11 +412,14 @@ export class MarkerLayer {
     this.glow.end(this.time);
     this.names.end();
     this.hints.end();
+    this.titles.end();
   }
 
   reset(): void {
     this.glow.reset();
     this.names.reset();
     this.hints.reset();
+    this.titles.reset();
+    // 깃발은 정적 성곽 지형이라 런 재시작에도 유지(reset하지 않음).
   }
 }
