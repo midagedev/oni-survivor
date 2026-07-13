@@ -1,6 +1,7 @@
 import type { Atlas } from '../gfx/atlas';
 import { HEROES } from '../data/heroes';
 import { WEAPON_DEFS } from '../data/weapons';
+import { getLang, nameOf } from '../core/i18n';
 
 // 스코어 공유 (DESIGN §11). 결과를 오프스크린 캔버스(1200×630) 공유 카드로 렌더하고
 // navigator.share(files) / 클립보드 이미지 / PNG 다운로드로 공유. 결과 화면과 독립.
@@ -73,7 +74,7 @@ export function renderShareCard(data: ShareData, atlas?: Atlas): HTMLCanvasEleme
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#f0e4c0';
   ctx.font = `bold 46px ${serif}`;
-  ctx.fillText('일기당천', 60, 96);
+  ctx.fillText(getLang() === 'en' ? 'ILGIDANGCHEON' : '일기당천', 60, 96);
   ctx.fillStyle = '#e8c667';
   ctx.font = `30px ${serif}`;
   ctx.fillText('一騎當千', 270, 94);
@@ -104,7 +105,7 @@ export function renderShareCard(data: ShareData, atlas?: Atlas): HTMLCanvasEleme
   ctx.textAlign = 'center';
   ctx.fillStyle = '#f0e4c0';
   ctx.font = `28px ${serif}`;
-  ctx.fillText(hero ? hero.name : '장수', px0 + pw / 2, py0 + ph + 40);
+  ctx.fillText(hero ? nameOf('hero', data.heroId, hero.name) : getLang() === 'en' ? 'General' : '장수', px0 + pw / 2, py0 + ph + 40);
   ctx.fillStyle = '#e8c667';
   ctx.font = `20px ${serif}`;
   ctx.fillText(hero ? hero.hanja : '', px0 + pw / 2, py0 + ph + 68);
@@ -114,7 +115,7 @@ export function renderShareCard(data: ShareData, atlas?: Atlas): HTMLCanvasEleme
   ctx.textAlign = 'left';
   ctx.fillStyle = '#8a8f9c';
   ctx.font = `26px ${serif}`;
-  ctx.fillText('처치', rx, 190);
+  ctx.fillText(getLang() === 'en' ? 'KILLS' : '처치', rx, 190);
   const killStr = data.kills.toLocaleString();
   ctx.fillStyle = '#e85c4a';
   ctx.font = `bold 130px ${serif}`;
@@ -128,10 +129,10 @@ export function renderShareCard(data: ShareData, atlas?: Atlas): HTMLCanvasEleme
   // 통계 행
   const statY = 366;
   const stats: [string, string][] = [
-    ['생존', fmtTime(data.time)],
-    ['최대 콤보', `${data.maxCombo.toLocaleString()}`],
-    ['레벨', `Lv ${data.level}`],
-    ['획득 골드', `${data.goldEarned.toLocaleString()}`],
+    [getLang() === 'en' ? 'Survived' : '생존', fmtTime(data.time)],
+    [getLang() === 'en' ? 'Max Combo' : '최대 콤보', `${data.maxCombo.toLocaleString()}`],
+    [getLang() === 'en' ? 'Level' : '레벨', `Lv ${data.level}`],
+    [getLang() === 'en' ? 'Gold' : '획득 골드', `${data.goldEarned.toLocaleString()}`],
   ];
   let sx = rx;
   ctx.textBaseline = 'alphabetic';
@@ -171,7 +172,7 @@ export function renderShareCard(data: ShareData, atlas?: Atlas): HTMLCanvasEleme
   ctx.font = `20px ${serif}`;
   ctx.textAlign = 'left';
   ctx.fillStyle = '#8a8f9c';
-  ctx.fillText('전법', rx, wy - 6);
+  ctx.fillText(getLang() === 'en' ? 'TACTICS' : '전법', rx, wy - 6);
   let wx = rx;
   const wy2 = wy + 8;
   for (const w of data.weapons.slice(0, 6)) {
@@ -252,6 +253,11 @@ function canvasToBlob(cv: HTMLCanvasElement): Promise<Blob> {
 
 export function shareText(data: ShareData): string {
   const hero = HEROES[data.heroId];
+  if (getLang() === 'en') {
+    const nm = hero ? nameOf('hero', data.heroId, hero.name) : 'a general';
+    const verb = data.victory ? 'unified the realm' : `slew ${data.kills.toLocaleString()} foes`;
+    return `As ${nm} in Ilgidangcheon, I ${verb}! ⚔️ ${SHARE_URL}`;
+  }
   const name = hero ? hero.name : '장수';
   const verb = data.victory ? '천하를 통일했다' : `${data.kills.toLocaleString()}명을 베었다`;
   return `일기당천에서 ${name}으로 ${verb}! ⚔️ ${SHARE_URL}`;
@@ -345,23 +351,28 @@ export function openSharePreview(data: ShareData, atlas?: Atlas): void {
     return btn;
   };
 
+  const en = getLang() === 'en';
   const text = shareText(data);
-  mkBtn('전과 공유', async () => {
+  mkBtn(en ? 'Share' : '전과 공유', async () => {
     const r = await shareCanvas(cv, text);
-    flash(r === 'shared' ? '공유했습니다' : r === 'copied' ? '이미지를 클립보드에 복사했습니다' : r === 'downloaded' ? '이미지를 저장했습니다' : '공유에 실패했습니다');
+    flash(
+      en
+        ? r === 'shared' ? 'Shared' : r === 'copied' ? 'Image copied to clipboard' : r === 'downloaded' ? 'Image saved' : 'Share failed'
+        : r === 'shared' ? '공유했습니다' : r === 'copied' ? '이미지를 클립보드에 복사했습니다' : r === 'downloaded' ? '이미지를 저장했습니다' : '공유에 실패했습니다',
+    );
   }, true);
-  mkBtn('이미지 복사', async () => {
+  mkBtn(en ? 'Copy Image' : '이미지 복사', async () => {
     try {
       const CI = (window as unknown as { ClipboardItem?: typeof ClipboardItem }).ClipboardItem;
       const blob = await canvasToBlob(cv);
       if (!CI) throw new Error('unsupported');
       await navigator.clipboard.write([new CI({ 'image/png': blob })]);
-      flash('이미지를 클립보드에 복사했습니다');
+      flash(en ? 'Image copied to clipboard' : '이미지를 클립보드에 복사했습니다');
     } catch {
-      flash('이 브라우저는 이미지 복사를 지원하지 않습니다');
+      flash(en ? 'This browser does not support image copy' : '이 브라우저는 이미지 복사를 지원하지 않습니다');
     }
   });
-  mkBtn('이미지 저장', async () => {
+  mkBtn(en ? 'Save Image' : '이미지 저장', async () => {
     const blob = await canvasToBlob(cv);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -369,17 +380,17 @@ export function openSharePreview(data: ShareData, atlas?: Atlas): void {
     a.download = 'ilgidangcheon.png';
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
-    flash('이미지를 저장했습니다');
+    flash(en ? 'Image saved' : '이미지를 저장했습니다');
   });
-  mkBtn('문구 복사', async () => {
+  mkBtn(en ? 'Copy Text' : '문구 복사', async () => {
     try {
       await navigator.clipboard.writeText(text);
-      flash('공유 문구를 복사했습니다');
+      flash(en ? 'Share text copied' : '공유 문구를 복사했습니다');
     } catch {
-      flash('클립보드 접근이 차단되었습니다');
+      flash(en ? 'Clipboard access blocked' : '클립보드 접근이 차단되었습니다');
     }
   });
-  mkBtn('닫기', () => root.remove());
+  mkBtn(en ? 'Close' : '닫기', () => root.remove());
   root.appendChild(row);
 
   document.body.appendChild(root);

@@ -1,4 +1,5 @@
 import { WEAPON_DEFS } from './weapons';
+import { getLang, ACH_EN } from '../core/i18n';
 
 // 업적/칭호 정의 (DESIGN §10). RunResult + 누적 저장값으로 순수 판정.
 // save.ts 스키마에 직접 의존하지 않도록 구조적 컨텍스트만 받는다(연결은 Phase 3/리드).
@@ -140,12 +141,14 @@ export function evaluateAchievements(ctx: AchievementCtx): string[] {
   return out;
 }
 
-// 획득 업적 중 공유 카드에 표시할 대표 칭호(우선순위 최고). 없으면 '무명'.
+// 획득 업적 중 공유 카드에 표시할 대표 칭호(우선순위 최고). 없으면 '무명'. 이름은 언어별, 한자 공통.
 export function bestTitle(earnedIds: string[]): { name: string; hanja: string } {
   let best: Achievement | null = null;
   for (const id of earnedIds) {
     const a = ACHIEVEMENT_BY_ID[id];
     if (a && (!best || a.priority > best.priority)) best = a;
   }
-  return best ? { name: best.name, hanja: best.hanja } : { name: '무명의 장수', hanja: '無名將' };
+  const en = getLang() === 'en';
+  if (!best) return { name: en ? 'Nameless General' : '무명의 장수', hanja: '無名將' };
+  return { name: en ? ACH_EN[best.id]?.name ?? best.name : best.name, hanja: best.hanja };
 }

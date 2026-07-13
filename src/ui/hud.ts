@@ -1,3 +1,5 @@
+import { t } from '../core/i18n';
+
 export interface HudState {
   time: number;
   kills: number;
@@ -84,7 +86,7 @@ export class Hud {
     this.levelEl.textContent = 'Lv 1';
     this.killsEl = document.createElement('div');
     this.killsEl.style.cssText = 'font-variant-numeric:tabular-nums;';
-    this.killsEl.textContent = '처치 0';
+    this.killsEl.textContent = `${t('hudKillsLabel')} 0`;
     this.goldEl = document.createElement('div');
     this.goldEl.style.cssText = 'color:#e8c667;font-variant-numeric:tabular-nums;';
     this.goldEl.textContent = '⟡ 0';
@@ -171,7 +173,7 @@ export class Hud {
     this.musouHint = document.createElement('div');
     this.musouHint.style.cssText =
       'color:#e8c667;font-size:12px;letter-spacing:2px;opacity:0;transition:opacity 0.2s;';
-    this.musouHint.innerHTML = '무쌍 無雙 — Space';
+    this.musouHint.innerHTML = t('musouHint');
     this.musouWrap.appendChild(this.musouHint);
     const musouBar = document.createElement('div');
     musouBar.style.cssText =
@@ -346,7 +348,7 @@ export class Hud {
     const mm = Math.floor(s.time / 60);
     const ss = Math.floor(s.time % 60);
     this.timerEl.textContent = `${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
-    this.killsEl.textContent = `처치 ${s.kills}`;
+    this.killsEl.textContent = `${t('hudKillsLabel')} ${s.kills}`;
     this.levelEl.textContent = `Lv ${s.level}`;
     this.goldEl.textContent = `⟡ ${Math.floor(s.gold)}`;
     this.xpFill.style.width = `${Math.min(100, (s.xp / s.nextXp) * 100)}%`;
@@ -376,7 +378,7 @@ export class Hud {
       this.comboEl.style.display = 'flex';
       this.comboEl.innerHTML =
         `<div style="color:#f0e4c0;font-size:52px;line-height:1;font-variant-numeric:tabular-nums;">${s.combo}</div>` +
-        `<div style="color:#e8c667;font-size:16px;letter-spacing:2px;">連 킬</div>`;
+        `<div style="color:#e8c667;font-size:16px;letter-spacing:2px;">${t('hudCombo')}</div>`;
       if (s.combo !== this.lastCombo) this.punchCombo();
     } else {
       this.comboEl.style.display = 'none';

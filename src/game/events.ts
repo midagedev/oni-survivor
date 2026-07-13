@@ -6,6 +6,7 @@ import type { ParticleSystem } from '../gfx/particles';
 import type { Atlas } from '../gfx/atlas';
 import type { Rng } from '../core/rng';
 import { ENEMY_TYPES } from '../data/enemyTypes';
+import { getLang } from '../core/i18n';
 
 // 전장 이벤트 (DESIGN §10). run이 매 프레임 update를 호출하며 필요한 시스템을 주입한다.
 // 기존 파일을 건드리지 않도록 모든 외부 상호작용을 EventDeps 콜백/참조로 받는다.
@@ -118,7 +119,7 @@ export class BattlefieldEvents {
     this.rushDirZ = Math.sin(a);
     this.rushRemaining = 30;
     this.rushAcc = 0;
-    this.d.banner('황건 대군 黃巾大軍', '#e8c667');
+    this.d.banner(getLang() === 'en' ? 'Yellow Turban Horde 黃巾大軍' : '황건 대군 黃巾大軍', '#e8c667');
   }
 
   private tickRush(dt: number, gameTime: number): void {
@@ -148,7 +149,7 @@ export class BattlefieldEvents {
   private startMeteorShower(): void {
     this.showerRemaining = 15;
     this.showerAcc = 0;
-    this.d.banner('유성우 流星雨', '#ff9a3c');
+    this.d.banner(getLang() === 'en' ? 'Meteor Shower 流星雨' : '유성우 流星雨', '#ff9a3c');
   }
 
   private tickShower(dt: number): void {
@@ -220,9 +221,9 @@ export class BattlefieldEvents {
     en.tr[i] = 2.4;
     en.tg[i] = 1.9;
     en.tb[i] = 0.6; // 금색 발광
-    en.labels[i] = '보급 마차 補給馬車';
+    en.labels[i] = getLang() === 'en' ? 'Supply Cart 補給馬車' : '보급 마차 補給馬車';
     en.markSpecial(i);
     this.d.effects.spawnRing(x, z, 4, 2.4, 1.9, 0.6, 0.6);
-    this.d.banner('보급 마차 — 놓치지 마라!', '#ffe14d');
+    this.d.banner(getLang() === 'en' ? 'Supply Cart — don’t let it escape!' : '보급 마차 — 놓치지 마라!', '#ffe14d');
   }
 }

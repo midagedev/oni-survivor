@@ -1,6 +1,9 @@
 // 장수 대사 — 군웅전(three-kingdoms-mud) gunungjeon 팩 NPC 카드에서 추출(자체 제작 콘텐츠).
 // 출처: internal/npc/packs/gunungjeon/cards/<id>.json 의 voice/voices/time_voices.
-// scripts/gen_dialogue.mjs 로 재생성. 직접 편집하지 말 것.
+// DIALOGUE(ko)는 scripts/gen_dialogue.mjs 로 재생성. 영어는 dialogueEn.ts(수기 번역).
+// 접근자는 현재 언어(i18n)에 따라 ko/en을 고른다.
+import { getLang } from '../core/i18n';
+import { DIALOGUE_EN } from './dialogueEn';
 
 export interface CharDialogue {
   name: string; // 한글 이름
@@ -277,16 +280,32 @@ export const DIALOGUE: Record<string, CharDialogue> = {
   },
 };
 
+// 현재 언어에 맞는 대사 팩 (en이면 dialogueEn, 없으면 ko 폴백).
+function pack(id: string): CharDialogue | undefined {
+  if (getLang() === 'en' && DIALOGUE_EN[id]) return DIALOGUE_EN[id];
+  return DIALOGUE[id];
+}
+
+// 장수 이름 (현재 언어). 없으면 빈 문자열.
+export function dialogueName(id: string): string {
+  return pack(id)?.name ?? '';
+}
+
+// 장수 대표 한 줄 (현재 언어). 없으면 빈 문자열.
+export function dialogueSelect(id: string): string {
+  return pack(id)?.select ?? '';
+}
+
 // id의 대사 중 하나(index 기반, 순환). 없으면 빈 문자열.
 export function pickLine(id: string, index: number): string {
-  const d = DIALOGUE[id];
+  const d = pack(id);
   if (!d || d.lines.length === 0) return '';
   return d.lines[((index % d.lines.length) + d.lines.length) % d.lines.length];
 }
 
 // id의 랜덤 대사. rand는 0..1 (미지정 시 Math.random). 없으면 빈 문자열.
 export function randomLine(id: string, rand: () => number = Math.random): string {
-  const d = DIALOGUE[id];
+  const d = pack(id);
   if (!d || d.lines.length === 0) return '';
   return d.lines[Math.floor(rand() * d.lines.length)];
 }
@@ -295,6 +314,6 @@ export function randomLine(id: string, rand: () => number = Math.random): string
 export function anyRandomLine(rand: () => number = Math.random): { id: string; name: string; line: string } {
   const ids = Object.keys(DIALOGUE);
   const id = ids[Math.floor(rand() * ids.length)];
-  const d = DIALOGUE[id];
+  const d = pack(id) ?? DIALOGUE[id];
   return { id, name: d.name, line: d.lines[Math.floor(rand() * d.lines.length)] ?? d.select };
 }

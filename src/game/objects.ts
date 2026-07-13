@@ -7,6 +7,7 @@ import type { MarkerLayer } from '../gfx/markers';
 import type { Rng } from '../core/rng';
 import { WorldSpriteBatch, WORLD_ASSETS } from '../gfx/worldKit';
 import { ShadowRenderer } from '../gfx/sprites';
+import { getLang } from '../core/i18n';
 
 export type BuffKind = 'attack' | 'speed' | 'musou';
 
@@ -33,8 +34,12 @@ const BARREL_RADIUS = 4;
 const HINT_RADIUS = 5.2; // 근접 힌트 표시 거리
 
 // 종류별 이름표 / 힌트 / 이름표 높이 / 상시 글로우(r,g,b,반경, 0이면 없음)
-const OBJ_NAME = ['화약통 火藥', '만두 수레 饅頭', '군신 사당 軍神祠', '목책 木柵'];
-const OBJ_HINT = ['공격 → 폭파', '회복 +30%', '버프 획득', '공격 → 돌파'];
+const OBJ_NAME_KO = ['화약통 火藥', '만두 수레 饅頭', '군신 사당 軍神祠', '목책 木柵'];
+const OBJ_NAME_EN = ['Powder Keg 火藥', 'Bun Cart 饅頭', 'War-God Shrine 軍神祠', 'Palisade 木柵'];
+const OBJ_HINT_KO = ['공격 → 폭파', '회복 +30%', '버프 획득', '공격 → 돌파'];
+const OBJ_HINT_EN = ['Attack → explode', 'Heal +30%', 'Gain buff', 'Attack → break'];
+const objName = (k: number): string => (getLang() === 'en' ? OBJ_NAME_EN[k] : OBJ_NAME_KO[k]);
+const objHint = (k: number): string => (getLang() === 'en' ? OBJ_HINT_EN[k] : OBJ_HINT_KO[k]);
 const OBJ_LABEL_Y = [2.5, 2.6, 3.8, 2.6];
 const OBJ_GLOW: (readonly [number, number, number, number] | null)[] = [
   [1.5, 0.5, 0.18, 2.5], // 화약통 — 위험한 붉은 잔광
@@ -129,10 +134,10 @@ export class BattlefieldObjects {
       const z = this.z[i];
       const g = OBJ_GLOW[k];
       if (g) layer.glowAt(x, z, g[3], g[0], g[1], g[2]);
-      layer.name(OBJ_NAME[k], x, OBJ_LABEL_Y[k], z);
+      layer.name(objName(k), x, OBJ_LABEL_Y[k], z);
       const dx = px - x;
       const dz = pz - z;
-      if (dx * dx + dz * dz <= hintSq) layer.hint(OBJ_HINT[k], x, OBJ_LABEL_Y[k] + 1.0, z);
+      if (dx * dx + dz * dz <= hintSq) layer.hint(objHint(k), x, OBJ_LABEL_Y[k] + 1.0, z);
     }
   }
 
@@ -140,14 +145,15 @@ export class BattlefieldObjects {
     if (this.kind[i] === KIND_DUMPLING) {
       this.d.heal(0.3); // 최대 체력 30%
       this.d.particles.burst(this.x[i], this.z[i], 1.6, 2.2, 1.0, 12, 3);
-      this.d.banner('만두 수레 饅頭', '#9affc0');
+      this.d.banner(getLang() === 'en' ? 'Bun Cart 饅頭' : '만두 수레 饅頭', '#9affc0');
     } else if (this.kind[i] === KIND_SHRINE) {
       const kinds: BuffKind[] = ['attack', 'speed', 'musou'];
       const kind = kinds[this.d.rng.int(3)];
       this.d.applyBuff(kind, 30);
       this.d.effects.spawnRing(this.x[i], this.z[i], 6, 2.4, 2.0, 0.8, 0.7);
-      const label = kind === 'attack' ? '공격 강화' : kind === 'speed' ? '질풍' : '무쌍 충전';
-      this.d.banner(`군신 사당 · ${label}`, '#e8c667');
+      const en = getLang() === 'en';
+      const label = kind === 'attack' ? (en ? 'Attack Up' : '공격 강화') : kind === 'speed' ? (en ? 'Gale' : '질풍') : (en ? 'Musou Charge' : '무쌍 충전');
+      this.d.banner(`${en ? 'War-God Shrine' : '군신 사당'} · ${label}`, '#e8c667');
     }
     this.alive[i] = 0;
   }
@@ -193,7 +199,7 @@ export class BattlefieldObjects {
     this.d.effects.spawnRing(x, z, 2.8, 1.6, 1.05, 0.45, 0.3);
     this.d.particles.burst(x, z, 1.5, 0.85, 0.35, 22, 5);
     this.d.damageArea(x, z, 2.5, 35);
-    this.d.banner('목책 돌파 木柵', '#e4a05b');
+    this.d.banner(getLang() === 'en' ? 'Palisade Broken 木柵' : '목책 돌파 木柵', '#e4a05b');
   }
 
   render(_time: number): void {

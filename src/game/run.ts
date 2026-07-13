@@ -44,7 +44,7 @@ import { Boss } from './boss';
 import { BattlefieldEvents } from './events';
 import { BattlefieldObjects } from './objects';
 import type { BuffKind } from './player';
-import { RELIC_BY_ID, rollRelic } from '../data/relics';
+import { RELIC_BY_ID, rollRelic, relicName, relicDesc } from '../data/relics';
 import type { Weapon, WeaponContext } from './weapons/types';
 import { createWeapon } from './weapons/roster';
 import { LevelUp } from './levelup';
@@ -53,6 +53,7 @@ import { Hud } from '../ui/hud';
 import type { HudState, SlotView } from '../ui/hud';
 import { HEROES } from '../data/heroes';
 import type { HeroDef } from '../data/heroes';
+import { t, getLang, nameOf, WEAPON_DESC_EN } from '../core/i18n';
 import { WEAPON_DEFS, EVOLUTIONS } from '../data/weapons';
 import { PASSIVE_DEFS, PASSIVE_BY_ID } from '../data/passives';
 import type { MetaMods } from '../data/upgrades';
@@ -261,7 +262,7 @@ export class Run {
       audio.sfx('musou');
     });
     this.boss = new Boss(atlas, (name, hanja) => {
-      this.hud.banner(`${name} 등장 ${hanja}`, '#e85c4a', 44, 1800);
+      this.hud.banner(`${name} ${t('bannerAppear')} ${hanja}`, '#e85c4a', 44, 1800);
       this.sayHero();
       // 보스 방향 팬은 checkBossSpawn → cinematics.onBossSpawn에서 처리
       audio.sfx('bossHorn');
@@ -657,7 +658,7 @@ export class Run {
     if (this.hulaoAt > 0 && this.gameTime >= this.hulaoAt && !this.map.hulaoOn && !this.map.isGateBreached()) {
       this.hulaoAt = 0;
       this.map.triggerHulao(this.player.x, this.player.z);
-      this.hud.banner('호로관 출현 虎牢關', '#ffb05a', 48, 1800);
+      this.hud.banner(`${t('bannerHulao')} 虎牢關`, '#ffb05a', 48, 1800);
       audio.sfx('warn');
     }
 
@@ -706,7 +707,7 @@ export class Run {
     if (this.companion.update(gdt, this.gameTime, this.player, this.ctx)) {
       const ally = this.companion.definition;
       this.effects.spawnRing(this.companion.x, this.companion.z, 7, 0.7, 1.5, 2.4, 0.6);
-      this.hud.banner(`원군 ${ally.name} ${ally.hanja}`, '#7ec8ff', 46, 1600);
+      this.hud.banner(`${t('bannerAlly')} ${ally.name} ${ally.hanja}`, '#7ec8ff', 46, 1600);
       this.hud.quote(ally.name, pickLine(ally.id, 0));
       audio.sfx('buff');
     }
@@ -831,7 +832,7 @@ export class Run {
       musouReady: this.musou.ready,
       combo: this.combo.count,
       bossActive: this.boss.active,
-      bossName: this.boss.name,
+      bossName: nameOf('hero', this.boss.typeId, this.boss.name),
       bossHanja: this.boss.hanja,
       bossFrac: this.boss.hpFrac(this.ctx),
     };
@@ -1005,7 +1006,7 @@ export class Run {
       this.effects.spawnRing(x, z, 7, 2.6, 2.0, 0.7, 0.6);
       this.treasure.spawn(x, z, false);
       this.addGold(Math.round(400 * this.player.stats.goldMul));
-      this.hud.banner('보급 확보 補給確保', '#ffe14d', 52, 1500);
+      this.hud.banner(`${t('bannerSupply')} 補給確保`, '#ffe14d', 52, 1500);
       audio.sfx('levelup');
       this.kills++;
       en.kill(i);
@@ -1073,7 +1074,7 @@ export class Run {
     this.rig.addTrauma(0.78);
     this.rig.punchFov(3);
     this.flashScreen(0.16);
-    this.hud.banner('호로관 파성 虎牢關破城', '#ffb05a', 58, 1900);
+    this.hud.banner(`${t('bannerHulaoBreak')} 虎牢關破城`, '#ffb05a', 58, 1900);
     audio.sfx('explosion');
     this.gateRushTimer = 0.8;
     this.gateRushX = gate.x;
@@ -1101,7 +1102,7 @@ export class Run {
     this.effects.spawnRing(this.player.x, this.player.z, 5, 2.6, 2.0, 0.8, 0.5);
     const evo = this.tryEvolve();
     if (evo) {
-      this.hud.banner(`진화! ${evo}`, '#ff9a3c', 56, 1800);
+      this.hud.banner(`${t('bannerEvolve')} ${evo}`, '#ff9a3c', 56, 1800);
       audio.sfx('evolve');
       this.refreshLoadout();
       return;
@@ -1110,7 +1111,7 @@ export class Run {
     this.player.heal(this.player.maxHp * (boss ? 0.6 : 0.35));
     this.addGold(Math.round((boss ? 200 : 80) * this.player.stats.goldMul));
     this.xp += (boss ? this.nextXp * 1.5 : this.nextXp * 0.6) * this.player.stats.xpMul;
-    this.hud.banner(boss ? '보물 寶物' : '보상 報償', '#9affc0', 48, 1400);
+    this.hud.banner(boss ? t('bannerTreasure') : t('bannerReward'), '#9affc0', 48, 1400);
     while (this.xp >= this.nextXp) {
       this.xp -= this.nextXp;
       this.level++;
@@ -1212,46 +1213,47 @@ export class Run {
   }
 
   private cardView(c: Choice): CardView {
+    const en = getLang() === 'en';
     if (c.kind === 'newWeapon') {
       const d = WEAPON_DEFS[c.id];
-      return { title: d.name, hanja: d.hanja, desc: d.desc, tag: '무기 · 신규', accent: '#e8c667', symbol: d.hanja[0], badge: '신규' };
+      return { title: nameOf('weapon', c.id, d.name), hanja: d.hanja, desc: en ? WEAPON_DESC_EN[c.id] ?? d.desc : d.desc, tag: `${t('catWeapon')} · ${t('tagNew')}`, accent: '#e8c667', symbol: d.hanja[0], badge: t('tagNew') };
     }
     if (c.kind === 'upWeapon') {
       const d = WEAPON_DEFS[c.id];
       const w = this.weapons.find((x) => x.id === c.id)!;
       const willMax = w.level + 1 >= 8;
       return {
-        title: d.name,
+        title: nameOf('weapon', c.id, d.name),
         hanja: d.hanja,
-        desc: d.desc,
-        tag: `무기 강화 Lv${w.level}→${w.level + 1}`,
+        desc: en ? WEAPON_DESC_EN[c.id] ?? d.desc : d.desc,
+        tag: `${t('catWeapon')} ${willMax ? t('tagMax') : t('tagUp')} Lv${w.level}→${w.level + 1}`,
         accent: '#e8a94a',
         symbol: d.hanja[0],
-        badge: willMax ? '최대' : '강화',
+        badge: willMax ? t('tagMax') : t('tagUp'),
         rare: willMax, // Lv8 도달 → 진화 조건 근접 강조
       };
     }
     if (c.kind === 'newPassive') {
       const d = PASSIVE_BY_ID[c.id];
-      return { title: d.name, hanja: d.hanja, desc: d.desc(1), tag: '패시브 · 신규', accent: '#7ec8ff', symbol: d.hanja[0], badge: '신규', rare: d.rare };
+      return { title: nameOf('passive', c.id, d.name), hanja: d.hanja, desc: d.desc(1), tag: `${t('catPassive')} · ${t('tagNew')}`, accent: '#7ec8ff', symbol: d.hanja[0], badge: t('tagNew'), rare: d.rare };
     }
     if (c.kind === 'upPassive') {
       const d = PASSIVE_BY_ID[c.id];
       const lvl = this.passives[c.id];
-      return { title: d.name, hanja: d.hanja, desc: d.desc(lvl + 1), tag: `패시브 Lv${lvl}→${lvl + 1}`, accent: '#7ec8ff', symbol: d.hanja[0], badge: '강화', rare: d.rare };
+      return { title: nameOf('passive', c.id, d.name), hanja: d.hanja, desc: d.desc(lvl + 1), tag: `${t('catPassive')} ${t('tagUp')} Lv${lvl}→${lvl + 1}`, accent: '#7ec8ff', symbol: d.hanja[0], badge: t('tagUp'), rare: d.rare };
     }
     if (c.kind === 'relic') {
       const d = RELIC_BY_ID[c.id];
-      return { title: d.name, hanja: d.hanja, desc: d.desc, tag: '저주 유물', accent: '#c77dff', symbol: d.hanja[0], badge: '저주', rare: true };
+      return { title: relicName(d), hanja: d.hanja, desc: relicDesc(d), tag: t('catRelic'), accent: '#c77dff', symbol: d.hanja[0], badge: t('tagCurse'), rare: true };
     }
-    // reward
+    // reward — 심볼(治/金/書)은 한자 공통
     const map = {
-      heal: { title: '재정비', hanja: '再整備', desc: '체력 50% 회복', symbol: '治' },
-      gold: { title: '군자금', hanja: '軍資金', desc: '골드 +200', symbol: '金' },
-      xp: { title: '병법 수련', hanja: '兵法修鍊', desc: '경험치 대량 획득', symbol: '書' },
+      heal: { name: t('rewardHealName'), hanja: '再整備', desc: t('rewardHealDesc'), symbol: '治' },
+      gold: { name: t('rewardGoldName'), hanja: '軍資金', desc: t('rewardGoldDesc'), symbol: '金' },
+      xp: { name: t('rewardXpName'), hanja: '兵法修鍊', desc: t('rewardXpDesc'), symbol: '書' },
     };
     const m = map[c.id];
-    return { title: m.title, hanja: m.hanja, desc: m.desc, tag: '보상', accent: '#9affc0', symbol: m.symbol, badge: '보상' };
+    return { title: m.name, hanja: m.hanja, desc: m.desc, tag: t('tagReward'), accent: '#9affc0', symbol: m.symbol, badge: t('tagReward') };
   }
 
   private pickCard(index: number): void {
@@ -1313,7 +1315,7 @@ export class Run {
     this.victoryAchieved = true;
     this.state = 'play';
     this.hud.setVisible(true);
-    this.hud.banner('무한 전투 無限', '#e85c4a', 56, 1600);
+    this.hud.banner(`${t('bannerEndless')} 無限`, '#e85c4a', 56, 1600);
     audio.playBgm('battle');
   }
 

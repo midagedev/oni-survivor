@@ -1,13 +1,16 @@
 import type { PlayerStats } from '../game/player';
+import { getLang } from '../core/i18n';
 
 // 저주받은 유물 (DESIGN §10). risk-reward 레벨업 카드로 등장(보라색 테두리, 10% 확률, 최대 2개).
 // 패시브와 동일하게 stats에 적용하되 강한 이득 + 뚜렷한 대가를 함께 준다.
-// 카드/보유 제한/확률 로직은 run·levelup 통합 시 연결(현재는 데이터 + apply만 제공).
+// 이름/설명은 ko + en(한자는 공통). 표시 시 relicName/relicDesc로 현재 언어 선택.
 export interface RelicDef {
   id: string;
   name: string;
+  nameEn: string;
   hanja: string;
   desc: string;
+  descEn: string;
   apply: (s: PlayerStats) => void;
 }
 
@@ -15,8 +18,10 @@ export const RELIC_DEFS: RelicDef[] = [
   {
     id: 'seven_star',
     name: '칠성검',
+    nameEn: 'Seven Stars Sword',
     hanja: '七星劍',
     desc: '공격력 +40%, 최대 체력 -30%',
+    descEn: 'Attack +40%, Max HP -30%',
     apply: (s) => {
       s.damageMul *= 1.4;
       s.maxHpMul *= 0.7;
@@ -25,8 +30,10 @@ export const RELIC_DEFS: RelicDef[] = [
   {
     id: 'bronze_decree',
     name: '동작대 금령',
+    nameEn: 'Bronze Sparrow Decree',
     hanja: '銅雀臺金令',
     desc: '골드 획득 +100%, 이동속도 -15%',
+    descEn: 'Gold gain +100%, Move speed -15%',
     apply: (s) => {
       s.goldMul *= 2.0;
       s.speedMul *= 0.85;
@@ -35,8 +42,10 @@ export const RELIC_DEFS: RelicDef[] = [
   {
     id: 'ox_fan',
     name: '우선',
+    nameEn: 'Ox Fan',
     hanja: '牛扇',
     desc: '쿨다운 -25%, 픽업 반경 -50%',
+    descEn: 'Cooldown -25%, Pickup radius -50%',
     apply: (s) => {
       s.cooldownMul *= 0.75;
       s.pickupMul *= 0.5;
@@ -45,8 +54,10 @@ export const RELIC_DEFS: RelicDef[] = [
   {
     id: 'poison_pill',
     name: '오석산',
+    nameEn: 'Five-Mineral Powder',
     hanja: '五石散',
     desc: '공격력 +30%, 받는 피해 +25%',
+    descEn: 'Attack +30%, Damage taken +25%',
     apply: (s) => {
       s.damageMul *= 1.3;
       s.dmgTakenMul *= 1.25;
@@ -55,8 +66,10 @@ export const RELIC_DEFS: RelicDef[] = [
   {
     id: 'blood_banner',
     name: '피의 군기',
+    nameEn: 'Blood War-Banner',
     hanja: '血軍旗',
     desc: '투사체 +2, 체력 재생 정지, 최대 체력 -15%',
+    descEn: 'Projectiles +2, HP regen off, Max HP -15%',
     apply: (s) => {
       s.projectileBonus += 2;
       s.hpRegen = 0;
@@ -66,8 +79,10 @@ export const RELIC_DEFS: RelicDef[] = [
   {
     id: 'greedy_seal',
     name: '탐랑의 인',
+    nameEn: 'Seal of Greed',
     hanja: '貪狼印',
     desc: '경험치 +50%, 광역 -25%',
+    descEn: 'XP +50%, Area -25%',
     apply: (s) => {
       s.xpMul *= 1.5;
       s.areaMul *= 0.75;
@@ -77,6 +92,14 @@ export const RELIC_DEFS: RelicDef[] = [
 
 export const RELIC_BY_ID: Record<string, RelicDef> = {};
 for (const r of RELIC_DEFS) RELIC_BY_ID[r.id] = r;
+
+// 현재 언어의 유물 이름/설명 (한자는 별도 병기).
+export function relicName(d: RelicDef): string {
+  return getLang() === 'en' ? d.nameEn : d.name;
+}
+export function relicDesc(d: RelicDef): string {
+  return getLang() === 'en' ? d.descEn : d.desc;
+}
 
 // 아직 보유하지 않은 유물 중 하나를 무작위로 반환(없으면 null). (rng: 0..1 반환 함수)
 export function rollRelic(rand: () => number, ownedIds: readonly string[]): RelicDef | null {

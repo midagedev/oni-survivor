@@ -4,9 +4,9 @@ import { PASSIVE_BY_ID } from '../data/passives';
 import { UPGRADE_DEFS, upgradeCost, LVBU_UNLOCK_COST } from '../data/upgrades';
 import { BOSS_DEFS } from '../game/boss';
 import { ACHIEVEMENT_BY_ID, ACHIEVEMENTS } from '../data/achievements';
-import { DIALOGUE, anyRandomLine } from '../data/dialogue';
+import { anyRandomLine, dialogueSelect } from '../data/dialogue';
 import { heroUnlockText, isHeroUnlocked } from '../data/heroUnlocks';
-import { t, getLang, toggleLang, onLangChange } from '../core/i18n';
+import { t, getLang, toggleLang, onLangChange, nameOf, WEAPON_DESC_EN, ACH_EN, HERO_BONUS_EN, HERO_MUSOU_EN } from '../core/i18n';
 import { openSharePreview } from './shareCard';
 import type { SaveData } from '../core/save';
 import type { RunResult } from '../game/run';
@@ -200,9 +200,9 @@ export class Screens {
   // ===== 장수 선택 =====
   showSelect(save: SaveData): void {
     this.current = 'select';
-    this.show(() => {
+    const build = (): void => {
       const s = el('div', 'screen');
-      s.appendChild(el('div', 'section-title', '장수 선택 <small>將帥選擇</small>'));
+      s.appendChild(el('div', 'section-title', `${t('selectTitle')} <small>將帥選擇</small>`));
 
       const grid = el('div', 'hero-grid');
       for (const id of HERO_ORDER) {
@@ -220,11 +220,11 @@ export class Screens {
           card.appendChild(lock);
         }
         const wname = WEAPON_DEFS[h.startWeapon]?.name ?? h.startWeapon;
-        card.appendChild(el('div', 'hero-name', `${h.name}<span class="hanja">${h.hanja}</span>`));
-        card.appendChild(el('div', 'hero-line', `무기 <span class="k">${wname}</span>`));
-        card.appendChild(el('div', 'hero-line', h.bonusText));
+        card.appendChild(el('div', 'hero-name', `${nameOf('hero', id, h.name)}<span class="hanja">${h.hanja}</span>`));
+        card.appendChild(el('div', 'hero-line', `${t('weaponLabel')} <span class="k">${nameOf('weapon', h.startWeapon, wname)}</span>`));
+        card.appendChild(el('div', 'hero-line', getLang() === 'en' ? HERO_BONUS_EN[id] ?? h.bonusText : h.bonusText));
         card.appendChild(el('div', 'hero-musou', this.musouText(id)));
-        const quote = DIALOGUE[id]?.select;
+        const quote = dialogueSelect(id);
         if (quote && !locked) card.appendChild(el('div', 'hero-quote', `“${quote}”`));
         if (locked) {
           if (id === 'lvbu') card.addEventListener('click', () => this.cb.onOpenShop('upgrade'));
@@ -234,12 +234,18 @@ export class Screens {
         grid.appendChild(card);
       }
       s.appendChild(grid);
-      s.appendChild(this.button('뒤로 ‹', this.cb.onBackToTitle));
+      s.appendChild(this.button(t('back'), this.cb.onBackToTitle));
       this.overlay.appendChild(s);
-    });
+    };
+    this.rerender = () => {
+      this.overlay.textContent = '';
+      build();
+    };
+    this.show(build);
   }
 
   private musouText(id: string): string {
+    if (getLang() === 'en') return HERO_MUSOU_EN[id] ?? 'Musou';
     const map: Record<string, string> = {
       zhaoyun: '무쌍 창격돌진 — 8방향 무적 돌진',
       guanyu: '무쌍 청룡회천참 — 거대 회전 참격',
@@ -259,68 +265,63 @@ export class Screens {
     share: ShareInfo,
   ): void {
     this.current = 'result';
-    this.show(() => {
+    const build = (): void => {
       const s = el('div', 'screen');
       const win = result.victory;
-      s.appendChild(el('div', `result-title ${win ? 'win' : 'lose'}`, win ? '天下統一' : '戰死'));
-      s.appendChild(el('div', 'result-sub', win ? '천하통일' : '전사'));
-      const quote = DIALOGUE[result.heroId]?.select;
+      s.appendChild(el('div', `result-title ${win ? 'win' : 'lose'}`, win ? '天下統一' : '戰死')); // 한자 공통
+      s.appendChild(el('div', 'result-sub', win ? t('resultWin') : t('resultLose')));
+      const quote = dialogueSelect(result.heroId);
       if (quote) s.appendChild(el('div', 'result-quote', `“${quote}”`));
 
-      // 업적 달성 토스트 (새로 달성한 것만)
+      // 업적 달성 토스트 (새로 달성한 것만) — 이름은 언어별, 한자 공통
       if (share.newAchievements.length > 0) {
         const names = share.newAchievements
           .map((id) => ACHIEVEMENT_BY_ID[id])
           .filter((a) => !!a)
-          .map((a) => `${a.name} ${a.hanja}`)
+          .map((a) => `${getLang() === 'en' ? ACH_EN[a.id]?.name ?? a.name : a.name} ${a.hanja}`)
           .join(' · ');
-        const toast = el('div', 'ach-toast', `업적 달성! <b>${names}</b>`);
-        s.appendChild(toast);
+        s.appendChild(el('div', 'ach-toast', `${t('achGet')} <b>${names}</b>`));
       }
       if (share.newHeroes.length > 0) {
         const names = share.newHeroes
-          .map((id) => HEROES[id])
-          .filter((h) => !!h)
-          .map((h) => `${h.name} ${h.hanja}`)
+          .map((id) => (HEROES[id] ? `${nameOf('hero', id, HEROES[id].name)} ${HEROES[id].hanja}` : null))
+          .filter((x): x is string => !!x)
           .join(' · ');
-        s.appendChild(el('div', 'ach-toast hero-unlock-toast', `새 장수 해금! <b>${names}</b>`));
+        s.appendChild(el('div', 'ach-toast hero-unlock-toast', `${t('heroUnlockGet')} <b>${names}</b>`));
       }
 
       const stats = el('div', 'result-stats');
-      stats.appendChild(this.stat('생존', fmtTime(result.time), records.time));
-      stats.appendChild(this.stat('처치', String(result.kills), records.kills));
-      stats.appendChild(this.stat('최대 콤보', String(result.maxCombo), records.combo));
-      stats.appendChild(this.stat('레벨', `Lv ${result.level}`, records.level));
-      const heroName = HEROES[result.heroId]?.name ?? result.heroId;
-      stats.appendChild(this.stat('장수', heroName, false));
-      stats.appendChild(this.stat('보스 토벌', String(result.bosses.length), false));
+      stats.appendChild(this.stat(t('rsSurvive'), fmtTime(result.time), records.time));
+      stats.appendChild(this.stat(t('rsKills'), String(result.kills), records.kills));
+      stats.appendChild(this.stat(t('rsMaxCombo'), String(result.maxCombo), records.combo));
+      stats.appendChild(this.stat(t('rsLevel'), `Lv ${result.level}`, records.level));
+      stats.appendChild(this.stat(t('rsHero'), nameOf('hero', result.heroId, HEROES[result.heroId]?.name ?? result.heroId), false));
+      stats.appendChild(this.stat(t('rsBossKill'), String(result.bosses.length), false));
       s.appendChild(stats);
 
       const gold = el(
         'div',
         'gold-earned',
-        `획득 골드 ⟡ ${result.goldEarned}` +
-          (result.comboBonus > 0 ? `<span class="bonus">(콤보 보너스 +${result.comboBonus})</span>` : ''),
+        `${t('goldEarned')} ⟡ ${result.goldEarned}` +
+          (result.comboBonus > 0 ? `<span class="bonus">${t('goldBonus', { n: result.comboBonus })}</span>` : ''),
       );
       s.appendChild(gold);
-      s.appendChild(el('div', 'controls-hint', `본진 잔액 ⟡ ${save.gold}`));
+      s.appendChild(el('div', 'controls-hint', t('baseBalance', { n: save.gold })));
 
-      // 빌드 요약
-      const build = el('div', 'build-summary');
+      // 빌드 요약 (이름 언어별)
+      const bs = el('div', 'build-summary');
       for (const w of result.weapons) {
-        const d = WEAPON_DEFS[w.id];
-        build.appendChild(el('div', 'build-chip w', `${d?.name ?? w.id} <b>Lv${w.level}</b>`));
+        bs.appendChild(el('div', 'build-chip w', `${nameOf('weapon', w.id, WEAPON_DEFS[w.id]?.name ?? w.id)} <b>Lv${w.level}</b>`));
       }
       for (const p of result.passives) {
-        const d = PASSIVE_BY_ID[p.id];
-        build.appendChild(el('div', 'build-chip p', `${d?.name ?? p.id} <b>Lv${p.level}</b>`));
+        bs.appendChild(el('div', 'build-chip p', `${nameOf('passive', p.id, PASSIVE_BY_ID[p.id]?.name ?? p.id)} <b>Lv${p.level}</b>`));
       }
-      s.appendChild(build);
+      s.appendChild(bs);
 
       const row = el('div', 'btn-row');
-      row.appendChild(this.button('다시 출진 再出陣', this.cb.onRetry, { primary: true }));
+      row.appendChild(this.button(t('retry'), this.cb.onRetry, { primary: true }));
       row.appendChild(
-        this.button('전과 공유 戰果', () =>
+        this.button(t('share'), () =>
           openSharePreview(
             {
               victory: result.victory,
@@ -337,15 +338,20 @@ export class Screens {
           ),
         ),
       );
-      row.appendChild(this.button('본진으로 本陣', this.cb.onBackToTitle));
+      row.appendChild(this.button(t('toTitle'), this.cb.onBackToTitle));
       s.appendChild(row);
       this.overlay.appendChild(s);
-    });
+    };
+    this.rerender = () => {
+      this.overlay.textContent = '';
+      build();
+    };
+    this.show(build);
   }
 
   private stat(label: string, value: string, record: boolean): HTMLDivElement {
     const d = el('div', 'rs');
-    d.appendChild(el('div', 'v', value + (record ? '<span class="nr">신기록</span>' : '')));
+    d.appendChild(el('div', 'v', value + (record ? `<span class="nr">${t('newRecord')}</span>` : '')));
     d.appendChild(el('div', 'l', label));
     return d;
   }
@@ -356,6 +362,7 @@ export class Screens {
 
   showShop(save: SaveData, tab: 'upgrade' | 'codex'): void {
     this.current = 'shop';
+    this.rerender = () => this.rebuildShop(save, this.shopTab);
     this.show(() => this.buildShop(save, tab));
   }
 
@@ -374,12 +381,12 @@ export class Screens {
     this.shopSave = save;
     this.shopTab = tab;
     const s = el('div', 'screen');
-    s.appendChild(el('div', 'section-title', '본진 <small>本陣</small>'));
-    s.appendChild(el('div', 'gold-tag', `보유 골드 ⟡ ${save.gold}`));
+    s.appendChild(el('div', 'section-title', `${t('shopTitle')} <small>本陣</small>`));
+    s.appendChild(el('div', 'gold-tag', t('goldHeld', { n: save.gold })));
 
     const tabs = el('div', 'tabs');
-    const t1 = el('div', tab === 'upgrade' ? 'tab active' : 'tab', '강화 强化');
-    const t2 = el('div', tab === 'codex' ? 'tab active' : 'tab', '전공 戰功');
+    const t1 = el('div', tab === 'upgrade' ? 'tab active' : 'tab', t('tabUpgrade'));
+    const t2 = el('div', tab === 'codex' ? 'tab active' : 'tab', t('tabCodex'));
     t1.addEventListener('click', () => this.rebuildShop(save, 'upgrade'));
     t2.addEventListener('click', () => this.rebuildShop(save, 'codex'));
     tabs.appendChild(t1);
@@ -389,7 +396,7 @@ export class Screens {
     if (tab === 'upgrade') s.appendChild(this.upgradeList(save));
     else s.appendChild(this.codexPanel(save));
 
-    s.appendChild(this.button('뒤로 ‹', this.cb.onBackToTitle));
+    s.appendChild(this.button(t('back'), this.cb.onBackToTitle));
     this.overlay.appendChild(s);
   }
 
@@ -401,7 +408,7 @@ export class Screens {
       const maxed = cost < 0;
       const row = el('div', 'shop-row');
       const info = el('div', 'shop-info');
-      info.appendChild(el('div', 'name', `${def.name}<span class="hanja">${def.hanja}</span>`));
+      info.appendChild(el('div', 'name', `${nameOf('upgrade', def.id, def.name)}<span class="hanja">${def.hanja}</span>`));
       info.appendChild(el('div', 'desc', maxed ? def.desc(lv) : def.desc(lv + 1)));
       const pips = el('div', 'pips');
       for (let i = 0; i < def.maxLevel; i++) pips.appendChild(el('div', i < lv ? 'pip on' : 'pip'));
@@ -410,12 +417,12 @@ export class Screens {
 
       const buyWrap = el('div', 'shop-buy');
       if (maxed) {
-        buyWrap.appendChild(el('div', 'gold-tag', 'MAX'));
+        buyWrap.appendChild(el('div', 'gold-tag', t('maxed')));
       } else {
         const affordable = save.gold >= cost;
         buyWrap.appendChild(el('div', 'controls-hint', `⟡ ${cost}`));
         buyWrap.appendChild(
-          this.button('강화', () => this.cb.onBuyUpgrade(def.id), { disabled: !affordable }),
+          this.button(t('upgradeBuy'), () => this.cb.onBuyUpgrade(def.id), { disabled: !affordable }),
         );
       }
       row.appendChild(buyWrap);
@@ -426,13 +433,13 @@ export class Screens {
     if (!save.lvbuUnlocked) {
       const row = el('div', 'shop-row');
       const info = el('div', 'shop-info');
-      info.appendChild(el('div', 'name', `여포 해금<span class="hanja">呂布</span>`));
-      info.appendChild(el('div', 'desc', '방천화극 · 공격력 +25%(받는 피해 +25%) · 적토무쌍'));
+      info.appendChild(el('div', 'name', `${t('lvbuUnlockName')}<span class="hanja">呂布</span>`));
+      info.appendChild(el('div', 'desc', t('lvbuUnlockDesc')));
       row.appendChild(info);
       const buyWrap = el('div', 'shop-buy');
       buyWrap.appendChild(el('div', 'controls-hint', `⟡ ${LVBU_UNLOCK_COST}`));
       buyWrap.appendChild(
-        this.button('해금', this.cb.onUnlockLvbu, { disabled: save.gold < LVBU_UNLOCK_COST }),
+        this.button(t('unlockBuy'), this.cb.onUnlockLvbu, { disabled: save.gold < LVBU_UNLOCK_COST }),
       );
       row.appendChild(buyWrap);
       list.appendChild(row);
@@ -446,36 +453,39 @@ export class Screens {
     wrap.style.padding = '0';
     // 최고 기록
     const records = el('div', 'records');
-    records.appendChild(this.rec(fmtTime(save.best.time), '최고 생존'));
-    records.appendChild(this.rec(String(save.best.kills), '최다 처치'));
-    records.appendChild(this.rec(`Lv ${save.best.level}`, '최고 레벨'));
-    records.appendChild(this.rec(String(save.best.combo), '최대 콤보'));
+    records.appendChild(this.rec(fmtTime(save.best.time), t('recSurvive')));
+    records.appendChild(this.rec(String(save.best.kills), t('recKills')));
+    records.appendChild(this.rec(`Lv ${save.best.level}`, t('recLevel')));
+    records.appendChild(this.rec(String(save.best.combo), t('recCombo')));
     wrap.appendChild(records);
     // 보스 도감
-    wrap.appendChild(el('div', 'controls-hint', '보스 토벌 기록'));
+    wrap.appendChild(el('div', 'controls-hint', t('bossCodex')));
     const grid = el('div', 'codex-grid');
     for (const id of BOSS_ORDER) {
       const def = BOSS_DEFS[id] as unknown as Named | undefined;
       if (!def) continue;
       const slain = save.bosses.includes(id);
       const cell = el('div', slain ? 'codex-cell slain' : 'codex-cell');
-      cell.appendChild(el('div', 'cx-name', slain ? `${def.name} ${def.hanja}` : '???'));
+      cell.appendChild(el('div', 'cx-name', slain ? `${nameOf('hero', id, def.name)} ${def.hanja}` : '???'));
       cell.appendChild(
-        el('div', 'cx-state', slain ? '<span style="color:#e8c667">토벌 완료</span>' : '<span style="color:#7f8496">미토벌</span>'),
+        el('div', 'cx-state', slain ? `<span style="color:#e8c667">${t('slain')}</span>` : `<span style="color:#7f8496">${t('notSlain')}</span>`),
       );
       grid.appendChild(cell);
     }
     wrap.appendChild(grid);
 
-    // 업적 목록
+    // 업적 목록 (이름/설명 언어별, 한자 공통)
     const earned = save.achievements ?? [];
-    wrap.appendChild(el('div', 'controls-hint', `업적 業績 (${earned.length}/${ACHIEVEMENTS.length})`));
+    wrap.appendChild(el('div', 'controls-hint', `${t('achSection')} (${earned.length}/${ACHIEVEMENTS.length})`));
     const achGrid = el('div', 'ach-grid');
     for (const a of ACHIEVEMENTS) {
       const done = earned.includes(a.id);
+      const en = getLang() === 'en';
+      const aName = en ? ACH_EN[a.id]?.name ?? a.name : a.name;
+      const aDesc = en ? ACH_EN[a.id]?.desc ?? a.desc : a.desc;
       const cell = el('div', done ? 'ach-cell done' : 'ach-cell');
-      cell.appendChild(el('div', 'ach-name', done ? `${a.name} <span class="ah">${a.hanja}</span>` : a.name));
-      cell.appendChild(el('div', 'ach-desc', done ? a.desc : '???'));
+      cell.appendChild(el('div', 'ach-name', done ? `${aName} <span class="ah">${a.hanja}</span>` : aName));
+      cell.appendChild(el('div', 'ach-desc', done ? aDesc : '???'));
       achGrid.appendChild(cell);
     }
     wrap.appendChild(achGrid);
@@ -492,17 +502,22 @@ export class Screens {
   // ===== 일시정지 =====
   showPause(): void {
     this.current = 'pause';
+    const build = (): void => {
+      this.overlay.textContent = '';
+      const s = el('div', 'screen');
+      s.appendChild(el('div', 'section-title', `${t('pauseTitle')} <small>一時停止</small>`));
+      const row = el('div', 'btn-row');
+      row.appendChild(this.button(t('resume'), this.cb.onResume, { primary: true }));
+      row.appendChild(this.muteButton());
+      row.appendChild(this.langButton());
+      row.appendChild(this.button(t('abandon'), this.cb.onAbandon));
+      s.appendChild(row);
+      s.appendChild(el('div', 'controls-hint', t('resumeHint')));
+      this.overlay.appendChild(s);
+      this.overlay.classList.add('show');
+    };
     // 일시정지는 페이드 없이 즉시 표시(즉각 반응).
-    this.overlay.textContent = '';
-    const s = el('div', 'screen');
-    s.appendChild(el('div', 'section-title', '일시정지 <small>一時停止</small>'));
-    const row = el('div', 'btn-row');
-    row.appendChild(this.button('계속 繼續', this.cb.onResume, { primary: true }));
-    row.appendChild(this.muteButton());
-    row.appendChild(this.button('포기 抛棄', this.cb.onAbandon));
-    s.appendChild(row);
-    s.appendChild(el('div', 'controls-hint', 'Esc 로도 계속'));
-    this.overlay.appendChild(s);
-    this.overlay.classList.add('show');
+    this.rerender = build;
+    build();
   }
 }

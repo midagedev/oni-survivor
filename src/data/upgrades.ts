@@ -1,6 +1,7 @@
 // 메타 상점 영구 강화 정의 (골드로 구매, localStorage 저장).
 // 비용 공식: 다음 레벨 n(0-base) 구매에 200×2^n 골드.
 // 효과는 런 시작 시 player.stats / run 세팅에 적용 (data/upgrades → game/run).
+import { getLang } from '../core/i18n';
 
 export interface UpgradeDef {
   id: string;
@@ -17,49 +18,63 @@ export const UPGRADE_DEFS: UpgradeDef[] = [
     name: '무예 단련',
     hanja: '武藝鍛鍊',
     maxLevel: 5,
-    desc: (l) => `공격력 +${l * 8}%`,
+    desc: (l) => (getLang() === 'en' ? `Attack +${l * 8}%` : `공격력 +${l * 8}%`),
   },
   {
     id: 'health',
     name: '철갑 강화',
     hanja: '鐵甲强化',
     maxLevel: 5,
-    desc: (l) => `최대 체력 +${l * 10}%`,
+    desc: (l) => (getLang() === 'en' ? `Max HP +${l * 10}%` : `최대 체력 +${l * 10}%`),
   },
   {
     id: 'speed',
     name: '준마 훈련',
     hanja: '駿馬訓鍊',
     maxLevel: 5,
-    desc: (l) => `이동속도 +${l * 5}%`,
+    desc: (l) => (getLang() === 'en' ? `Move speed +${l * 5}%` : `이동속도 +${l * 5}%`),
   },
   {
     id: 'pickup',
     name: '집혼 향낭',
     hanja: '集魂香囊',
     maxLevel: 5,
-    desc: (l) => `픽업 반경 +${l * 12}%`,
+    desc: (l) => (getLang() === 'en' ? `Pickup radius +${l * 12}%` : `픽업 반경 +${l * 12}%`),
   },
   {
     id: 'cooldown',
     name: '전술 통달',
     hanja: '戰術通達',
     maxLevel: 5,
-    desc: (l) => `쿨다운 -${(100 * (1 - Math.pow(0.96, l))).toFixed(0)}%`,
+    desc: (l) => (getLang() === 'en' ? `Cooldown -${(100 * (1 - Math.pow(0.96, l))).toFixed(0)}%` : `쿨다운 -${(100 * (1 - Math.pow(0.96, l))).toFixed(0)}%`),
   },
   {
     id: 'startLevel',
     name: '숙련 출진',
     hanja: '熟練出陣',
     maxLevel: 5,
-    desc: (l) => (l > 0 ? `${l}레벨 상태로 시작` : '기본 1레벨로 시작'),
+    desc: (l) =>
+      getLang() === 'en'
+        ? l > 0
+          ? `Start at level ${1 + l}`
+          : 'Start at level 1'
+        : l > 0
+          ? `${l}레벨 상태로 시작`
+          : '기본 1레벨로 시작',
   },
   {
     id: 'revive',
     name: '기사회생',
     hanja: '起死回生',
     maxLevel: 1,
-    desc: (l) => (l > 0 ? '런당 1회 부활 (HP 50%·무적 2초·충격파)' : '사망 시 부활 없음'),
+    desc: (l) =>
+      getLang() === 'en'
+        ? l > 0
+          ? 'Revive once per run (HP 50%, 2s invuln, shockwave)'
+          : 'No revival on death'
+        : l > 0
+          ? '런당 1회 부활 (HP 50%·무적 2초·충격파)'
+          : '사망 시 부활 없음',
   },
 ];
 

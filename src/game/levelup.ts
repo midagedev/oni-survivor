@@ -1,6 +1,8 @@
 // 레벨업 3택 카드 오버레이 (먹빛 배경 + 금색 헤어라인). 무기/패시브 획득·강화.
 // run이 후보 카드를 만들어 전달하고, 선택/리롤을 콜백으로 돌려받는 프레젠터.
 // 레이아웃은 style.css의 .levelup-* 클래스가 담당(반응형: nowrap 3열 + vh clamp 축소).
+import { t } from '../core/i18n';
+
 export interface CardView {
   title: string; // 이름
   hanja: string;
@@ -16,6 +18,8 @@ export class LevelUp {
   private readonly root: HTMLDivElement;
   private readonly cardEls: HTMLDivElement[] = [];
   private readonly rerollBtn: HTMLDivElement;
+  private readonly titleEl: HTMLDivElement;
+  private readonly hintEl: HTMLDivElement;
   private onPick: ((index: number) => void) | null = null;
   private onReroll: (() => void) | null = null;
   private count = 0;
@@ -30,7 +34,7 @@ export class LevelUp {
 
     const title = document.createElement('div');
     title.className = 'levelup-title';
-    title.innerHTML = '레벨 업 — 하나를 택하라 <span>選一</span>';
+    this.titleEl = title;
     wrap.appendChild(title);
 
     const row = document.createElement('div');
@@ -49,7 +53,7 @@ export class LevelUp {
     bottom.className = 'levelup-bottom';
     const hint = document.createElement('div');
     hint.className = 'levelup-hint';
-    hint.textContent = '1 · 2 · 3 키로도 선택';
+    this.hintEl = hint;
     bottom.appendChild(hint);
 
     this.rerollBtn = document.createElement('div');
@@ -101,7 +105,9 @@ export class LevelUp {
         el.style.display = 'none';
       }
     }
-    this.rerollBtn.textContent = `리롤 (50G) · 보유 ${gold}G`;
+    this.titleEl.innerHTML = `${t('levelupTitle')} <span>選一</span>`;
+    this.hintEl.textContent = t('levelupHint');
+    this.rerollBtn.textContent = t('reroll', { n: gold });
     this.rerollBtn.style.opacity = canReroll ? '1' : '0.4';
     this.rerollBtn.style.pointerEvents = canReroll ? 'auto' : 'none';
     this.root.style.display = 'flex';
