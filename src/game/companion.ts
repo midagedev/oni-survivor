@@ -39,6 +39,7 @@ export class Companion {
   private animTime = 0;
   private attackTimer = 0;
   private specialTimer = 0;
+  private posRingT = 0; // #34 위치 식별용 은은한 지면 링 펄스
   private playerLevel = 1;
   private musouActive = false;
   private pendingSpecial: SpecialEvent | null = null;
@@ -47,7 +48,8 @@ export class Companion {
   constructor(scene: Scene, atlas: Atlas, light: LightUniforms) {
     this.sheet = atlas.sgrade;
     this.quad = new SpriteQuad(this.sheet, light, 2.15);
-    this.quad.setTint(0.78, 1.08, 1.35);
+    this.quad.setTint(0.72, 1.12, 1.5); // 아군 청록 틴트
+    this.quad.setAlly(true); // 청록 림 아웃라인 — 적/플레이어와 확실히 구분(오너 딸 피드백)
     this.quad.mesh.visible = false;
     scene.add(this.quad.mesh);
   }
@@ -127,6 +129,13 @@ export class Companion {
     this.attackTimer -= dt;
     if (this.attackTimer <= 0) this.attack(ctx);
 
+    // #34/오너 딸 피드백: 은은한 청록 지면 링(아군 표식 + 위치 식별). 반경<3 → 광원 미생성, 대형 버스트 아님.
+    this.posRingT -= dt;
+    if (this.posRingT <= 0) {
+      this.posRingT = 0.55;
+      ctx.effects.spawnRing(this.x, this.z, 1.5, 0.4, 1.2, 2.0, 0.5);
+    }
+
     cellUvOffset(this.sheet, this.blockPx, 0, this.dir, this.frame, this.uv);
     this.quad.setUv(this.uv.u, this.uv.v);
     this.quad.setPosition(this.x, 0, this.z);
@@ -157,16 +166,15 @@ export class Companion {
     return best;
   }
 
-  // 합류 세트피스: 착지 광역 충격(반경 6 넉백+피해) + 링/플래시(자동 광원). 절제된 1회 임팩트.
+  // 합류 세트피스: 착지 광역 충격(넉백+피해) + 절제된 1회 임팩트. #34: 링 반경<3으로 대형 광원 버스트 제거.
   private joinSetpiece(ctx: WeaponContext, player: Player): void {
     const d = this.def;
-    // 돌진 진입 잔상
     const fx = player.faceX || 0;
     const fz = player.faceZ || 1;
-    ctx.effects.spawnThrust(this.x - fx * 5, this.z - fz * 5, fx, fz, 6, 1.6, d.cr, d.cg, d.cb, 0.22);
-    ctx.effects.spawnFlash(this.x, this.z, d.cr, d.cg, d.cb, 3.2);
-    ctx.effects.spawnRing(this.x, this.z, 6, d.cr, d.cg, d.cb, 0.5);
-    this.aoe(ctx, this.x, this.z, 6, this.dmg(60, ctx), 7);
+    ctx.effects.spawnThrust(this.x - fx * 4.5, this.z - fz * 4.5, fx, fz, 4.5, 1.4, d.cr, d.cg, d.cb, 0.2);
+    ctx.effects.spawnFlash(this.x, this.z, d.cr, d.cg, d.cb, 2);
+    ctx.effects.spawnRing(this.x, this.z, 2.8, d.cr, d.cg, d.cb, 0.45); // <3 → 광원 미생성
+    this.aoe(ctx, this.x, this.z, 6, this.dmg(60, ctx), 7); // 히트 범위는 유지
   }
 
   private attack(ctx: WeaponContext): void {
@@ -185,8 +193,8 @@ export class Companion {
     const boost = this.musouActive ? 1.3 : 1; // 무쌍 중 이펙트/위력 강화
 
     if (this.def.attack === 'lightning') {
-      // 2체인: 대상 + 근처 1명
-      ctx.effects.spawnLightning(en.x[best], en.z[best], this.def.cr, this.def.cg, this.def.cb);
+      // #34: 기본공격은 대형 낙뢰 버스트(반경9 광원+화면플래시) 제거 → 은은한 연쇄 아크만. 적 은폐 방지.
+      ctx.effects.spawnChainArc(this.x, this.z, en.x[best], en.z[best], this.def.cr, this.def.cg, this.def.cb);
       this.hit(ctx, best, nx, nz, base * boost, 3);
       const chain = this.nearestOther(ctx, en.x[best], en.z[best], best, 6);
       if (chain >= 0) {
@@ -194,8 +202,8 @@ export class Companion {
         this.hit(ctx, chain, nx, nz, base * 0.8 * boost, 2);
       }
     } else {
-      // 부채꼴 광역: 아크 + 콘 내 다수 타격
-      ctx.effects.spawnSlashArc(this.x, this.z, nx, nz, 7, 0.9, this.def.cr, this.def.cg, this.def.cb, 0.2);
+      // 부채꼴 광역: 아크 시각 반경 축소(7→4.5, 히트 범위는 콘 7.5 유지) — 고빈도 대형 버스트 완화.
+      ctx.effects.spawnSlashArc(this.x, this.z, nx, nz, 4.5, 0.9, this.def.cr, this.def.cg, this.def.cb, 0.18);
       this.cone(ctx, nx, nz, 7.5, base * boost, 4);
     }
 

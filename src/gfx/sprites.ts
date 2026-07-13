@@ -135,8 +135,9 @@ const FRAG_SINGLE = /* glsl */ `
   uniform vec2 uUvOffset;
   uniform float uFlash;
   uniform vec3 uTint;
-  uniform float uPlayer; // 1이면 플레이어(림 글로우) / 0이면 다크 아웃라인
-  uniform float uRim; // 플레이어 림 강도(모바일 저해상도 블룸 대응으로 낮춤)
+  uniform float uPlayer; // 1이면 플레이어(금색 림) / 0이면 다크 아웃라인
+  uniform float uAlly; // 1이면 원군(청록 림 — 적과 확실히 구분)
+  uniform float uRim; // 림 강도(모바일 저해상도 블룸 대응으로 낮춤)
   varying vec2 vUv;
   ${EDGE_GLSL}
   ${LIGHT_PARS_FRAG}
@@ -144,12 +145,15 @@ const FRAG_SINGLE = /* glsl */ `
   void main() {
     vec4 tex = texture2D(uMap, vUv);
     if (tex.a < 0.5) discard;
-    float lift = ${AMBIENT_LIFT.toFixed(3)} * mix(1.0, 1.18, uPlayer);
+    float lift = ${AMBIENT_LIFT.toFixed(3)} * mix(1.0, 1.18, max(uPlayer, uAlly));
     vec3 col = pow(tex.rgb, vec3(2.2)) * uTint * lift;
     float edge = edgeFactor(vUv, uUvOffset);
-    // 플레이어: 금색 림(군중 속 구분) / 그 외(보스): 다크 아웃라인
-    vec3 rim = mix(col * 0.32, vec3(1.9, 1.35, 0.55) * uRim, 0.8);
-    col = mix(col, mix(col * 0.32, rim, uPlayer), edge);
+    // 플레이어=금색 림 / 원군=청록 림(아군 표식) / 그 외(보스)=다크 아웃라인
+    vec3 darkEdge = col * 0.32;
+    vec3 goldRim = mix(darkEdge, vec3(1.9, 1.35, 0.55) * uRim, 0.8);
+    vec3 azureRim = mix(darkEdge, vec3(0.45, 1.4, 2.3) * uRim, 0.85);
+    vec3 rimC = mix(mix(darkEdge, azureRim, uAlly), goldRim, uPlayer); // 플레이어 우선
+    col = mix(col, rimC, edge);
     col += sampleLights() * 0.6;
     col = mix(col, vec3(2.0), uFlash);
     float fog = 1.0 - exp(-uFogDensity * uFogDensity * vFogDepth * vFogDepth);
@@ -277,6 +281,7 @@ export class SpriteQuad {
         uFlash: { value: 0 },
         uTint: { value: new Color(1, 1, 1) },
         uPlayer: { value: 0 },
+        uAlly: { value: 0 },
         uRim: { value: 1 },
         ...light,
         ...fogUniforms(),
@@ -296,6 +301,11 @@ export class SpriteQuad {
   // 플레이어 강조: 셰이더 내 금색 림 아웃라인 + 미세 밝기 강화(군중 속 구분).
   setPlayer(on: boolean): void {
     this.mat.uniforms.uPlayer.value = on ? 1 : 0;
+  }
+
+  // 원군 강조: 청록 림 아웃라인(아군 표식 — 적/플레이어와 확실히 구분).
+  setAlly(on: boolean): void {
+    this.mat.uniforms.uAlly.value = on ? 1 : 0;
   }
 
   // 림 강도(모바일 저해상도 블룸에서 캐릭터가 묻히지 않게 낮춤).
