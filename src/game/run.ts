@@ -383,13 +383,24 @@ export class Run {
 
   private readonly lowHpVignette: HTMLDivElement;
   private lowHpBeat = 0;
+  private damageVigLevel = 0; // #29: 관리형 피격 비네트 레벨(점멸 대신 유지+감쇠)
+  private smallFlashCd = 0; // 소형 화면 플래시 쿨다운(스트로브 방지)
 
-  // 저체력(30% 이하) 상시 붉은 비네트 + 심박 사운드. 낮을수록 진하고 빠르게.
+  // 매 프레임: 피격 비네트 감쇠 + 저체력 비네트/심박. (updateLowHp 호출부에서 매 프레임 구동)
   private updateLowHp(dt: number): void {
+    if (this.smallFlashCd > 0) this.smallFlashCd -= dt;
+    // 피격 비네트: 히트마다 레벨을 올리고(재트리거=레벨 상향, 새 애니메이션 X) 매 프레임 감쇠 → 스트로브 제거.
+    if (this.damageVigLevel > 0.001) {
+      this.damageVigLevel *= Math.exp(-dt / 0.26);
+      if (this.damageVigLevel < 0.02) this.damageVigLevel = 0;
+      this.damageFlash.style.opacity = this.damageVigLevel.toFixed(3);
+    } else if (this.damageFlash.style.opacity !== '0') {
+      this.damageFlash.style.opacity = '0';
+    }
     const frac = this.player.hp / Math.max(1, this.player.maxHp);
     if (frac < 0.3 && this.state === 'play' && !this.player.dead) {
       const intensity = (0.3 - frac) / 0.3;
-      this.lowHpVignette.style.opacity = (0.32 + 0.42 * intensity).toFixed(2);
+      this.lowHpVignette.style.opacity = (0.3 + 0.3 * intensity).toFixed(2); // max 0.6 클램프
       this.lowHpBeat -= dt;
       if (this.lowHpBeat <= 0) {
         this.lowHpBeat = 0.5 + 0.5 * (frac / 0.3);
@@ -401,19 +412,24 @@ export class Run {
     }
   }
 
-  private flashDamage(peak: number, durationMs: number): void {
-    this.damageFlash.animate([{ opacity: peak }, { opacity: 0 }], {
-      duration: durationMs,
-      easing: 'ease-out',
-    });
+  // 피격 비네트 펄스(피해 비례). 재생 중 재트리거는 레벨을 올릴 뿐 → 점멸 없음. 정보(맞았다)는 유지.
+  private pulseDamageVig(intensity: number): void {
+    const i = intensity < 0.15 ? 0.15 : intensity > 0.62 ? 0.62 : intensity;
+    if (i > this.damageVigLevel) this.damageVigLevel = i;
   }
 
-  // 낙뢰/무쌍 순간 흰 화면 미세 플래시 (WAAPI 짧게)
+  // 순간 흰 화면 플래시. 소형(무기 프록 <0.2)은 쿨다운·상한으로 스트로브 방지, 대형(무쌍/보스)은 항상.
   private flashScreen(intensity: number): void {
+    let i = intensity;
+    if (i < 0.2) {
+      if (this.smallFlashCd > 0) return;
+      this.smallFlashCd = 0.5;
+      if (i > 0.06) i = 0.06;
+    }
     const el = document.createElement('div');
     el.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:31;background:rgba(200,220,255,1);';
     document.body.appendChild(el);
-    el.animate([{ opacity: intensity }, { opacity: 0 }], { duration: 120, easing: 'ease-out' }).onfinish =
+    el.animate([{ opacity: i }, { opacity: 0 }], { duration: 120, easing: 'ease-out' }).onfinish =
       () => el.remove();
   }
 
@@ -461,6 +477,9 @@ export class Run {
     this.decals.reset();
     this.lowHpVignette.style.opacity = '0';
     this.lowHpBeat = 0;
+    this.damageVigLevel = 0;
+    this.smallFlashCd = 0;
+    this.damageFlash.style.opacity = '0';
     this.spawner.reset();
     this.combo.reset();
     this.musou.reset();
@@ -984,7 +1003,7 @@ export class Run {
     if (maxDmg > 0 && this.player.takeDamage(maxDmg * 0.5)) {
       this.hitstop(90, 0.05);
       this.rig.addTrauma(0.65);
-      this.flashDamage(0.68, 360);
+      this.pulseDamageVig(0.22 + (maxDmg * 0.5 / this.player.maxHp) * 1.1);
       this.player.hurtFlash();
       this.postfx?.pulseAberration(0.85);
       this.musou.addHit();
@@ -996,7 +1015,7 @@ export class Run {
     if (this.player.takeDamage(dmg)) {
       this.hitstop(90, 0.05);
       this.rig.addTrauma(0.62);
-      this.flashDamage(0.6, 340);
+      this.pulseDamageVig(0.22 + (dmg / this.player.maxHp) * 1.1);
       this.player.hurtFlash();
       this.postfx?.pulseAberration(0.85);
       this.musou.addHit();
@@ -1365,7 +1384,9 @@ export class Run {
     if (victory) {
       this.rig.addTrauma(0.5);
     } else {
-      this.flashDamage(0.9, 600);
+      // 사망은 종료 상태(업데이트 루프 정지)라 1회성 WAAPI 페이드로 처리(점멸 아님).
+      this.damageVigLevel = 0;
+      this.damageFlash.animate([{ opacity: 0.85 }, { opacity: 0 }], { duration: 600, easing: 'ease-out' });
       this.rig.addTrauma(0.8);
     }
     this.hud.setVisible(false);
