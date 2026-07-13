@@ -49,6 +49,10 @@ export class Hud {
   private readonly bossFill: HTMLDivElement;
   private readonly bossName: HTMLDivElement;
   private readonly bannerLayer: HTMLDivElement;
+  // 중앙 배너 큐(#39): 동시 호출 시 겹치지 않게 순차 재생. 우선순위 높은 것 먼저, 대기 2개 초과 시 최저우선·최고령 드랍.
+  private readonly bannerQueue: { text: string; color: string; sizePx: number; durationMs: number; priority: number; seq: number }[] = [];
+  private bannerSeq = 0;
+  private bannerPlaying = false;
   private readonly quoteLayer: HTMLDivElement; // 전투 중 원군 대사 — 상단(조이스틱 존 회피, #31)
   private bossActiveNow = false; // 대사 박스 상단 오프셋을 보스바 유무에 맞춰 조정
   private readonly feverEl: HTMLDivElement;
@@ -299,6 +303,10 @@ export class Hud {
       this.comboEl.style.display = 'none';
       this.bossWrap.style.display = 'none';
       this.quoteLayer.textContent = '';
+      // 중앙 배너 큐·재생 정리(#39) — 런 종료 시 잔여 배너/백로그 제거.
+      this.bannerQueue.length = 0;
+      this.bannerPlaying = false;
+      this.bannerLayer.textContent = '';
       this.setFever(false);
     }
   }
@@ -463,16 +471,45 @@ export class Hud {
     );
   }
 
-  // 중앙 배너 (마일스톤/경고). size px, color, 지속 ms.
-  banner(text: string, color: string, sizePx: number, durationMs = 1400): void {
+  // 중앙 배너 (마일스톤/경고). size px, color, 지속 ms, priority(선택: 보스/무쌍 등 중요 배너는 높게 → 먼저 재생).
+  // 동시 호출이 화면 중앙에 겹쳐 둘 다 못 읽던 문제(#39)를 큐로 해결 — 항상 순차 재생.
+  banner(text: string, color: string, sizePx: number, durationMs = 1400, priority = 0): void {
+    this.bannerQueue.push({ text, color, sizePx, durationMs, priority, seq: this.bannerSeq++ });
+    // 대기열 상한 2 — 초과 시 최저 우선순위·최고령 항목 드랍(스팸 백로그 방지, 최신 정보 우선).
+    while (this.bannerQueue.length > 2) {
+      let worst = 0;
+      for (let i = 1; i < this.bannerQueue.length; i++) {
+        const a = this.bannerQueue[i];
+        const b = this.bannerQueue[worst];
+        if (a.priority < b.priority || (a.priority === b.priority && a.seq < b.seq)) worst = i;
+      }
+      this.bannerQueue.splice(worst, 1);
+    }
+    if (!this.bannerPlaying) this.playNextBanner();
+  }
+
+  // 큐에서 (최고 우선순위, 동순위는 최고령) 하나를 꺼내 재생. 끝나면 다음 것 재생.
+  private playNextBanner(): void {
+    if (this.bannerQueue.length === 0) {
+      this.bannerPlaying = false;
+      return;
+    }
+    let best = 0;
+    for (let i = 1; i < this.bannerQueue.length; i++) {
+      const a = this.bannerQueue[i];
+      const b = this.bannerQueue[best];
+      if (a.priority > b.priority || (a.priority === b.priority && a.seq < b.seq)) best = i;
+    }
+    const item = this.bannerQueue.splice(best, 1)[0];
+    this.bannerPlaying = true;
     const el = document.createElement('div');
-    el.textContent = text;
+    el.textContent = item.text;
     el.style.cssText = [
       'position:absolute',
-      `color:${color}`,
-      `font-size:min(${sizePx}px, 13vw)`,
+      `color:${item.color}`,
+      `font-size:min(${item.sizePx}px, 13vw)`,
       'letter-spacing:6px',
-      `text-shadow:0 0 24px ${color}`,
+      `text-shadow:0 0 24px ${item.color}`,
       'white-space:nowrap',
     ].join(';');
     this.bannerLayer.appendChild(el);
@@ -483,9 +520,12 @@ export class Hud {
         { transform: 'scale(1)', opacity: 1, offset: 0.75 },
         { transform: 'scale(1.05)', opacity: 0 },
       ],
-      { duration: durationMs, easing: 'ease-out' },
+      { duration: item.durationMs, easing: 'ease-out' },
     );
-    anim.onfinish = () => el.remove();
+    anim.onfinish = () => {
+      el.remove();
+      this.playNextBanner();
+    };
   }
 
   // 전투 중 짧은 원군 대사. 조이스틱/무쌍 버튼이 있는 하단을 피해 상단(quoteLayer)에 둔다(#31).

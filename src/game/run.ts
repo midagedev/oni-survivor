@@ -280,12 +280,12 @@ export class Run {
       () => this.hud.punchCombo(),
     );
     this.musou = new Musou(this.hero.musou, () => {
-      this.hud.banner('無雙', '#ffe9a8', 120, 1200);
+      this.hud.banner('無雙', '#ffe9a8', 120, 1200, 3);
       this.sayHero(2600);
       audio.sfx('musou');
     });
     this.boss = new Boss(atlas, (name, hanja) => {
-      this.hud.banner(`${name} ${t('bannerAppear')} ${hanja}`, '#e85c4a', 44, 1800);
+      this.hud.banner(`${name} ${t('bannerAppear')} ${hanja}`, '#e85c4a', 44, 1800, 2);
       this.sayHero();
       // 보스 방향 팬은 checkBossSpawn → cinematics.onBossSpawn에서 처리
       audio.sfx('bossHorn');
@@ -1112,7 +1112,7 @@ export class Run {
       this.postfx?.pulseBlur(0.7);
       this.postfx?.pulseAberration(1.0);
       this.flashScreen(0.4);
-      this.hud.banner('討伐', '#e8c667', 90, 1600);
+      this.hud.banner('討伐', '#e8c667', 90, 1600, 1);
       audio.sfx('levelup');
       if (this.boss.typeId) {
         // 보스 처치 대사 (#37)
