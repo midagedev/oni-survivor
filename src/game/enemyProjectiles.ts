@@ -13,6 +13,14 @@ import { RetroProjectileBatch } from '../gfx/projectileSprites';
 
 const CAP = 256;
 
+export const EK_ARROW = 0;
+export const EK_STRATEGIST = 1;
+export const EK_FIREBALL = 2;
+export const EK_POISON = 3;
+export const EK_LIGHTNING = 4;
+export const EK_HEAVY = 5;
+const ENEMY_PROJECTILE_KINDS = 6;
+
 // 적 원거리 투사체 풀 (궁수 화살 / 책사 유도 마탄). 플레이어 피격 판정.
 export class EnemyProjectilePool {
   private readonly x = new Float32Array(CAP);
@@ -23,7 +31,8 @@ export class EnemyProjectilePool {
   private readonly damage = new Float32Array(CAP);
   private readonly radius = new Float32Array(CAP);
   private readonly homing = new Uint8Array(CAP);
-  private readonly kind = new Uint8Array(CAP); // 0 화살 / 1 마탄
+  private readonly turn = new Float32Array(CAP);
+  private readonly kind = new Uint8Array(CAP);
   private readonly cr = new Float32Array(CAP);
   private readonly cg = new Float32Array(CAP);
   private readonly cb = new Float32Array(CAP);
@@ -88,7 +97,8 @@ export class EnemyProjectilePool {
             b = smoothstep(1.0, 0.0, r) * pulse;
           }
           if (b <= 0.01) discard;
-          gl_FragColor = vec4(vColor * b * 0.75, b * 0.4);
+          // 도트 본체가 먼저 읽히도록 HDR 후광은 얇게만 남긴다.
+          gl_FragColor = vec4(vColor * b * 0.18, b * 0.2);
         }
       `,
       transparent: true,
@@ -105,8 +115,12 @@ export class EnemyProjectilePool {
     this.matArr = this.mesh.instanceMatrix.array as Float32Array;
     scene.add(this.mesh);
     this.spriteBatches = [
-      new RetroProjectileBatch(scene, 'enemy-arrow', CAP),
-      new RetroProjectileBatch(scene, 'enemy-orb', CAP),
+      new RetroProjectileBatch(scene, 'enemy-arrow-volley', CAP, 5, 0.92),
+      new RetroProjectileBatch(scene, 'enemy-talisman', CAP, 5, 0.92),
+      new RetroProjectileBatch(scene, 'boss-fireball', CAP, 5, 0.92),
+      new RetroProjectileBatch(scene, 'boss-poison-orb', CAP, 5, 0.92),
+      new RetroProjectileBatch(scene, 'boss-lightning-spear', CAP, 5, 0.92),
+      new RetroProjectileBatch(scene, 'boss-heavy-shot', CAP, 5, 0.92),
     ];
   }
 
@@ -116,6 +130,14 @@ export class EnemyProjectilePool {
 
   get activeCount(): number {
     return CAP - this.freeTop;
+  }
+
+  get kindCounts(): number[] {
+    const counts = new Array<number>(ENEMY_PROJECTILE_KINDS).fill(0);
+    for (let i = 0; i < CAP; i++) {
+      if (this.alive[i]) counts[this.kind[i]]++;
+    }
+    return counts;
   }
 
   reset(): void {
@@ -140,22 +162,37 @@ export class EnemyProjectilePool {
     this.z[i] = z;
     this.vx[i] = dirX * speed;
     this.vz[i] = dirZ * speed;
-    this.life[i] = homing ? 4.5 : 3.0;
+    const safeKind = Math.max(EK_ARROW, Math.min(EK_HEAVY, kind | 0));
+    this.life[i] = homing ? 4.5 : safeKind === EK_HEAVY ? 3.8 : 3.0;
     this.damage[i] = damage;
-    this.radius[i] = 0.35;
     this.homing[i] = homing ? 1 : 0;
-    this.kind[i] = kind;
+    this.kind[i] = safeKind;
     this.trailT[i] = 0;
-    if (kind === 1) {
-      this.cr[i] = 1.6;
-      this.cg[i] = 0.5;
-      this.cb[i] = 2.2;
-      this.size[i] = 1.0;
-    } else {
-      this.cr[i] = 2.2;
-      this.cg[i] = 1.0;
-      this.cb[i] = 0.6;
-      this.size[i] = 1.4;
+    switch (safeKind) {
+      case EK_STRATEGIST:
+        this.cr[i] = 1.55; this.cg[i] = 0.5; this.cb[i] = 2.25;
+        this.size[i] = 1.05; this.radius[i] = 0.4; this.turn[i] = 3.0;
+        break;
+      case EK_FIREBALL:
+        this.cr[i] = 2.5; this.cg[i] = 0.65; this.cb[i] = 0.18;
+        this.size[i] = 1.35; this.radius[i] = 0.48; this.turn[i] = 0;
+        break;
+      case EK_POISON:
+        this.cr[i] = 0.6; this.cg[i] = 2.05; this.cb[i] = 1.0;
+        this.size[i] = 1.18; this.radius[i] = 0.45; this.turn[i] = 1.35;
+        break;
+      case EK_LIGHTNING:
+        this.cr[i] = 0.62; this.cg[i] = 1.45; this.cb[i] = 2.75;
+        this.size[i] = 1.5; this.radius[i] = 0.38; this.turn[i] = 0;
+        break;
+      case EK_HEAVY:
+        this.cr[i] = 2.65; this.cg[i] = 0.95; this.cb[i] = 0.22;
+        this.size[i] = 1.7; this.radius[i] = 0.65; this.turn[i] = 0;
+        break;
+      default:
+        this.cr[i] = 2.15; this.cg[i] = 0.9; this.cb[i] = 0.48;
+        this.size[i] = 1.3; this.radius[i] = 0.3; this.turn[i] = 0;
+        break;
     }
     this.alive[i] = 1;
   }
@@ -177,7 +214,7 @@ export class EnemyProjectilePool {
         const dz = pz - this.z[i];
         const d = Math.hypot(dx, dz) || 1;
         const sp = Math.hypot(this.vx[i], this.vz[i]);
-        const k = Math.min(1, 2.2 * dt);
+        const k = Math.min(1, this.turn[i] * dt);
         this.vx[i] += ((dx / d) * sp - this.vx[i]) * k;
         this.vz[i] += ((dz / d) * sp - this.vz[i]) * k;
       }
@@ -187,19 +224,20 @@ export class EnemyProjectilePool {
       if (this.trailT[i] <= 0) {
         particles.projectileTrail(
           this.x[i], this.z[i], this.vx[i], this.vz[i], this.cr[i], this.cg[i], this.cb[i],
-          this.kind[i] === 0 ? 0 : 3,
+          this.kind[i] === EK_ARROW ? 0 : 3,
         );
-        this.trailT[i] = this.kind[i] === 0 ? 0.09 : 0.055;
+        this.trailT[i] = this.kind[i] === EK_ARROW ? 0.09 : 0.055;
       }
       const dx = px - this.x[i];
       const dz = pz - this.z[i];
       const rr = this.radius[i] + r2base;
       if (dx * dx + dz * dz <= rr * rr) {
         particles.projectileImpact(
-          this.x[i], this.z[i], this.cr[i], this.cg[i], this.cb[i], this.kind[i] === 0 ? 0 : 3,
+          this.x[i], this.z[i], this.cr[i], this.cg[i], this.cb[i], this.kind[i] === EK_ARROW ? 0 : 3,
         );
-        if (this.kind[i] === 1) {
-          effects.spawnRing(this.x[i], this.z[i], 1.25, this.cr[i], this.cg[i], this.cb[i], 0.24);
+        if (this.kind[i] !== EK_ARROW) {
+          const ring = this.kind[i] === EK_HEAVY ? 2.1 : this.kind[i] === EK_FIREBALL ? 1.65 : 1.25;
+          effects.spawnRing(this.x[i], this.z[i], ring, this.cr[i], this.cg[i], this.cb[i], 0.24);
         }
         hitPlayer(this.damage[i]);
         this.alive[i] = 0;
@@ -224,8 +262,9 @@ export class EnemyProjectilePool {
       const theta = Math.atan2(-this.vz[i], this.vx[i]);
       const ct = Math.cos(theta);
       const st = Math.sin(theta);
-      const sx = this.kind[i] === 0 ? this.size[i] * 1.6 : this.size[i];
-      const sz = this.kind[i] === 0 ? this.size[i] * 0.5 : this.size[i];
+      const elongated = this.kind[i] === EK_ARROW || this.kind[i] === EK_LIGHTNING || this.kind[i] === EK_HEAVY;
+      const sx = elongated ? this.size[i] * 1.6 : this.size[i];
+      const sz = elongated ? this.size[i] * 0.5 : this.size[i];
       this.matArr[m] = ct * sx;
       this.matArr[m + 2] = -st * sx;
       this.matArr[m + 5] = 1;
@@ -240,9 +279,20 @@ export class EnemyProjectilePool {
       this.colArr[c + 1] = this.cg[i];
       this.colArr[c + 2] = this.cb[i];
       this.kindArr[w] = this.kind[i];
-      const artScale = this.kind[i] === 0 ? this.size[i] * 1.75 : this.size[i] * 1.35;
+      let artScaleX = this.size[i] * 1.4;
+      let artScaleZ = artScaleX;
+      if (this.kind[i] === EK_ARROW) {
+        artScaleX = this.size[i] * 1.8;
+        artScaleZ = this.size[i] * 0.58;
+      } else if (this.kind[i] === EK_LIGHTNING) {
+        artScaleX = this.size[i] * 1.9;
+        artScaleZ = this.size[i] * 0.68;
+      } else if (this.kind[i] === EK_HEAVY) {
+        artScaleX = this.size[i] * 1.65;
+        artScaleZ = this.size[i] * 0.82;
+      }
       this.spriteBatches[this.kind[i]].push(
-        this.x[i], 1.055, this.z[i], theta, artScale, artScale, 1,
+        this.x[i], 1.055, this.z[i], theta, artScaleX, artScaleZ, 1,
       );
       w++;
     }

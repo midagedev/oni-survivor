@@ -21,12 +21,11 @@ async function open(viewport, mobile) {
 }
 
 const desktop = await open({ width: 1280, height: 720 }, false);
-await desktop.evaluate(() => window.__GAME_TEST__.showProjectiles());
-await desktop.waitForTimeout(250);
-await desktop.evaluate(() => window.__GAME_TEST__.showProjectiles());
-await desktop.waitForTimeout(180);
+await desktop.evaluate(() => window.__GAME_TEST__.showEnemyProjectiles());
+await desktop.waitForTimeout(430);
 await desktop.screenshot({ path: `${OUT}/projectile-showcase-desktop.png` });
 const showcaseInfo = await desktop.evaluate(() => window.__DEBUG__.info());
+const showcaseKinds = await desktop.evaluate(() => window.__GAME_TEST__.stats.enemyProjectileKinds);
 
 for (const id of ['baiyu', 'crossbow', 'orbit', 'zhanma', 'cavalry']) {
   await desktop.evaluate((weapon) => window.__GAME_TEST__.giveWeapon(weapon), id);
@@ -46,11 +45,23 @@ const combatInfo = await desktop.evaluate(() => window.__DEBUG__.info());
 await desktop.close();
 
 const mobile = await open({ width: 390, height: 844 }, true);
-await mobile.evaluate(() => window.__GAME_TEST__.showProjectiles());
+await mobile.evaluate(() => window.__GAME_TEST__.showEnemyProjectiles());
 await mobile.waitForTimeout(300);
 await mobile.screenshot({ path: `${OUT}/projectile-showcase-mobile.png` });
 const mobileInfo = await mobile.evaluate(() => window.__DEBUG__.info());
+const mobileKinds = await mobile.evaluate(() => window.__GAME_TEST__.stats.enemyProjectileKinds);
 await mobile.close();
 
-console.log(JSON.stringify({ showcaseInfo, combatInfo, mobileInfo, errors }, null, 2));
+const allEnemyKindsVisible = [showcaseKinds, mobileKinds]
+  .every((counts) => counts.length === 6 && counts.every((count) => count > 0));
+console.log(JSON.stringify({
+  showcaseInfo,
+  showcaseKinds,
+  combatInfo,
+  mobileInfo,
+  mobileKinds,
+  allEnemyKindsVisible,
+  errors,
+}, null, 2));
 await browser.close();
+if (errors.length || !allEnemyKindsVisible) process.exit(1);

@@ -1,11 +1,12 @@
 import type { Weapon, WeaponContext } from './types';
-import { distToSegmentSq, findNearestEnemy } from '../collision';
+import { distToSegmentSq } from '../collision';
 import {
   PK_ARROW,
   PK_TALISMAN,
   PK_SLASHWAVE,
   PK_CAVALRY,
 } from '../projectiles';
+import { ATTACK_HALBERD } from '../../gfx/attackSprites';
 
 // 무기 공용 헬퍼 -----------------------------------------------------------
 
@@ -110,6 +111,7 @@ abstract class TimedWeapon implements Weapon {
     const cd = this.baseCooldown * ctx.stats.cooldownMul * (1 - (this.level - 1) * this.cooldownPerLevel);
     this.timer += Math.max(0.05, cd);
     if (this.timer < 0) this.timer = 0;
+    ctx.onAttack(this.id, ctx.aimX, ctx.aimZ);
     this.fire(ctx);
   }
 
@@ -124,10 +126,10 @@ export class SpearWeapon extends TimedWeapon {
     const length = (5.0 + (this.level - 1) * 0.6) * ctx.stats.rangeMul;
     const width = 0.72;
     const d = dmg(ctx, 8, this.level, 0.15);
-    const bx = ctx.px + ctx.faceX * length;
-    const bz = ctx.pz + ctx.faceZ * length;
+    const bx = ctx.px + ctx.aimX * length;
+    const bz = ctx.pz + ctx.aimZ * length;
     capsuleHit(ctx, ctx.px, ctx.pz, bx, bz, width, d, 0);
-    ctx.effects.spawnThrust(ctx.px, ctx.pz, ctx.faceX, ctx.faceZ, length, width * 2.2, 0.7, 0.95, 1.9);
+    ctx.effects.spawnThrust(ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, length, width * 2.2, 0.7, 0.95, 1.9);
   }
 }
 
@@ -139,8 +141,8 @@ export class GuandaoWeapon extends TimedWeapon {
     const radius = (4.4 + (this.level - 1) * 0.35) * ctx.stats.areaMul;
     const half = 1.05 + (this.level - 1) * 0.02; // ~120°
     const d = dmg(ctx, 15, this.level, 0.18);
-    arcHit(ctx, ctx.px, ctx.pz, ctx.faceX, ctx.faceZ, radius, half, d, 1.5);
-    ctx.effects.spawnSlashArc(ctx.px, ctx.pz, ctx.faceX, ctx.faceZ, radius, half, 0.6, 2.2, 1.1);
+    arcHit(ctx, ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, half, d, 1.5);
+    ctx.effects.spawnSlashArc(ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, half, 0.6, 2.2, 1.1);
   }
 }
 
@@ -152,12 +154,11 @@ export class ZhangbaWeapon extends TimedWeapon {
     const length = (4.6 + (this.level - 1) * 0.4) * ctx.stats.rangeMul;
     const width = 0.85;
     const d = dmg(ctx, 10, this.level, 0.15);
-    const fx = ctx.faceX;
-    const fz = ctx.faceZ;
+    const fx = ctx.aimX;
+    const fz = ctx.aimZ;
     capsuleHit(ctx, ctx.px, ctx.pz, ctx.px + fx * length, ctx.pz + fz * length, width, d, 5.5);
     capsuleHit(ctx, ctx.px, ctx.pz, ctx.px - fx * length, ctx.pz - fz * length, width, d, 5.5);
-    ctx.effects.spawnThrust(ctx.px, ctx.pz, fx, fz, length, width * 2.2, 1.2, 1.0, 0.7);
-    ctx.effects.spawnThrust(ctx.px, ctx.pz, -fx, -fz, length, width * 2.2, 1.2, 1.0, 0.7);
+    ctx.effects.spawnDoubleThrust(ctx.px, ctx.pz, fx, fz, length, width * 2.2, 1.2, 1.0, 0.7);
   }
 }
 
@@ -170,9 +171,9 @@ export class BaiyuWeapon extends TimedWeapon {
     const d = dmg(ctx, 9, this.level, 0.14);
     const speed = 8.5 * ctx.stats.rangeMul;
     const pierce = 1 + Math.floor(this.level / 3);
-    const base = ctx.rng.next() * Math.PI * 2;
+    const base = Math.atan2(ctx.aimZ, ctx.aimX);
     for (let k = 0; k < count; k++) {
-      const a = base + (k / count) * Math.PI * 2;
+      const a = base + (k - (count - 1) * 0.5) * 0.24;
       ctx.projectiles.spawn(
         ctx.px, ctx.pz, Math.cos(a), Math.sin(a), speed, d, 0.5, pierce, 2.6,
         PK_TALISMAN, 1.7, 1.7, 2.1, 1.1, 0.9, true, 7,
@@ -187,16 +188,8 @@ export class CrossbowWeapon extends TimedWeapon {
   protected baseCooldown = 0.55;
   protected cooldownPerLevel = 0.04;
   protected fire(ctx: WeaponContext): void {
-    const target = findNearestEnemy(ctx.enemies, ctx.hash, ctx.px, ctx.pz, 18, ctx.scratch);
-    let dirX = ctx.faceX;
-    let dirZ = ctx.faceZ;
-    if (target >= 0) {
-      const dx = ctx.enemies.x[target] - ctx.px;
-      const dz = ctx.enemies.z[target] - ctx.pz;
-      const d = Math.hypot(dx, dz) || 1;
-      dirX = dx / d;
-      dirZ = dz / d;
-    }
+    const dirX = ctx.aimX;
+    const dirZ = ctx.aimZ;
     const shots = 1 + ctx.stats.projectileBonus;
     const d = dmg(ctx, 7, this.level, 0.12);
     const speed = 15 * ctx.stats.rangeMul;
@@ -281,8 +274,10 @@ export class HalberdWeapon extends TimedWeapon {
   protected fire(ctx: WeaponContext): void {
     const radius = (3.4 + (this.level - 1) * 0.3) * ctx.stats.areaMul;
     const d = dmg(ctx, 12, this.level, 0.16);
-    arcHit(ctx, ctx.px, ctx.pz, ctx.faceX, ctx.faceZ, radius, Math.PI, d, 4);
-    ctx.effects.spawnSlashArc(ctx.px, ctx.pz, ctx.faceX, ctx.faceZ, radius, Math.PI, 2.2, 0.7, 0.5, 0.28);
+    arcHit(ctx, ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, Math.PI, d, 4);
+    ctx.effects.spawnSlashArc(
+      ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, Math.PI, 2.2, 0.7, 0.5, 0.28, ATTACK_HALBERD,
+    );
   }
 }
 
@@ -318,11 +313,11 @@ export class ZhanmaWeapon extends TimedWeapon {
   protected baseCooldown = 1.0;
   protected fire(ctx: WeaponContext): void {
     const radius = 5.5 * ctx.stats.areaMul;
-    arcHit(ctx, ctx.px, ctx.pz, ctx.faceX, ctx.faceZ, radius, 1.2, dmg(ctx, 26, 8, 0.16), 2);
-    ctx.effects.spawnSlashArc(ctx.px, ctx.pz, ctx.faceX, ctx.faceZ, radius, 1.2, 0.6, 2.4, 1.2);
+    arcHit(ctx, ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, 1.2, dmg(ctx, 26, 8, 0.16), 2);
+    ctx.effects.spawnSlashArc(ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, 1.2, 0.6, 2.4, 1.2);
     // 전방으로 참격파 3발
     const d = dmg(ctx, 22, 8, 0.16);
-    const base = Math.atan2(ctx.faceZ, ctx.faceX);
+    const base = Math.atan2(ctx.aimZ, ctx.aimX);
     for (let k = -1; k <= 1; k++) {
       const a = base + k * 0.28;
       ctx.projectiles.spawn(
@@ -360,8 +355,8 @@ export class ChibiWeapon extends TimedWeapon {
   protected baseCooldown = 2.4;
   protected fire(ctx: WeaponContext): void {
     const dps = 18 * ctx.stats.damageMul;
-    const fx = ctx.faceX;
-    const fz = ctx.faceZ;
+    const fx = ctx.aimX;
+    const fz = ctx.aimZ;
     // 전방으로 마칭하는 화염 존 3연
     for (let k = 0; k < 3; k++) {
       const off = 1.5 + k * 2.2;

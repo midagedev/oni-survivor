@@ -1,5 +1,12 @@
 import type { WeaponContext } from './weapons/types';
-import type { EnemyProjectilePool } from './enemyProjectiles';
+import {
+  EK_ARROW,
+  EK_FIREBALL,
+  EK_HEAVY,
+  EK_LIGHTNING,
+  EK_POISON,
+  type EnemyProjectilePool,
+} from './enemyProjectiles';
 import type { Atlas } from '../gfx/atlas';
 import { SHEET_SGRADE } from './enemies';
 import { ENEMY_TYPES } from '../data/enemyTypes';
@@ -81,7 +88,8 @@ export class Boss {
     this.def = def;
     this.active = true;
     this.atk1 = 2.0;
-    this.atk2 = 3.5;
+    // 여포의 첫 번개 창은 돌진 전에 보여 회피 방향을 읽을 시간을 준다.
+    this.atk2 = typeId === 'lvbu' ? 1.15 : 3.5;
     this.atk3 = 6.0;
     this.dashState = 0;
     ctx.effects.spawnRing(px, pz, 24, 2.4, 1.2, 0.6, 0.9);
@@ -123,7 +131,7 @@ export class Boss {
     this.atk3 -= dt;
 
     if (this.typeId === 'yuanshao') this.updateYuanshao(dt, ctx, enemyProj, i, dx, dz);
-    else if (this.typeId === 'dongzhuo') this.updateDongzhuo(dt, ctx, i, px, pz);
+    else if (this.typeId === 'dongzhuo') this.updateDongzhuo(dt, ctx, enemyProj, i, px, pz, dx, dz);
     else if (this.typeId === 'lvbu') this.updateLvbu(dt, ctx, enemyProj, i, px, pz, dx, dz);
   }
 
@@ -135,14 +143,32 @@ export class Boss {
       const base = Math.atan2(dz, dx);
       for (let k = -3; k <= 3; k++) {
         const a = base + k * 0.16;
-        enemyProj.spawn(en.x[i], en.z[i], Math.cos(a), Math.sin(a), 10, 12, false, 0);
+        enemyProj.spawn(en.x[i], en.z[i], Math.cos(a), Math.sin(a), 10, 12, false, EK_ARROW);
       }
       ctx.effects.spawnRing(en.x[i], en.z[i], 3, 1.4, 1.2, 2.0, 0.4);
+    }
+    if (this.atk2 <= 0) {
+      this.atk2 = 5.2;
+      const base = Math.atan2(dz, dx);
+      for (let k = -1; k <= 1; k++) {
+        const a = base + k * 0.32;
+        enemyProj.spawn(en.x[i], en.z[i], Math.cos(a), Math.sin(a), 5.4, 16, true, EK_POISON);
+      }
+      ctx.effects.spawnRing(en.x[i], en.z[i], 4.2, 0.7, 2.1, 1.2, 0.55);
     }
   }
 
   // 동탁: 화염 장판 소환
-  private updateDongzhuo(_dt: number, ctx: WeaponContext, i: number, px: number, pz: number): void {
+  private updateDongzhuo(
+    _dt: number,
+    ctx: WeaponContext,
+    enemyProj: EnemyProjectilePool,
+    i: number,
+    px: number,
+    pz: number,
+    dx: number,
+    dz: number,
+  ): void {
     const en = ctx.enemies;
     if (this.atk1 <= 0) {
       this.atk1 = 3.2;
@@ -153,6 +179,16 @@ export class Boss {
         ctx.zones.spawn(px + Math.cos(a) * r, pz + Math.sin(a) * r, 3.0, 3.2, 16, 2.6, 0.7, 0.2);
       }
       ctx.effects.spawnRing(en.x[i], en.z[i], 4, 2.4, 1.0, 0.4, 0.5);
+    }
+    if (this.atk2 <= 0) {
+      this.atk2 = 4.6;
+      const base = Math.atan2(dz, dx);
+      enemyProj.spawn(en.x[i], en.z[i], dx, dz, 7.2, 24, false, EK_HEAVY);
+      for (const offset of [-0.32, 0.32]) {
+        const a = base + offset;
+        enemyProj.spawn(en.x[i], en.z[i], Math.cos(a), Math.sin(a), 8.5, 17, false, EK_FIREBALL);
+      }
+      ctx.effects.spawnRing(en.x[i], en.z[i], 4.8, 2.6, 0.75, 0.2, 0.55);
     }
   }
 
@@ -189,7 +225,7 @@ export class Boss {
       const base = Math.atan2(dz, dx);
       for (let k = -2; k <= 2; k++) {
         const a = base + k * 0.2;
-        enemyProj.spawn(en.x[i], en.z[i], Math.cos(a), Math.sin(a), 13, 14, false, 1);
+        enemyProj.spawn(en.x[i], en.z[i], Math.cos(a), Math.sin(a), 13, 14, false, EK_LIGHTNING);
       }
     }
     // 졸개 소환

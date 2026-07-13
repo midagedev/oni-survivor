@@ -13,7 +13,7 @@ import { Labels } from '../gfx/labels';
 import { Player } from './player';
 import { EnemyPool, ENEMY_CAP, SHEET_SGRADE, SHEET_APRIORITY } from './enemies';
 import { Spawner } from './spawner';
-import { SpatialHash } from './collision';
+import { findNearestEnemy, SpatialHash } from './collision';
 import { GemPool } from './pickups';
 import {
   PK_ARROW,
@@ -24,7 +24,15 @@ import {
   ProjectilePool,
 } from './projectiles';
 import { ZonePool } from './zones';
-import { EnemyProjectilePool } from './enemyProjectiles';
+import {
+  EK_ARROW,
+  EK_FIREBALL,
+  EK_HEAVY,
+  EK_LIGHTNING,
+  EK_POISON,
+  EK_STRATEGIST,
+  EnemyProjectilePool,
+} from './enemyProjectiles';
 import { TreasurePool } from './treasure';
 import { Combo } from './combo';
 import { Musou } from './musou';
@@ -184,6 +192,10 @@ export class Run {
   private readonly damageFlash: HTMLDivElement;
   private curChoices: Choice[] = [];
   private readonly moveOut = { x: 0, z: 0 };
+  private lastAttackWeapon = '';
+  private lastAttackX = 0;
+  private lastAttackZ = 1;
+  private lastAttackCount = 0;
 
   constructor(atlas: Atlas, rig: CameraRig, input: Input, hooks: RunHooks, touch = false) {
     this.atlas = atlas;
@@ -294,6 +306,9 @@ export class Run {
       pz: 0,
       faceX: 0,
       faceZ: 1,
+      aimX: 0,
+      aimZ: 1,
+      aimTarget: -1,
       hash: this.hash,
       enemies: this.enemies,
       effects: this.effects,
@@ -304,6 +319,12 @@ export class Run {
       stats: this.player.stats,
       rng,
       onKill: (i: number) => this.handleKill(i),
+      onAttack: (weaponId: string, dirX: number, dirZ: number) => {
+        this.lastAttackWeapon = weaponId;
+        this.lastAttackX = dirX;
+        this.lastAttackZ = dirZ;
+        this.lastAttackCount++;
+      },
       scratch: this.scratch,
     };
 
@@ -417,6 +438,10 @@ export class Run {
     this.gateBreachFx.reset();
     this.gateRushTimer = 0;
     this.playerWallHits = 0;
+    this.lastAttackWeapon = '';
+    this.lastAttackX = 0;
+    this.lastAttackZ = 1;
+    this.lastAttackCount = 0;
     this.companion.reset(this.hero.id);
     this.boss.active = false;
     this.boss.idx = -1;
@@ -581,6 +606,20 @@ export class Run {
     // 분리용 해시 (이동 전)
     this.hash.clear();
     this.enemies.insertAll(this.hash);
+
+    const aimTarget = findNearestEnemy(
+      this.enemies, this.hash, this.player.x, this.player.z, 22, this.scratch,
+    );
+    this.ctx.aimTarget = aimTarget;
+    this.ctx.aimX = this.player.faceX;
+    this.ctx.aimZ = this.player.faceZ;
+    if (aimTarget >= 0) {
+      const dx = this.enemies.x[aimTarget] - this.player.x;
+      const dz = this.enemies.z[aimTarget] - this.player.z;
+      const d = Math.hypot(dx, dz) || 1;
+      this.ctx.aimX = dx / d;
+      this.ctx.aimZ = dz / d;
+    }
     this.enemies.update(edt, this.player.x, this.player.z, this.hash, this.enemyProj, this.effects, this.map);
 
     // ctx 갱신
@@ -1245,8 +1284,22 @@ export class Run {
         r, g, b, length, width, false, 0, kind === PK_CAVALRY,
       );
     }
-    this.enemyProj.spawn(x, z + 5.3, 1, 0, 1.8, 0, false, 0);
-    this.enemyProj.spawn(x, z - 5.0, 1, 0, 1.3, 0, true, 1);
+    this.testSpawnEnemyProjectileShowcase();
+  }
+  testSpawnEnemyProjectileShowcase(): void {
+    const x = this.player.x - 2.4;
+    const z = this.player.z;
+    const enemyShots: Array<[number, number, number, boolean]> = [
+      [EK_ARROW, 6.2, 1.8, false],
+      [EK_STRATEGIST, 3.8, 1.3, true],
+      [EK_FIREBALL, 1.5, 1.45, false],
+      [EK_POISON, -0.8, 1.2, true],
+      [EK_LIGHTNING, -3.6, 1.7, false],
+      [EK_HEAVY, -6.2, 1.05, false],
+    ];
+    for (const [kind, oz, speed, homing] of enemyShots) {
+      this.enemyProj.spawn(x, z + oz, 1, 0, speed, 0, homing, kind);
+    }
   }
   testSpawnBoss(type: string): void {
     if (!this.boss.active) this.boss.spawn(type, this.gameTime / 60, this.ctx, this.player.x, this.player.z);
@@ -1267,11 +1320,17 @@ export class Run {
   testSpawnPattern(name: string): void {
     this.spawner.forcePattern(name, this.gameTime, this.player.x, this.player.z);
   }
+  testShowWorldObjects(): void {
+    this.objects.testShowcase(this.player.x, this.player.z);
+  }
   testSetPlayerPosition(x: number, z: number): void {
     this.map.projectWalkable(x, z, this.player.radius, this.moveOut);
     this.player.setPosition(this.moveOut.x, this.moveOut.z);
     this.map.update(this.player.x, this.player.z, 0);
     this.world.update();
+  }
+  testSetInvulnerable(seconds = 60): void {
+    this.player.invuln = Math.max(this.player.invuln, seconds);
   }
   testPrimeGate(): void {
     this.map.primeGate();
@@ -1324,10 +1383,20 @@ export class Run {
         playerZ: this.player.z,
       },
       enemyProjectiles: this.enemyProj.activeCount,
+      enemyProjectileKinds: this.enemyProj.kindCounts,
       patterns: {
         charge: this.enemies.chargeStarts,
         volley: this.enemies.volleyStarts,
         caster: this.enemies.casterStarts,
+      },
+      autoAim: {
+        target: this.ctx.aimTarget,
+        x: this.ctx.aimX,
+        z: this.ctx.aimZ,
+        lastWeapon: this.lastAttackWeapon,
+        lastX: this.lastAttackX,
+        lastZ: this.lastAttackZ,
+        count: this.lastAttackCount,
       },
       weapons: this.weapons.map((w) => `${w.id}:${w.level}`),
       passives: { ...this.passives },

@@ -3,7 +3,7 @@ import type { Atlas } from '../gfx/atlas';
 import type { InstancedSpriteRenderer, ShadowRenderer } from '../gfx/sprites';
 import { dirFromVelocity, SPRITE_WORLD_H } from '../gfx/sprites';
 import { SpatialHash } from './collision';
-import type { EnemyProjectilePool } from './enemyProjectiles';
+import { EK_ARROW, EK_STRATEGIST, type EnemyProjectilePool } from './enemyProjectiles';
 import type { EffectsSystem } from '../gfx/effects';
 import type { BattlefieldMap } from './battlefieldMap';
 import { rng } from '../core/rng';
@@ -453,7 +453,8 @@ export class EnemyPool {
     for (let k = -1; k <= 1; k++) {
       const a = base + spread * k;
       enemyProj.spawn(
-        x, z, Math.cos(a), Math.sin(a), this.projSpeed[i], this.projDamage[i], homing, homing ? 1 : 0,
+        x, z, Math.cos(a), Math.sin(a), this.projSpeed[i], this.projDamage[i], homing,
+        homing ? EK_STRATEGIST : EK_ARROW,
       );
     }
   }

@@ -13,12 +13,17 @@ import {
 
 export type ProjectileSpriteName =
   | 'player-arrow'
+  | 'player-arrow-basic'
   | 'talisman'
   | 'slash-wave'
   | 'bagua-orb'
   | 'cavalry'
-  | 'enemy-arrow'
-  | 'enemy-orb';
+  | 'enemy-arrow-volley'
+  | 'enemy-talisman'
+  | 'boss-fireball'
+  | 'boss-poison-orb'
+  | 'boss-lightning-spear'
+  | 'boss-heavy-shot';
 
 // 생성 원화를 64px 논리 격자로 재가공한 레트로 스프라이트 배치.
 // 투사체 종류별 텍스처는 달라도, 각 종류 안에서는 InstancedMesh 한 번으로 그린다.
@@ -30,7 +35,13 @@ export class RetroProjectileBatch {
   private readonly material: ShaderMaterial;
   private cursor = 0;
 
-  constructor(scene: Scene, name: ProjectileSpriteName, capacity: number, renderOrder = 5) {
+  constructor(
+    scene: Scene,
+    name: ProjectileSpriteName,
+    capacity: number,
+    renderOrder = 5,
+    intensity = 1,
+  ) {
     const texture = new TextureLoader().load(
       `${import.meta.env.BASE_URL}assets/projectiles/${name}.png`,
     );
@@ -50,6 +61,7 @@ export class RetroProjectileBatch {
       uniforms: {
         uMap: { value: texture },
         uTime: { value: 0 },
+        uIntensity: { value: intensity },
       },
       vertexShader: /* glsl */ `
         attribute float aFade;
@@ -64,13 +76,16 @@ export class RetroProjectileBatch {
       fragmentShader: /* glsl */ `
         uniform sampler2D uMap;
         uniform float uTime;
+        uniform float uIntensity;
         varying vec2 vUv;
         varying float vFade;
         void main() {
           vec4 texel = texture2D(uMap, vUv);
           if (texel.a < 0.04) discard;
           float inkPulse = 0.97 + 0.03 * sin(uTime * 5.0 + vUv.x * 5.0);
-          gl_FragColor = vec4(texel.rgb * inkPulse, texel.a * vFade);
+          // EffectComposer의 OutputPass가 최종 변환하므로 원화 sRGB를 먼저 선형화한다.
+          vec3 col = pow(texel.rgb, vec3(2.2)) * inkPulse * uIntensity;
+          gl_FragColor = vec4(col, texel.a * vFade);
         }
       `,
       transparent: true,

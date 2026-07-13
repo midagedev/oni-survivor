@@ -163,7 +163,7 @@ export class ProjectilePool {
     scene.add(this.mesh);
 
     this.spriteBatches = [
-      new RetroProjectileBatch(scene, 'player-arrow', CAP),
+      new RetroProjectileBatch(scene, 'player-arrow-basic', CAP),
       new RetroProjectileBatch(scene, 'talisman', CAP),
       new RetroProjectileBatch(scene, 'slash-wave', CAP),
       new RetroProjectileBatch(scene, 'bagua-orb', CAP),
@@ -469,8 +469,10 @@ export class ProjectilePool {
         : this.kind[i] === PK_SLASHWAVE
           ? Math.max(this.len[i], this.wid[i])
           : this.len[i] * 1.18;
+      const artScaleX = this.kind[i] === PK_ARROW ? this.len[i] * 1.22 : artScale;
+      const artScaleZ = this.kind[i] === PK_ARROW ? this.wid[i] * 1.18 : artScale;
       this.spriteBatches[this.kind[i]].push(
-        this.x[i], this.hy[i] + 0.055, this.z[i], theta, artScale, artScale, fade,
+        this.x[i], this.hy[i] + 0.055, this.z[i], theta, artScaleX, artScaleZ, fade,
       );
       w++;
     }

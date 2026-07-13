@@ -1,6 +1,8 @@
 # Retro battlefield world kit
 
 `world-kit-atlas.png`은 2026-07-13에 생성한 12종의 원화를 게임 런타임용으로 가공한 아틀라스다.
+`world-kit-atlas-retro.png`은 같은 12종과 셀 순서를 유지하면서 32–48px 캐릭터와 맞도록
+큰 픽셀 클러스터·공유 제한 팔레트·굵은 외곽선으로 다시 생성한 실제 런타임 아틀라스다.
 `hulao-fortress.png`은 성을 소품 셀에서 분리해 만든 1024×512 대형 호로관 랜드마크다.
 `fortress-modules.png`은 같은 화풍의 직선 성벽·사선 측벽·망루·문루·균열·붕괴 모듈 6종이다.
 

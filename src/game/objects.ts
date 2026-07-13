@@ -5,6 +5,7 @@ import type { EffectsSystem } from '../gfx/effects';
 import type { ParticleSystem } from '../gfx/particles';
 import type { Rng } from '../core/rng';
 import { WorldSpriteBatch, WORLD_ASSETS } from '../gfx/worldKit';
+import { ShadowRenderer } from '../gfx/sprites';
 
 export type BuffKind = 'attack' | 'speed' | 'musou';
 
@@ -39,10 +40,13 @@ export class BattlefieldObjects {
   private spawnTimer = 4;
 
   private readonly batch: WorldSpriteBatch;
+  private readonly shadows: ShadowRenderer;
 
   constructor(scene: Scene, deps: ObjectDeps) {
     this.d = deps;
     this.batch = new WorldSpriteBatch(scene, OBJ_CAP);
+    this.shadows = new ShadowRenderer(OBJ_CAP);
+    scene.add(this.shadows.mesh);
   }
 
   reset(): void {
@@ -152,6 +156,7 @@ export class BattlefieldObjects {
 
   render(_time: number): void {
     this.batch.begin();
+    this.shadows.begin();
     for (let i = 0; i < OBJ_CAP; i++) {
       if (this.alive[i] === 0) continue;
       if (this.kind[i] === KIND_BARREL) {
@@ -163,13 +168,33 @@ export class BattlefieldObjects {
       } else {
         this.batch.push(WORLD_ASSETS.palisade, this.x[i], this.z[i], 3.7, 2.15, 1.05);
       }
+      const radius = this.kind[i] === KIND_PALISADE ? 1.55 : this.kind[i] === KIND_SHRINE ? 1.08 : 0.92;
+      this.shadows.push(this.x[i], this.z[i], radius);
     }
     this.batch.end();
+    this.shadows.end();
   }
 
   get visibleCount(): number {
     let count = 0;
     for (let i = 0; i < OBJ_CAP; i++) count += this.alive[i];
     return count;
+  }
+
+  // 로컬 시각 회귀 테스트용: 네 종류를 플레이어 주변에 고정 배치한다.
+  testShowcase(centerX: number, centerZ: number): void {
+    this.alive.fill(0);
+    const placements = [
+      [-4.2, -3.0, KIND_BARREL],
+      [4.2, -3.0, KIND_DUMPLING],
+      [-4.2, 3.2, KIND_SHRINE],
+      [4.2, 3.2, KIND_PALISADE],
+    ] as const;
+    for (let i = 0; i < placements.length; i++) {
+      this.x[i] = centerX + placements[i][0];
+      this.z[i] = centerZ + placements[i][1];
+      this.kind[i] = placements[i][2];
+      this.alive[i] = 1;
+    }
   }
 }

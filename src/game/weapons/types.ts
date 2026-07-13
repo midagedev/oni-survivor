@@ -16,6 +16,9 @@ export interface WeaponContext {
   pz: number;
   faceX: number; // 플레이어 바라보는 방향(단위)
   faceZ: number;
+  aimX: number; // 최근접 적을 향한 자동 조준 방향(적이 없으면 face)
+  aimZ: number;
+  aimTarget: number;
   hash: SpatialHash;
   enemies: EnemyPool;
   effects: EffectsSystem;
@@ -27,6 +30,7 @@ export interface WeaponContext {
   rng: Rng;
   // 적 처치 시 호출(파티클/젬/킬 카운트는 run이 처리)
   onKill: (index: number) => void;
+  onAttack: (weaponId: string, dirX: number, dirZ: number) => void;
   // 후보 인덱스 재사용 배열 (할당 회피)
   scratch: number[];
 }

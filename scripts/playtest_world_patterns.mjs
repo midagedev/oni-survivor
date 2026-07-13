@@ -39,6 +39,7 @@ await desktop.waitForTimeout(1000);
 const afterVolley = await desktop.evaluate(() => window.__GAME_TEST__.stats);
 
 await desktop.evaluate(() => window.__GAME_TEST__.spawnPattern('strategist'));
+await desktop.evaluate(() => window.__GAME_TEST__.showWorldObjects());
 await desktop.waitForTimeout(300);
 await desktop.screenshot({ path: `${OUT}/strategist-telegraph.png` });
 await desktop.waitForTimeout(1100);
@@ -60,7 +61,7 @@ const checks = {
   chargeTriggered: afterCharge.patterns.charge >= 1,
   volleyTriggered: afterVolley.patterns.volley >= 1,
   casterTriggered: afterStrategist.patterns.caster >= 1,
-  objectVisible: afterStrategist.worldObjects >= 1,
+  objectVisible: afterStrategist.worldObjects >= 4,
   mobileWorldVisible: mobileStats.worldProps >= 10,
   desktopBudget: desktopRender.calls <= 120 && desktopRender.tris <= 200000 && desktopRender.textures <= 96,
   mobileBudget: mobileRender.calls <= 100 && mobileRender.tris <= 100000 && mobileRender.textures <= 96,

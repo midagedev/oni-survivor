@@ -9,6 +9,14 @@ import {
   AdditiveBlending,
   Color,
 } from 'three';
+import {
+  ATTACK_GUANDAO,
+  ATTACK_HALBERD,
+  ATTACK_SPEAR,
+  ATTACK_ZHANGBA,
+  RetroAttackSpriteFx,
+  type AttackSpriteKind,
+} from './attackSprites';
 
 interface Slot {
   mesh: Mesh;
@@ -33,12 +41,14 @@ export class EffectsSystem {
   private rCur = 0;
   private bCur = 0;
   private cCur = 0;
+  private readonly attackSprites: RetroAttackSpriteFx;
 
   // 낙뢰 시 화면 미세 플래시 (run이 주입)
   screenFlash: ((intensity: number) => void) | null = null;
 
   constructor(scene: Scene) {
     this.scene = scene;
+    this.attackSprites = new RetroAttackSpriteFx(scene);
     // 지면 평행 유닛 쿼드 (+X로 뻗음): 찌르기
     const thrustGeo = new PlaneGeometry(1, 1, 1, 1);
     thrustGeo.rotateX(-Math.PI / 2);
@@ -112,6 +122,7 @@ export class EffectsSystem {
     g = 0.95,
     b = 1.7,
     dur = 0.15,
+    showArt = true,
   ): void {
     const s = this.thrusts[this.tCur];
     this.tCur = (this.tCur + 1) % this.thrusts.length;
@@ -124,6 +135,24 @@ export class EffectsSystem {
     s.mesh.scale.set(length, 1, width);
     (s.mat.uniforms.uColor.value as Color).setRGB(r, g, b);
     s.mat.uniforms.uAlpha.value = 1;
+    if (showArt) this.attackSprites.spawn(ATTACK_SPEAR, px, pz, dirX, dirZ, length, width * 0.82, dur * 1.22);
+  }
+
+  spawnDoubleThrust(
+    px: number,
+    pz: number,
+    dirX: number,
+    dirZ: number,
+    length: number,
+    width: number,
+    r = 1.2,
+    g = 1.0,
+    b = 0.7,
+    dur = 0.16,
+  ): void {
+    this.spawnThrust(px, pz, dirX, dirZ, length, width, r, g, b, dur, false);
+    this.spawnThrust(px, pz, -dirX, -dirZ, length, width, r, g, b, dur, false);
+    this.attackSprites.spawn(ATTACK_ZHANGBA, px, pz, dirX, dirZ, length * 2.15, width * 0.9, dur * 1.2);
   }
 
   // 부채꼴 슬래시 아크 (언월도/방천화극/참마검). halfAngle=반각(라디안).
@@ -138,6 +167,7 @@ export class EffectsSystem {
     g = 0.9,
     b = 0.5,
     dur = 0.22,
+    artKind: AttackSpriteKind = ATTACK_GUANDAO,
   ): void {
     const s = this.arcs[this.aCur];
     this.aCur = (this.aCur + 1) % this.arcs.length;
@@ -151,6 +181,11 @@ export class EffectsSystem {
     (s.mat.uniforms.uColor.value as Color).setRGB(r, g, b);
     s.mat.uniforms.uHalf.value = halfAngle;
     s.mat.uniforms.uT.value = 0;
+    const artScale = artKind === ATTACK_HALBERD ? 2.05 : 1.45;
+    this.attackSprites.spawn(
+      artKind === ATTACK_HALBERD ? ATTACK_HALBERD : ATTACK_GUANDAO,
+      px, pz, dirX, dirZ, radius * artScale, radius * artScale, dur * 1.1,
+    );
   }
 
   // 확장 충격파 링.
@@ -205,6 +240,7 @@ export class EffectsSystem {
   }
 
   update(dt: number): void {
+    this.attackSprites.update(dt);
     this.tickThrust(dt);
     this.tickArc(dt);
     this.tickRing(dt);
