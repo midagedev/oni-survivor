@@ -800,14 +800,14 @@ export class Run {
       this.hitstop(30, 0.08);
       this.rig.addTrauma(0.35);
     }
-    // 대량 퇴치 킬캠: 단일 프레임(사실상 미발동) → 0.35s 롤링 윈도우 누적 10킬 임계. 쿨다운은 cinematics 관리.
+    // 대량 퇴치 킬캠: 0.5s 롤링 윈도우 누적 6킬 (게이트 측정: 실킬레이트 2~4/s → 10킬/0.35s는 미발동)
     this.killWindowT -= dt;
     if (this.killWindowT <= 0) {
-      this.killWindowT = 0.35;
+      this.killWindowT = 0.5;
       this.killWindowCount = 0;
     }
     this.killWindowCount += this.frameKills;
-    if (this.killWindowCount >= 10) {
+    if (this.killWindowCount >= 6) {
       this.cinematics.onMassKill(this.killWindowCount);
       this.postfx?.pulseBlur(0.6);
       this.hitstop(160, 0.4);
