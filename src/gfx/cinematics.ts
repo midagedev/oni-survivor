@@ -33,8 +33,8 @@ const MUSOU_END_TIME = 0.45; // 종료 시 포즈 복귀(윈드다운) 시간
 
 // 킬캠 상수
 const KILLCAM_DUR = 0.7;
-const KILLCAM_ZOOM = -0.1; // 최대 줌인 -10%
-const KILLCAM_COOLDOWN = 25;
+const KILLCAM_ZOOM = -0.13; // 최대 줌인 -13% (오너: 드물게, 대신 임팩트 있게)
+const KILLCAM_COOLDOWN = 32; // 희소성 유지 — 런당 손에 꼽는 모먼트
 
 // 보스 등장 팬(프레이밍 오프셋 트럭) 상수
 const BOSS_PAN_DUR = 1.0;

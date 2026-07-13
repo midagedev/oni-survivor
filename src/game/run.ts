@@ -809,8 +809,8 @@ export class Run {
     this.killWindowCount += this.frameKills;
     if (this.killWindowCount >= 6) {
       this.cinematics.onMassKill(this.killWindowCount);
-      this.postfx?.pulseBlur(0.6);
-      this.hitstop(160, 0.4);
+      this.postfx?.pulseBlur(0.85);
+      this.hitstop(240, 0.28); // 드물게 뜨는 대신 슬로모를 진하게 (오너 지시)
       this.killWindowCount = -100000; // 같은 윈도우 내 재발동 방지(윈도우 리셋 시 0 복귀)
     }
 
