@@ -1362,6 +1362,11 @@ export class Run {
     this.reviveAvailable = false; // 테스트는 즉시 사망까지 유도
     this.player.takeDamage(999999);
   }
+
+  // QA용: 실제 피격 경로로 n 대미지(무적/부활 로직 포함). 부활→재사망 엣지 검증용.
+  testDamagePlayer(n: number): void {
+    this.onPlayerHit(n);
+  }
   testForceLevel(): void {
     this.xp += this.nextXp;
     this.onCollect(0);

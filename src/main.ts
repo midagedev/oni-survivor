@@ -227,6 +227,7 @@ loadAtlas()
       buyUpgrade: (id: string) => buyUpgrade(id),
       unlockLvbu: () => unlockLvbu(),
       killPlayer: () => run.testKillPlayer(),
+      damagePlayer: (n: number) => run.testDamagePlayer(n),
       get scene() {
         return scene;
       },
