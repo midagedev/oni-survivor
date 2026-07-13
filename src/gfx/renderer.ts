@@ -69,12 +69,34 @@ const MusouShader = {
   `,
 };
 
+// PiP 슬로모 리플레이 (실험 #14): 저해상도 프레임 링버퍼 → 보스 처치 후 우하단 재생.
+// 캔버스→캔버스 blit로 GPU에 유지(CPU 리드백 없음). 데스크톱에서만 활성.
+const PIP_W = 320; // 캡처 해상도
+const PIP_H = 180;
+const PIP_CAPTURE_EVERY = 2; // n프레임당 1회 캡처(부하 절반)
+const PIP_HISTORY = 90; // 링버퍼 프레임 수 (~3s @ 60fps, 2프레임당 1회)
+const PIP_PLAY_DUR = 4; // 재생 시간(초) → 3s footage를 4s에 재생 = 슬로모
+
 export class RenderPipeline {
   readonly composer: EffectComposer;
   readonly bloom: UnrealBloomPass;
   readonly musouPass: ShaderPass;
   private readonly renderer: WebGLRenderer;
   private readonly bloomScale: number;
+
+  // PiP 리플레이 상태
+  private pipEnabled: boolean;
+  private readonly ring: HTMLCanvasElement[] = [];
+  private readonly ringCtx: CanvasRenderingContext2D[] = [];
+  private ringFilled = 0;
+  private ringHead = 0;
+  private capCounter = 0;
+  private replayT = -1; // -1=비활성, ≥0=재생 경과(초)
+  private replayStart = 0;
+  private readonly replayFrames: HTMLCanvasElement[] = [];
+  private pipWrap: HTMLDivElement | null = null;
+  private pipCanvas: HTMLCanvasElement | null = null;
+  private pipCtx: CanvasRenderingContext2D | null = null;
 
   constructor(renderer: WebGLRenderer, scene: Scene, camera: Camera) {
     this.renderer = renderer;
@@ -102,6 +124,88 @@ export class RenderPipeline {
     this.composer.addPass(this.musouPass);
 
     this.composer.addPass(new OutputPass());
+
+    // PiP 리플레이는 데스크톱에서만 (모바일은 캡처 부하/메모리 회피).
+    this.pipEnabled = !isMobile();
+    if (this.pipEnabled) this.initPip();
+  }
+
+  private initPip(): void {
+    for (let i = 0; i < PIP_HISTORY; i++) {
+      const c = document.createElement('canvas');
+      c.width = PIP_W;
+      c.height = PIP_H;
+      const ctx = c.getContext('2d');
+      if (!ctx) {
+        // 2D 컨텍스트 실패 → PiP 비활성(치명적이지 않음).
+        this.pipEnabled = false;
+        return;
+      }
+      this.ring.push(c);
+      this.ringCtx.push(ctx);
+    }
+    const wrap = document.createElement('div');
+    wrap.style.cssText = [
+      'position:fixed',
+      'right:18px',
+      'bottom:18px',
+      'width:26vw',
+      'max-width:360px',
+      'aspect-ratio:16/9',
+      'z-index:28',
+      'pointer-events:none',
+      'display:none',
+      'border:2px solid rgba(232,201,103,0.85)',
+      'border-radius:6px',
+      'overflow:hidden',
+      'box-shadow:0 6px 24px rgba(0,0,0,0.6)',
+    ].join(';');
+    const cap = document.createElement('div');
+    cap.textContent = '討伐 · 슬로 리플레이';
+    cap.style.cssText = [
+      'position:absolute',
+      'left:0',
+      'top:0',
+      'padding:2px 8px',
+      'font:600 12px/1.4 system-ui,sans-serif',
+      'color:#ffe9a8',
+      'background:linear-gradient(90deg,rgba(0,0,0,0.7),rgba(0,0,0,0))',
+      'letter-spacing:0.04em',
+    ].join(';');
+    const canvas = document.createElement('canvas');
+    canvas.width = PIP_W;
+    canvas.height = PIP_H;
+    canvas.style.cssText = 'width:100%;height:100%;display:block;';
+    const pctx = canvas.getContext('2d');
+    if (!pctx) {
+      this.pipEnabled = false;
+      return;
+    }
+    wrap.appendChild(canvas);
+    wrap.appendChild(cap);
+    document.body.appendChild(wrap);
+    this.pipWrap = wrap;
+    this.pipCanvas = canvas;
+    this.pipCtx = pctx;
+  }
+
+  // 보스 처치 등 특별 순간 → 최근 링버퍼를 우하단 PiP에 슬로모 재생.
+  playReplay(): void {
+    if (!this.pipEnabled || this.replayT >= 0 || this.ringFilled < 8) return;
+    this.replayFrames.length = 0;
+    const start = this.ringFilled < PIP_HISTORY ? 0 : this.ringHead;
+    for (let k = 0; k < this.ringFilled; k++) {
+      this.replayFrames.push(this.ring[(start + k) % PIP_HISTORY]);
+    }
+    this.replayT = 0;
+    this.replayStart = performance.now();
+    if (this.pipWrap) {
+      this.pipWrap.style.display = 'block';
+      this.pipWrap.animate(
+        [{ opacity: 0, transform: 'translateY(12px) scale(0.94)' }, { opacity: 1, transform: 'none' }],
+        { duration: 260, easing: 'ease-out' },
+      );
+    }
   }
 
   // 무쌍 연출 세기(0..1) + 시간.
@@ -121,5 +225,43 @@ export class RenderPipeline {
 
   render(): void {
     this.composer.render();
+    if (this.pipEnabled) this.pipTick();
+  }
+
+  // 캡처/재생. composer.render() 직후 같은 프레임에서 호출 → 드로잉버퍼 보존 불필요.
+  private pipTick(): void {
+    if (this.replayT >= 0) {
+      this.advanceReplay();
+      return;
+    }
+    // 링버퍼 캡처(간헐). 렌더러 캔버스를 저해상도로 다운샘플 blit.
+    if (++this.capCounter < PIP_CAPTURE_EVERY) return;
+    this.capCounter = 0;
+    this.ringCtx[this.ringHead].drawImage(this.renderer.domElement, 0, 0, PIP_W, PIP_H);
+    this.ringHead = (this.ringHead + 1) % PIP_HISTORY;
+    if (this.ringFilled < PIP_HISTORY) this.ringFilled++;
+  }
+
+  private advanceReplay(): void {
+    const t = (performance.now() - this.replayStart) / 1000;
+    this.replayT = t;
+    if (t >= PIP_PLAY_DUR || !this.pipCtx || this.replayFrames.length === 0) {
+      this.endReplay();
+      return;
+    }
+    const idx = Math.min(this.replayFrames.length - 1, Math.floor((t / PIP_PLAY_DUR) * this.replayFrames.length));
+    this.pipCtx.drawImage(this.replayFrames[idx], 0, 0, PIP_W, PIP_H);
+  }
+
+  private endReplay(): void {
+    this.replayT = -1;
+    this.replayFrames.length = 0;
+    this.capCounter = 0;
+    if (this.pipWrap) {
+      const wrap = this.pipWrap;
+      wrap.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260, easing: 'ease-in' }).onfinish = () => {
+        wrap.style.display = 'none';
+      };
+    }
   }
 }
