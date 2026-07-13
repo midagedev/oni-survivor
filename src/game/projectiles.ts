@@ -345,6 +345,18 @@ export class ProjectilePool {
       } else if (this.kind[i] === PK_CAVALRY) {
         effects.spawnRing(enemies.x[j], enemies.z[j], 1.9, 1.5, 0.75, 0.35, 0.24);
       }
+      // 기술별 넉백: 기마=강하게 진행방향으로 쓸어냄, 참격파=중간, 오브=접촉 시 살짝
+      if (!died) {
+        if (this.kind[i] === PK_CAVALRY || this.kind[i] === PK_SLASHWAVE) {
+          const sp = Math.hypot(this.vx[i], this.vz[i]) || 1;
+          enemies.push(j, this.vx[i] / sp, this.vz[i] / sp, this.kind[i] === PK_CAVALRY ? 7 : 3);
+        } else if (isOrbit) {
+          const dx = enemies.x[j] - px;
+          const dz = enemies.z[j] - pz;
+          const d = Math.hypot(dx, dz) || 1;
+          enemies.push(j, dx / d, dz / d, 2);
+        }
+      }
       if (died) onKill(j);
       if (!isOrbit) {
         this.pierce[i]--;

@@ -77,6 +77,7 @@ export class Boss {
     const i = en.spawn(px, pz - 16, hp, def.speed, def.radius, def.contact, 40, 2.2, SHEET_SGRADE, def.charIndex * SGRADE_BLOCK, 0);
     if (i < 0) return;
     en.boss[i] = 1;
+    en.kbResist[i] = 0.9; // 보스: 넉백 90% 저항(밀리지 않는 위압감)
     en.controlled[i] = 1;
     en.tr[i] = def.tr;
     en.tg[i] = def.tg;

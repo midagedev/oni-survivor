@@ -55,9 +55,10 @@ export class EnemyPool {
   readonly tr = new Float32Array(ENEMY_CAP);
   readonly tg = new Float32Array(ENEMY_CAP);
   readonly tb = new Float32Array(ENEMY_CAP);
-  // 넉백 속도
+  // 넉백 속도 + 저항(0=밀림, 0.5 엘리트, 0.9 보스)
   readonly kbx = new Float32Array(ENEMY_CAP);
   readonly kbz = new Float32Array(ENEMY_CAP);
+  readonly kbResist = new Float32Array(ENEMY_CAP);
   // 원거리 AI
   readonly ranged = new Uint8Array(ENEMY_CAP);
   readonly range = new Float32Array(ENEMY_CAP);
@@ -138,6 +139,7 @@ export class EnemyPool {
     this.tb[i] = 1;
     this.kbx[i] = 0;
     this.kbz[i] = 0;
+    this.kbResist[i] = 0;
     this.ranged[i] = 0;
     this.atkTimer[i] = 0.5 + Math.random();
     this.behavior[i] = BEHAVIOR_NONE;
@@ -201,9 +203,14 @@ export class EnemyPool {
   }
 
   // 넉백 임펄스 (무기 판정에서 호출).
+  // 넉백 임펄스(기술 판정에서 호출). 저항 반영, 강타는 짧은 스턴으로 무게감.
   push(i: number, dirX: number, dirZ: number, strength: number): void {
-    this.kbx[i] += dirX * strength;
-    this.kbz[i] += dirZ * strength;
+    if (this.controlled[i] === 1) return; // 보스: 위치 외부 제어 → 완전 저항
+    const s = strength * (1 - this.kbResist[i]);
+    if (s <= 0) return;
+    this.kbx[i] += dirX * s;
+    this.kbz[i] += dirZ * s;
+    if (s > 4 && this.stun[i] < 0.14) this.stun[i] = 0.14; // 강한 밀침 → 0.14s 스턴
   }
 
   // 랜덤 살아있는 적 인덱스 (천뢰 타게팅). 없으면 -1.

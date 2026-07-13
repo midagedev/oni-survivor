@@ -188,6 +188,7 @@ export class Spawner {
     );
     if (i < 0) return;
     this.pool.elite[i] = 1;
+    this.pool.kbResist[i] = 0.5; // 엘리트: 넉백 50% 저항
     this.pool.behavior[i] = BEHAVIOR_SHIELD;
     this.pool.tr[i] = 1.5;
     this.pool.tg[i] = 1.2;
