@@ -47,6 +47,7 @@ export class LightField {
   private readonly rad = new Float32Array(MAX_LIGHTS);
   private readonly life = new Float32Array(MAX_LIGHTS);
   private readonly maxLife = new Float32Array(MAX_LIGHTS);
+  private readonly prio = new Uint8Array(MAX_LIGHTS); // 무쌍 광원(전투 광원에 밀려나지 않음)
 
   readonly uLightPos = { value: new Float32Array(MAX_LIGHTS * 3) };
   readonly uLightColor = { value: new Float32Array(MAX_LIGHTS * 3) };
@@ -59,14 +60,18 @@ export class LightField {
     this.capActive = mobile ? 6 : MAX_LIGHTS;
   }
 
-  // 새 광원 방출. life가 짧을수록 순간 섬광, 길수록 잔광. 죽은 슬롯 우선, 없으면 잔여수명 최소 슬롯 교체.
-  spawn(x: number, y: number, z: number, r: number, g: number, b: number, radius: number, life: number): void {
+  // 새 광원 방출. life가 짧을수록 순간 섬광, 길수록 잔광.
+  // 죽은 슬롯 우선 → 없으면 잔여수명 최소 슬롯 교체. 단, 일반 광원은 무쌍(prio) 슬롯을 밀어내지 않는다.
+  spawn(x: number, y: number, z: number, r: number, g: number, b: number, radius: number, life: number, prio = false): void {
     let slot = -1;
     let min = Infinity;
     for (let i = 0; i < MAX_LIGHTS; i++) {
       if (this.life[i] <= 0) { slot = i; break; }
+      // 일반 광원은 prio 슬롯을 교체 후보에서 제외(무쌍 광원 보호)
+      if (!prio && this.prio[i] === 1) continue;
       if (this.life[i] < min) { min = this.life[i]; slot = i; }
     }
+    if (slot < 0) return; // 모든 슬롯이 보호됨(일반 광원 드롭)
     this.px[slot] = x;
     this.py[slot] = y;
     this.pz[slot] = z;
@@ -76,6 +81,7 @@ export class LightField {
     this.rad[slot] = radius;
     this.life[slot] = life;
     this.maxLife[slot] = life;
+    this.prio[slot] = prio ? 1 : 0;
   }
 
   update(dt: number): void {
@@ -114,6 +120,7 @@ export class LightField {
 
   reset(): void {
     this.life.fill(0);
+    this.prio.fill(0);
     this.uLightCount.value = 0;
   }
 

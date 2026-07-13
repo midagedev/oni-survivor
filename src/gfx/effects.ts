@@ -8,6 +8,9 @@ import {
   ShaderMaterial,
   AdditiveBlending,
   Color,
+  CanvasTexture,
+  Texture,
+  SRGBColorSpace,
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
@@ -28,6 +31,31 @@ interface Slot {
   data: number; // 슬롯별 보조값(링 최대반경 등)
 }
 
+// 텍스처 지면 데칼(문장/팔괘진): 회전 + 페이드.
+interface DecalSlot {
+  mesh: Mesh;
+  mat: ShaderMaterial;
+  age: number;
+  dur: number;
+  active: boolean;
+  rot: number; // 초당 회전(rad)
+}
+
+// 유성 화살: 상공에서 목표로 포물선 낙하 후 착탄.
+interface MeteorSlot {
+  mesh: Mesh;
+  mat: ShaderMaterial;
+  age: number;
+  dur: number;
+  active: boolean;
+  tx: number;
+  tz: number;
+  h0: number; // 시작 높이
+  r: number;
+  g: number;
+  b: number;
+}
+
 // 무기/보스/무쌍 시각 이펙트 풀. 전부 HDR emissive(애디티브)로 블룸을 태운다.
 // 지면에 눕는 것(찌르기/아크/링)과 세워진 것(낙뢰)을 구분해 배치.
 export class EffectsSystem {
@@ -45,6 +73,26 @@ export class EffectsSystem {
   private readonly flashes: Slot[] = [];
   private fCur = 0;
   private readonly attackSprites: RetroAttackSpriteFx;
+
+  // #18 무쌍 스펙터클 프리미티브
+  private readonly decals: DecalSlot[] = []; // 장수 문장/팔괘진 지면 데칼
+  private dCur = 0;
+  private readonly fireWalls: Slot[] = []; // 잔류 화염 벽(여포)
+  private fwCur = 0;
+  private readonly meteors: MeteorSlot[] = []; // 유성 화살(황충)
+  private mCur = 0;
+  // 시차 3중 충격파 예약 링
+  private readonly ringQT = new Float32Array(8);
+  private readonly ringQX = new Float32Array(8);
+  private readonly ringQZ = new Float32Array(8);
+  private readonly ringQR = new Float32Array(8);
+  private readonly ringQCr = new Float32Array(8);
+  private readonly ringQCg = new Float32Array(8);
+  private readonly ringQCb = new Float32Array(8);
+  private readonly ringQActive = new Uint8Array(8);
+  private rqCur = 0;
+  private readonly crestTexCache = new Map<string, Texture>();
+  private baguaTexCache: Texture | null = null;
 
   // 낙뢰 시 화면 미세 플래시 (run이 주입)
   screenFlash: ((intensity: number) => void) | null = null;
@@ -101,6 +149,56 @@ export class EffectsSystem {
     flashGeo.rotateX(-Math.PI / 2);
     for (let i = 0; i < 24; i++) {
       this.flashes.push(this.makeSlot(flashGeo, FLASH_FRAG, 0.2));
+    }
+
+    // #18: 텍스처 지면 데칼(문장/팔괘진) — 개별 머티리얼로 텍스처 교체 가능하게.
+    const decalGeo = new PlaneGeometry(1, 1);
+    decalGeo.rotateX(-Math.PI / 2);
+    for (let i = 0; i < 6; i++) {
+      const mat = new ShaderMaterial({
+        uniforms: { uMap: { value: null }, uAlpha: { value: 0 }, uColor: { value: new Color(1, 1, 1) } },
+        vertexShader: BASIC_VERT,
+        fragmentShader: DECAL_FRAG,
+        transparent: true,
+        blending: AdditiveBlending,
+        depthWrite: false,
+        depthTest: true,
+      });
+      const mesh = new Mesh(decalGeo, mat);
+      mesh.visible = false;
+      mesh.frustumCulled = false;
+      mesh.renderOrder = 1;
+      this.scene.add(mesh);
+      this.decals.push({ mesh, mat, age: 0, dur: 1, active: false, rot: 0 });
+    }
+
+    // #18: 잔류 화염 벽(지면 화염 스트립, +X로 뻗음)
+    const fwGeo = new PlaneGeometry(1, 1, 1, 1);
+    fwGeo.rotateX(-Math.PI / 2);
+    fwGeo.translate(0.5, 0, 0);
+    for (let i = 0; i < 16; i++) {
+      this.fireWalls.push(this.makeSlot(fwGeo, FIREWALL_FRAG, 1.0));
+    }
+
+    // #18: 유성 화살(세워진 스트릭, 낙하)
+    const metGeo = new PlaneGeometry(1, 1, 1, 1);
+    metGeo.translate(0, 0.5, 0);
+    for (let i = 0; i < 20; i++) {
+      const mat = new ShaderMaterial({
+        uniforms: { uColor: { value: new Color(1, 1, 1) }, uT: { value: 0 } },
+        vertexShader: BASIC_VERT,
+        fragmentShader: METEOR_FRAG,
+        transparent: true,
+        blending: AdditiveBlending,
+        depthWrite: false,
+        depthTest: true,
+      });
+      const mesh = new Mesh(metGeo, mat);
+      mesh.visible = false;
+      mesh.frustumCulled = false;
+      mesh.renderOrder = 4;
+      this.scene.add(mesh);
+      this.meteors.push({ mesh, mat, age: 0, dur: 1, active: false, tx: 0, tz: 0, h0: 14, r: 1, g: 1, b: 1 });
     }
   }
 
@@ -280,14 +378,160 @@ export class EffectsSystem {
     s.mat.uniforms.uT.value = 0;
   }
 
+  // ── #18 무쌍 스펙터클 프리미티브 ─────────────────────────────
+
+  // 장수 문장 지면 데칼(龍/義/蛇/卦/弓/戟). 발동 지점에 새겨지며 회전·발광.
+  spawnCrest(x: number, z: number, char: string, r: number, g: number, b: number, dur = 5): void {
+    this.placeDecal(this.crestTexture(char), x, z, 6.4, dur, 0.4, r, g, b);
+  }
+
+  // 팔괘진 회전 문양(제갈량).
+  spawnBaguaSigil(x: number, z: number, dur = 5): void {
+    this.placeDecal(this.baguaTexture(), x, z, 8.4, dur, 0.9, 0.6, 1.5, 2.4);
+  }
+
+  private placeDecal(tex: Texture, x: number, z: number, size: number, dur: number, rot: number, r: number, g: number, b: number): void {
+    const s = this.decals[this.dCur];
+    this.dCur = (this.dCur + 1) % this.decals.length;
+    s.mat.uniforms.uMap.value = tex;
+    (s.mat.uniforms.uColor.value as Color).setRGB(r, g, b);
+    s.mesh.position.set(x, 0.07, z);
+    s.mesh.scale.set(size, 1, size);
+    s.mesh.rotation.y = 0;
+    s.age = 0;
+    s.dur = dur;
+    s.rot = rot;
+    s.active = true;
+    s.mesh.visible = true;
+  }
+
+  // 시차 3중 충격파(장비 포효 등). 0 / 0.11 / 0.22s 간격.
+  spawnTripleShock(x: number, z: number, maxRadius: number, r = 1.6, g = 1.0, b = 0.4): void {
+    this.spawnRing(x, z, maxRadius, r, g, b, 0.55);
+    for (let k = 1; k <= 2; k++) {
+      const i = this.rqCur;
+      this.rqCur = (this.rqCur + 1) % 8;
+      this.ringQT[i] = k * 0.11;
+      this.ringQX[i] = x;
+      this.ringQZ[i] = z;
+      this.ringQR[i] = maxRadius * (1 + k * 0.35);
+      this.ringQCr[i] = r;
+      this.ringQCg[i] = g;
+      this.ringQCb[i] = b;
+      this.ringQActive[i] = 1;
+    }
+  }
+
+  // 잔류 화염 벽(여포 돌진 궤적). +X로 length만큼 뻗는 지면 화염 스트립.
+  spawnFireWall(x: number, z: number, dirX: number, dirZ: number, length: number, width = 1.8, dur = 2.2): void {
+    const s = this.fireWalls[this.fwCur];
+    this.fwCur = (this.fwCur + 1) % this.fireWalls.length;
+    s.age = 0;
+    s.dur = dur;
+    s.active = true;
+    s.mesh.visible = true;
+    s.mesh.position.set(x, 0.15, z);
+    s.mesh.rotation.y = Math.atan2(-dirZ, dirX);
+    s.mesh.scale.set(length, 1, width);
+    (s.mat.uniforms.uColor.value as Color).setRGB(2.4, 0.7, 0.2);
+    s.mat.uniforms.uAlpha.value = 1;
+  }
+
+  // 유성 화살(황충): 상공 targetX/Z 위에서 낙하 → 착탄 링. 광원은 run이 착탄 시 연결.
+  spawnMeteorArrow(targetX: number, targetZ: number, r = 1.7, g = 1.4, b = 0.6, fall = 0.5): void {
+    const s = this.meteors[this.mCur];
+    this.mCur = (this.mCur + 1) % this.meteors.length;
+    s.age = 0;
+    s.dur = fall;
+    s.active = true;
+    s.tx = targetX;
+    s.tz = targetZ;
+    s.h0 = 16;
+    s.r = r;
+    s.g = g;
+    s.b = b;
+    (s.mat.uniforms.uColor.value as Color).setRGB(r, g, b);
+    s.mesh.visible = true;
+  }
+
+  // 청록 화염 트레일 퍼프(관우 청룡). 경로를 따라 반복 호출.
+  spawnFlameTrail(x: number, z: number, r = 0.4, g = 1.9, b = 1.1): void {
+    this.spawnFlash(x, z, r, g, b, 1.5);
+  }
+
   update(dt: number): void {
     this.attackSprites.update(dt);
     this.tickThrust(dt);
     this.tickArc(dt);
     this.tickRing(dt);
     this.tickFlash(dt);
+    this.tickDecals(dt);
+    this.tickFireWalls(dt);
+    this.tickMeteors(dt);
+    this.tickRingQueue(dt);
     this.tickSimple(this.bolts, dt);
     this.tickSimple(this.chains, dt);
+  }
+
+  private tickDecals(dt: number): void {
+    for (const s of this.decals) {
+      if (!s.active) continue;
+      s.age += dt;
+      if (s.age >= s.dur) {
+        s.active = false;
+        s.mesh.visible = false;
+        continue;
+      }
+      s.mesh.rotation.y += s.rot * dt;
+      const t = s.age / s.dur;
+      // 빠른 등장 + 후반 페이드아웃 + 은은한 맥동
+      const a = Math.min(1, t * 6) * Math.min(1, (1 - t) * 3) * (0.85 + 0.15 * Math.sin(s.age * 6));
+      s.mat.uniforms.uAlpha.value = a;
+    }
+  }
+
+  private tickFireWalls(dt: number): void {
+    for (const s of this.fireWalls) {
+      if (!s.active) continue;
+      s.age += dt;
+      const t = s.age / s.dur;
+      if (t >= 1) {
+        this.retire(s);
+        continue;
+      }
+      s.mat.uniforms.uAlpha.value = Math.min(1, (1 - t) * 2.5);
+      s.mat.uniforms.uT.value = s.age;
+    }
+  }
+
+  private tickMeteors(dt: number): void {
+    for (const s of this.meteors) {
+      if (!s.active) continue;
+      s.age += dt;
+      const t = s.age / s.dur;
+      if (t >= 1) {
+        s.active = false;
+        s.mesh.visible = false;
+        this.spawnRing(s.tx, s.tz, 2.6, s.r, s.g, s.b, 0.4);
+        continue;
+      }
+      // 포물선 낙하(가속): y = h0 * (1-t)^2
+      const y = s.h0 * (1 - t) * (1 - t);
+      s.mesh.position.set(s.tx, y, s.tz);
+      s.mesh.scale.set(0.5, 2.4, 1);
+      s.mat.uniforms.uT.value = t;
+    }
+  }
+
+  private tickRingQueue(dt: number): void {
+    for (let i = 0; i < 8; i++) {
+      if (this.ringQActive[i] === 0) continue;
+      this.ringQT[i] -= dt;
+      if (this.ringQT[i] <= 0) {
+        this.ringQActive[i] = 0;
+        this.spawnRing(this.ringQX[i], this.ringQZ[i], this.ringQR[i], this.ringQCr[i], this.ringQCg[i], this.ringQCb[i], 0.55);
+      }
+    }
   }
 
   private tickThrust(dt: number): void {
@@ -361,6 +605,81 @@ export class EffectsSystem {
   private retire(s: Slot): void {
     s.active = false;
     s.mesh.visible = false;
+  }
+
+  // 장수 문장 텍스처(캔버스에 한자 1자, 흰색). 색은 셰이더 uColor로 입힌다. 캐시.
+  private crestTexture(char: string): Texture {
+    const cached = this.crestTexCache.get(char);
+    if (cached) return cached;
+    const S = 256;
+    const cv = document.createElement('canvas');
+    cv.width = S;
+    cv.height = S;
+    const ctx = cv.getContext('2d')!;
+    ctx.clearRect(0, 0, S, S);
+    // 외곽 이중 링
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(S / 2, S / 2, S * 0.44, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(S / 2, S / 2, S * 0.38, 0, Math.PI * 2);
+    ctx.stroke();
+    // 중앙 한자
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 150px "Nanum Myeongjo","SimSun",serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(char, S / 2, S / 2 + 6);
+    const tex = new CanvasTexture(cv);
+    tex.colorSpace = SRGBColorSpace;
+    tex.needsUpdate = true;
+    this.crestTexCache.set(char, tex);
+    return tex;
+  }
+
+  // 팔괘진 텍스처(8괘 방사 배치 + 이중 링). 흰색, 색은 uColor.
+  private baguaTexture(): Texture {
+    if (this.baguaTexCache) return this.baguaTexCache;
+    const S = 256;
+    const cv = document.createElement('canvas');
+    cv.width = S;
+    cv.height = S;
+    const ctx = cv.getContext('2d')!;
+    const c = S / 2;
+    ctx.clearRect(0, 0, S, S);
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = 3;
+    for (const rr of [S * 0.46, S * 0.32, S * 0.2]) {
+      ctx.beginPath();
+      ctx.arc(c, c, rr, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // 8괘: 각 방향에 3줄 효(막대), 일부는 끊어 음효 표현
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      ctx.save();
+      ctx.translate(c + Math.cos(a) * S * 0.39, c + Math.sin(a) * S * 0.39);
+      ctx.rotate(a + Math.PI / 2);
+      ctx.fillStyle = '#ffffff';
+      for (let line = 0; line < 3; line++) {
+        const y = (line - 1) * 9;
+        if ((k >> line) & 1) {
+          ctx.fillRect(-16, y - 2, 32, 4); // 양효(연속)
+        } else {
+          ctx.fillRect(-16, y - 2, 12, 4); // 음효(끊김)
+          ctx.fillRect(4, y - 2, 12, 4);
+        }
+      }
+      ctx.restore();
+    }
+    const tex = new CanvasTexture(cv);
+    tex.colorSpace = SRGBColorSpace;
+    tex.needsUpdate = true;
+    this.baguaTexCache = tex;
+    return tex;
   }
 }
 
@@ -522,5 +841,50 @@ const CHAIN_FRAG = /* glsl */ `
     float env = 1.0 - uT;
     float b = (glow * 0.4 + core);
     gl_FragColor = vec4(uColor * b * 2.4 * env, b * env);
+  }
+`;
+
+// #18 장수 문장/팔괘진 데칼: 텍스처(흰 문양) × 색 × 알파. 애디티브.
+const DECAL_FRAG = /* glsl */ `
+  uniform sampler2D uMap;
+  uniform float uAlpha;
+  uniform vec3 uColor;
+  varying vec2 vUv;
+  void main() {
+    vec4 tex = texture2D(uMap, vUv);
+    float m = tex.a * max(tex.r, max(tex.g, tex.b));
+    if (m <= 0.01) discard;
+    gl_FragColor = vec4(uColor * m * 1.6, m * uAlpha);
+  }
+`;
+
+// #18 잔류 화염 벽: +X로 뻗는 지면 스트립, 노이즈 불꽃 + 진행에 따른 페이드.
+const FIREWALL_FRAG = /* glsl */ `
+  uniform float uAlpha;
+  uniform float uT;
+  uniform vec3 uColor;
+  varying vec2 vUv;
+  float h(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
+  void main() {
+    float across = 1.0 - abs(vUv.y - 0.5) * 2.0;
+    float flick = 0.6 + 0.4 * sin(uT * 14.0 + vUv.x * 30.0) * h(floor(vUv * vec2(24.0, 4.0)));
+    float b = pow(max(across, 0.0), 1.4) * flick;
+    if (b <= 0.01) discard;
+    gl_FragColor = vec4(uColor * b * 1.5, b * uAlpha);
+  }
+`;
+
+// #18 유성 화살: 세로 스트릭(밝은 코어 + 꼬리), 낙하 중 진하게.
+const METEOR_FRAG = /* glsl */ `
+  uniform vec3 uColor;
+  uniform float uT;
+  varying vec2 vUv;
+  void main() {
+    float across = 1.0 - abs(vUv.x - 0.5) * 2.0;
+    float tail = smoothstep(0.0, 0.5, vUv.y); // 위(꼬리) → 아래(촉)
+    float core = pow(max(across, 0.0), 2.0);
+    float b = core * (0.35 + tail);
+    if (b <= 0.01) discard;
+    gl_FragColor = vec4(uColor * b * 2.0, b);
   }
 `;

@@ -1367,6 +1367,21 @@ export class Run {
   testDamagePlayer(n: number): void {
     this.onPlayerHit(n);
   }
+
+  // #18 개발용: 무쌍 스펙터클 프리미티브를 플레이어 주변에 일괄 시연.
+  testMusouFx(): void {
+    const x = this.player.x;
+    const z = this.player.z;
+    this.effects.spawnCrest(x, z, '龍', 0.5, 1.4, 2.4, 6);
+    this.effects.spawnBaguaSigil(x + 13, z, 6);
+    this.effects.spawnTripleShock(x - 13, z, 5, 1.6, 1.0, 0.4);
+    this.effects.spawnFireWall(x, z + 11, 1, 0, 9, 1.8, 3);
+    this.effects.spawnFlameTrail(x + 7, z - 9, 0.4, 1.9, 1.1);
+    for (let k = 0; k < 6; k++) {
+      this.effects.spawnMeteorArrow(x - 12 + k * 4.5, z - 13, 1.7, 1.4, 0.6, 0.55 + k * 0.07);
+    }
+    this.lightField.spawn(x, 1, z, 0.5, 1.2, 2.2, 12, 2, true); // 우선순위 무쌍 광원
+  }
   testForceLevel(): void {
     this.xp += this.nextXp;
     this.onCollect(0);

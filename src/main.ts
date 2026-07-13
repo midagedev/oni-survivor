@@ -253,6 +253,7 @@ loadAtlas()
       addGold: (n: number) => run.testAddGold(n),
       showProjectiles: () => run.testSpawnProjectileShowcase(),
       showEnemyProjectiles: () => run.testSpawnEnemyProjectileShowcase(),
+      musouFx: () => run.testMusouFx(),
       spawnBoss: (t: string) => run.testSpawnBoss(t),
       setBossFlags: (b3: boolean, b6: boolean, b9: boolean) => run.testSetBossFlags(b3, b6, b9),
       treasure: (boss?: boolean) => run.testTreasure(boss),
