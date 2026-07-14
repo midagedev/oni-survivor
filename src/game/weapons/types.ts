@@ -16,6 +16,8 @@ export interface WeaponContext {
   pz: number;
   faceX: number; // 플레이어 바라보는 방향(단위)
   faceZ: number;
+  dashing?: boolean; // #45 19.6: 대시 중 — 근접 히트 넉백 +50% (run이 매 프레임 세팅)
+  boosting?: boolean; // #45 19.6: 미니터보 부스트 중 — 근접 히트 스매시(피해+25%·넉백+50%·KO별 확정)
   aimX: number; // 최근접 적을 향한 자동 조준 방향(적이 없으면 face)
   aimZ: number;
   aimTarget: number;

@@ -53,6 +53,7 @@ const VERT_INSTANCED = /* glsl */ `
   attribute vec2 aUvOffset;
   attribute float aFlash;
   attribute vec3 aTint;
+  attribute vec2 aSquash; // #45 19.4 피격 스쿼시(x=폭·y=높이 곱, 기본 1,1) — 빌보드 변환 전 로컬 적용
   uniform vec2 uCellUv;
   varying vec2 vUv;
   varying vec2 vCellLo;
@@ -66,7 +67,8 @@ const VERT_INSTANCED = /* glsl */ `
     vFlash = aFlash;
     vTint = aTint;
     vWorldXZ = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz;
-    vec4 mv = modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+    vec3 sp = vec3(position.x * aSquash.x, position.y * aSquash.y, position.z);
+    vec4 mv = modelViewMatrix * instanceMatrix * vec4(sp, 1.0);
     vFogDepth = -mv.z;
     gl_Position = projectionMatrix * mv;
   }
@@ -179,6 +181,8 @@ export class InstancedSpriteRenderer {
   private readonly uvAttr: InstancedBufferAttribute;
   private readonly flashAttr: InstancedBufferAttribute;
   private readonly tintAttr: InstancedBufferAttribute;
+  private readonly squashArr: Float32Array;
+  private readonly squashAttr: InstancedBufferAttribute;
   private w = 0;
 
   constructor(sheet: SheetInfo, max: number, light: LightUniforms) {
@@ -192,9 +196,13 @@ export class InstancedSpriteRenderer {
     this.uvAttr.setUsage(DynamicDrawUsage);
     this.flashAttr.setUsage(DynamicDrawUsage);
     this.tintAttr.setUsage(DynamicDrawUsage);
+    this.squashArr = new Float32Array(max * 2);
+    this.squashAttr = new InstancedBufferAttribute(this.squashArr, 2);
+    this.squashAttr.setUsage(DynamicDrawUsage);
     geo.setAttribute('aUvOffset', this.uvAttr);
     geo.setAttribute('aFlash', this.flashAttr);
     geo.setAttribute('aTint', this.tintAttr);
+    geo.setAttribute('aSquash', this.squashAttr);
 
     const mat = new ShaderMaterial({
       uniforms: {
@@ -252,7 +260,17 @@ export class InstancedSpriteRenderer {
     this.tintArr[t3] = tr;
     this.tintArr[t3 + 1] = tg;
     this.tintArr[t3 + 2] = tb;
+    this.squashArr[i * 2] = 1; // #45 19.4 기본 스쿼시(항등) — setSquash로 덮어씀
+    this.squashArr[i * 2 + 1] = 1;
     this.w++;
+  }
+
+  // #45 19.4: 직전 push한 인스턴스에 스쿼시(폭·높이 배수) 적용. 미호출 시 항등(1,1).
+  setSquash(sx: number, sy: number): void {
+    const i = this.w - 1;
+    if (i < 0) return;
+    this.squashArr[i * 2] = sx;
+    this.squashArr[i * 2 + 1] = sy;
   }
 
   end(): void {
@@ -261,6 +279,7 @@ export class InstancedSpriteRenderer {
     this.uvAttr.needsUpdate = true;
     this.flashAttr.needsUpdate = true;
     this.tintAttr.needsUpdate = true;
+    this.squashAttr.needsUpdate = true;
   }
 }
 

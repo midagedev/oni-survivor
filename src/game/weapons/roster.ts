@@ -42,23 +42,33 @@ function capsuleHit(
   const mx = (ax + bx) * 0.5;
   const mz = (az + bz) * 0.5;
   const qr = Math.hypot(bx - ax, bz - az) * 0.5 + width + 1.2;
+  // #45 19.6 근접 손맛(찌르기 계열): 대시/부스트 넉백 +50%, 부스트 스매시 피해 +25% + KO별 확정.
+  const boost = ctx.boosting === true;
+  const meleeK = boost || ctx.dashing === true ? 1.5 : 1;
+  const meleeDmg = boost ? 1.25 : 1;
   const n = ctx.hash.query(mx, mz, qr, ctx.scratch);
   for (let c = 0; c < n; c++) {
     const j = ctx.scratch[c];
     if (en.alive[j] === 0) continue;
     const hitR = width + en.radius[j];
     if (distToSegmentSq(en.x[j], en.z[j], ax, az, bx, bz) > hitR * hitR) continue;
-    const dealt = en.boss[j] === 1 ? damage * BOSS_DMG_MULT * (en.groggy[j] === 1 ? 1.6 : 1) : damage;
+    const isBoss = en.boss[j] === 1;
+    const dealt = (isBoss ? damage * BOSS_DMG_MULT * (en.groggy[j] === 1 ? 1.6 : 1) : damage) * meleeDmg;
     const died = en.damageAt(j, dealt);
     ctx.damageText.spawn(dealt, en.x[j], en.scale[j] * 0.7, en.z[j], false);
+    const dx = en.x[j] - ctx.px;
+    const dz = en.z[j] - ctx.pz;
+    const d = Math.hypot(dx, dz) || 1;
     if (knockback > 0) {
-      const dx = en.x[j] - ctx.px;
-      const dz = en.z[j] - ctx.pz;
-      const d = Math.hypot(dx, dz) || 1;
-      en.push(j, dx / d, dz / d, knockback);
+      en.push(j, dx / d, dz / d, knockback * meleeK);
       if (knockback >= 5 && !died && ctx.rng.next() < 0.4) ctx.particles.dust(en.x[j], en.z[j]);
     }
-    if (died) ctx.onKill(j);
+    if (died) {
+      ctx.onKill(j);
+      if (!isBoss && (boost || ctx.rng.next() < 0.6)) ctx.effects.spawnKOStar(en.x[j], en.z[j], dx / d, dz / d);
+    } else if (!isBoss) {
+      en.hitPunch[j] = boost ? 1.6 : 1.4;
+    }
   }
 }
 
@@ -76,6 +86,10 @@ function arcHit(
 ): void {
   const en = ctx.enemies;
   const cosHalf = Math.cos(halfAngle);
+  // #45 19.6 근접 손맛: 대시/부스트 중 넉백 +50%, 부스트는 스매시(피해 +25% + KO별 확정).
+  const boost = ctx.boosting === true;
+  const meleeK = boost || ctx.dashing === true ? 1.5 : 1;
+  const meleeDmg = boost ? 1.25 : 1;
   const n = ctx.hash.query(cx, cz, radius + 21, ctx.scratch); // +21: 보스 확장 사거리(#40) 후보 포함
   for (let c = 0; c < n; c++) {
     const j = ctx.scratch[c];
@@ -93,15 +107,21 @@ function arcHit(
       const dot = (dx / d) * dirX + (dz / d) * dirZ;
       if (dot < cosHalf) continue;
     }
-    // 그로기 중인 보스는 근접 피해 +60% (#40 14.5)
-    const dealt = isBoss ? damage * BOSS_DMG_MULT * (en.groggy[j] === 1 ? 1.6 : 1) : damage;
+    // 그로기 중인 보스는 근접 피해 +60% (#40 14.5). 부스트 스매시 +25%(#45 19.6).
+    const dealt = (isBoss ? damage * BOSS_DMG_MULT * (en.groggy[j] === 1 ? 1.6 : 1) : damage) * meleeDmg;
     const died = en.damageAt(j, dealt);
     ctx.damageText.spawn(dealt, en.x[j], en.scale[j] * 0.7, en.z[j], false);
     if (knockback > 0) {
-      en.push(j, dx / d, dz / d, knockback);
+      en.push(j, dx / d, dz / d, knockback * meleeK);
       if (knockback >= 5 && !died && ctx.rng.next() < 0.35) ctx.particles.dust(en.x[j], en.z[j]);
     }
-    if (died) ctx.onKill(j);
+    if (died) {
+      ctx.onKill(j);
+      // #45 19.2/19.6: 근접 처치 KO 홈런 별 — 부스트 스매시는 확정, 그 외 60%(내부 동시 2 상한).
+      if (!isBoss && (boost || ctx.rng.next() < 0.6)) ctx.effects.spawnKOStar(en.x[j], en.z[j], dx / d, dz / d);
+    } else if (!isBoss) {
+      en.hitPunch[j] = boost ? 1.6 : 1.4; // 근접 스쿼시 강화(x1.35~, 기본 x1.25 대비)
+    }
   }
 }
 

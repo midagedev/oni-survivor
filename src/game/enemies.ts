@@ -520,7 +520,7 @@ export class EnemyPool {
       r.push(
         this.x[i],
         this.z[i],
-        this.scale[i] * (1 + 0.18 * this.hitPunch[i]),
+        this.scale[i],
         uv.u,
         uv.v,
         this.flash[i],
@@ -528,6 +528,12 @@ export class EnemyPool {
         this.tg[i],
         this.tb[i],
       );
+      // #45 19.4 피격 스쿼시&스트레치: 기존 균일 팝(+18%) 대신 폭↑·높이↓ 스프링(보스는 절제).
+      if (this.hitPunch[i] > 0) {
+        const hp = this.hitPunch[i];
+        const isBoss = this.boss[i] === 1;
+        r.setSquash(1 + (isBoss ? 0.1 : 0.25) * hp, 1 - (isBoss ? 0.08 : 0.25) * hp);
+      }
       shadowR.push(this.x[i], this.z[i], this.radius[i] * 1.5);
     }
     soldiersR.end();

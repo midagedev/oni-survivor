@@ -749,6 +749,9 @@ export class Run {
     this.ctx.aimTarget = aimTarget;
     this.ctx.aimX = this.player.faceX;
     this.ctx.aimZ = this.player.faceZ;
+    // #45 19.6: 대시/부스트 상태 — roster 근접 히트가 넉백·스매시 분기에 사용
+    this.ctx.dashing = this.player.dashing;
+    this.ctx.boosting = this.player.boosting;
     if (aimTarget >= 0) {
       const dx = this.enemies.x[aimTarget] - this.player.x;
       const dz = this.enemies.z[aimTarget] - this.player.z;
@@ -1203,8 +1206,8 @@ export class Run {
     // 일반: 사망 파티클 버스트(적 틴트) + 젬
     this.particles.burst(x, z, 2.2 * en.tr[i], 1.3 * en.tg[i], 0.5 * en.tb[i], 14, 4.5);
     this.gems.spawn(x, z, en.gemValue[i]);
-    // #45 19.2 KO 홈런 별 — 무쌍 킬 또는 확률(동시 2 상한은 koStar 내부). 근접 차등은 19.6에서.
-    if (this.musou.active || rng.next() < 0.12) {
+    // #45 19.2 KO 홈런 별 — 무쌍 킬만(난무 aoe는 weapon-layer 밖). 근접 차등(60/100%)은 roster가 네이티브 처리.
+    if (this.musou.active) {
       const aw = Math.atan2(z - this.player.z, x - this.player.x);
       this.effects.spawnKOStar(x, z, Math.cos(aw), Math.sin(aw));
     }
