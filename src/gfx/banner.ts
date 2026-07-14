@@ -136,6 +136,11 @@ export class WaveBanner {
     this.mesh.visible = false;
   }
 
+  // 재생 중 여부 — 세력 배너와 동료 합류 배너 충돌 방지(#42: 재생 중이면 스킵).
+  get playing(): boolean {
+    return this.life > 0;
+  }
+
   private glyphTexture(hanja: string, ko: string): Texture {
     const key = hanja + ko;
     const cached = this.texCache.get(key);

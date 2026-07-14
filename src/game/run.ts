@@ -63,6 +63,7 @@ import type { MetaMods } from '../data/upgrades';
 import { rng } from '../core/rng';
 import { audio } from '../core/audio';
 import { Companion } from './companion';
+import { pickSecondCompanion, SECOND_JOIN_TIME } from '../data/companions';
 import { pickLine } from '../data/dialogue';
 import { BattlefieldMap } from './battlefieldMap';
 import type { GateBarrier, MapLandmark } from './battlefieldMap';
@@ -147,6 +148,7 @@ export class Run {
 
   private readonly player: Player;
   private readonly companion: Companion;
+  private readonly companion2: Companion; // #42 2호 원군(270s 랜덤 합류)
   private readonly enemies = new EnemyPool();
   private readonly spawner: Spawner;
   private readonly hash = new SpatialHash();
@@ -269,6 +271,7 @@ export class Run {
     this.player.setRimScale(touch ? 0.5 : 1); // 모바일 저해상도 블룸에서 림 과다 방지
     this.scene.add(this.player.mesh);
     this.companion = new Companion(this.scene, atlas, lu);
+    this.companion2 = new Companion(this.scene, atlas, lu);
     this.spawner = new Spawner(atlas, this.enemies, this.map);
     this.banner = new WaveBanner(this.scene);
     // 세력(웨이브) 전환 → 펄럭이는 배너 연출 (DESIGN 14.4 쇼케이스)
@@ -529,6 +532,7 @@ export class Run {
     this.lastAttackZ = 1;
     this.lastAttackCount = 0;
     this.companion.reset(this.hero.id);
+    this.companion2.reset(this.hero.id, { def: pickSecondCompanion(this.companion.definition.id, () => rng.next()), side: -1, joinTime: SECOND_JOIN_TIME, specialPhase: 6 });
     this.boss.active = false;
     this.boss.idx = -1;
   }
@@ -759,17 +763,30 @@ export class Run {
     this.hash.clear();
     this.enemies.insertAll(this.hash);
 
-    // 45초에 한 명 합류하는 원군(#22: 세트피스/광역/특기/무쌍 시너지). 세트피스 이펙트는 companion이 담당.
-    if (this.companion.update(gdt, this.gameTime, this.player, this.ctx, this.level, this.musou.active)) {
-      const ally = this.companion.definition;
+    // 원군 2인 체제(#42): 1호 45s(장수별 지정) + 2호 270s(잔여 풀 랜덤). 3막 합류 연출 공용.
+    const onJoin = (c: Companion): void => {
+      const ally = c.definition;
       this.hud.banner(`${t('bannerAlly')} ${ally.name} ${ally.hanja}`, '#7ec8ff', 46, 1600);
       this.hud.quote(ally.name, pickLine(ally.id, 0));
       audio.sfx('buff');
-    }
+      this.cinematics.onAllyJoin(c.joinDirX, c.joinDirZ);
+      this.hitstop(250, 0.32); // 소프트 슬로모
+      if (!this.banner.playing) this.banner.trigger(ally.hanja, ally.name, [ally.cr, ally.cg, ally.cb]);
+    };
+    if (this.companion.update(gdt, this.gameTime, this.player, this.ctx, this.level, this.musou.active)) onJoin(this.companion);
+    if (this.companion2.update(gdt, this.gameTime, this.player, this.ctx, this.level, this.musou.active)) onJoin(this.companion2);
+    const bothAllies = this.companion.active && this.companion2.active;
+    this.companion.damageScale = bothAllies ? 0.8 : 1;
+    this.companion2.damageScale = bothAllies ? 0.8 : 1;
     // 특기 발동 → 대사 + 사운드
     const sp = this.companion.consumeSpecialEvent();
     if (sp) {
       this.hud.quote(this.companion.definition.name, sp.line);
+      audio.sfx('buff');
+    }
+    const sp2 = this.companion2.consumeSpecialEvent();
+    if (sp2) {
+      this.hud.quote(this.companion2.definition.name, sp2.line);
       audio.sfx('buff');
     }
 
@@ -983,6 +1000,7 @@ export class Run {
     this.shadowR.begin();
     if (this.state !== 'attract') this.shadowR.push(this.player.x, this.player.z, this.player.radius * 1.6);
     if (this.companion.active) this.shadowR.push(this.companion.x, this.companion.z, this.companion.radius * 1.5);
+    if (this.companion2.active) this.shadowR.push(this.companion2.x, this.companion2.z, this.companion2.radius * 1.5);
     this.enemies.render(
       this.atlas, this.soldiersR, this.variantsR, this.sgradeR, this.apriorityR, this.shadowR,
     );
@@ -1760,7 +1778,7 @@ export class Run {
       bossActive: this.boss.active,
       companion: this.companion.active ? this.companion.definition.id : null,
       companionAttacks: this.companion.attacks,
-      companionKills: this.companion.kills,
+      companionKills: this.companion.kills + this.companion2.kills,
       relics: [...this.relicIds],
       endless: this.endless,
       fever: this.combo.fever,

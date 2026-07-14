@@ -40,6 +40,12 @@ export class Companion {
   private attackTimer = 0;
   private specialTimer = 0;
   private posRingT = 0; // #34 위치 식별용 은은한 지면 링 펄스
+  private side = 1; // #42: 팔로우 오프셋 좌/우(1=우, -1=좌) — 2인 체제 분리
+  private joinTime = COMPANION_JOIN_TIME; // #42: 인스턴스별 합류 시각(1호 45s / 2호 270s)
+  private specialPhase = 0; // #42: 특기 위상차(2인 동시 발동 방지)
+  damageScale = 1; // #42: 2인 활성 시 0.8 (run이 설정)
+  joinDirX = 0; // #42: 합류 순간 진입 방향(run의 onAllyJoin 카메라용)
+  joinDirZ = 1;
   private playerLevel = 1;
   private musouActive = false;
   private pendingSpecial: SpecialEvent | null = null;
@@ -65,9 +71,14 @@ export class Companion {
     return e;
   }
 
-  reset(heroId: string): void {
-    this.def = COMPANION_BY_HERO[heroId] ?? COMPANION_BY_HERO.zhaoyun;
+  // opts로 2호(다른 정의/좌측 오프셋/270s 합류/위상차)를 구성. 미지정 시 1호 기본값.
+  reset(heroId: string, opts?: { def?: CompanionDef; side?: 1 | -1; joinTime?: number; specialPhase?: number }): void {
+    this.def = opts?.def ?? COMPANION_BY_HERO[heroId] ?? COMPANION_BY_HERO.zhaoyun;
     this.blockPx = this.def.charIndex * 4 * CELL_W;
+    this.side = opts?.side ?? 1;
+    this.joinTime = opts?.joinTime ?? COMPANION_JOIN_TIME;
+    this.specialPhase = opts?.specialPhase ?? 0;
+    this.damageScale = 1;
     this.active = false;
     this.attacks = 0;
     this.kills = 0;
@@ -84,18 +95,21 @@ export class Companion {
     this.musouActive = musouActive;
     let joined = false;
     if (!this.active) {
-      if (gameTime < COMPANION_JOIN_TIME) return false;
+      if (gameTime < this.joinTime) return false;
       this.active = true;
-      this.x = player.x - player.faceX * 2.2 + player.faceZ * 1.4;
-      this.z = player.z - player.faceZ * 2.2 - player.faceX * 1.4;
+      this.x = player.x - player.faceX * 2.2 + this.side * player.faceZ * 1.4;
+      this.z = player.z - player.faceZ * 2.2 - this.side * player.faceX * 1.4;
+      this.joinDirX = player.faceX || 0;
+      this.joinDirZ = player.faceZ || 1;
       this.quad.mesh.visible = true;
-      this.specialTimer = this.def.specialCd * 0.5; // 합류 후 절반 쿨다운
+      // 첫 특기 쿨 -50% + 2인 위상차(동시 발동 방지)
+      this.specialTimer = this.def.specialCd * 0.5 + this.specialPhase;
       this.joinSetpiece(ctx, player);
       joined = true;
     }
 
-    const targetX = player.x - player.faceX * 2.2 + player.faceZ * 1.4;
-    const targetZ = player.z - player.faceZ * 2.2 - player.faceX * 1.4;
+    const targetX = player.x - player.faceX * 2.2 + this.side * player.faceZ * 1.4;
+    const targetZ = player.z - player.faceZ * 2.2 - this.side * player.faceX * 1.4;
     let vx = targetX - this.x;
     let vz = targetZ - this.z;
     const dist = Math.hypot(vx, vz);
@@ -142,9 +156,9 @@ export class Companion {
     return joined;
   }
 
-  // 레벨 스케일 적용 대미지.
+  // 레벨 스케일 적용 대미지. #42: 2인 활성 시 damageScale(0.8)로 총 킬셰어 억제.
   private dmg(base: number, ctx: WeaponContext): number {
-    return base * ctx.stats.damageMul * (1 + this.playerLevel * 0.05);
+    return base * ctx.stats.damageMul * (1 + this.playerLevel * 0.05) * this.damageScale;
   }
 
   private nearestEnemy(ctx: WeaponContext, range: number): number {
@@ -171,6 +185,8 @@ export class Companion {
     const d = this.def;
     const fx = player.faceX || 0;
     const fz = player.faceZ || 1;
+    // 진입 예고: 말발굽 먼지 웨이브(뒤→착지) + 돌격 스러스트(기병 합류감).
+    for (let k = 1; k <= 4; k++) ctx.particles.dust(this.x - fx * (1.2 * k), this.z - fz * (1.2 * k));
     ctx.effects.spawnThrust(this.x - fx * 4.5, this.z - fz * 4.5, fx, fz, 4.5, 1.4, d.cr, d.cg, d.cb, 0.2);
     ctx.effects.spawnFlash(this.x, this.z, d.cr, d.cg, d.cb, 2);
     ctx.effects.spawnRing(this.x, this.z, 2.8, d.cr, d.cg, d.cb, 0.45); // <3 → 광원 미생성

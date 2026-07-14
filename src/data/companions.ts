@@ -32,6 +32,22 @@ export const COMPANION_BY_HERO: Record<string, CompanionDef> = {
 };
 
 export const COMPANION_JOIN_TIME = 45;
+export const SECOND_JOIN_TIME = 270; // #42: 2호 동료 합류 시각(잔여 풀 랜덤)
+
+// 중복 제거한 동료 정의 풀(2호 랜덤 선발용). huangzhong=유비 중복 제외.
+export const COMPANION_POOL: CompanionDef[] = [
+  COMPANION_BY_HERO.zhaoyun, // 유비
+  COMPANION_BY_HERO.guanyu, // 조조
+  COMPANION_BY_HERO.zhangfei, // 조운
+  COMPANION_BY_HERO.zhugeliang, // 주유
+  COMPANION_BY_HERO.lvbu, // 장료
+];
+
+// 2호 동료: 1호와 다른 정의를 풀에서 무작위 선발. rng는 [0,1) 함수.
+export function pickSecondCompanion(firstId: string, rand01: () => number): CompanionDef {
+  const pool = COMPANION_POOL.filter((d) => d.id !== firstId);
+  return pool[(rand01() * pool.length) | 0];
+}
 
 // 현재 로케일에 맞는 특기 대사(i18n.ts는 읽기만 — 편집 금지).
 export function companionLine(def: CompanionDef): string {
