@@ -23,6 +23,8 @@ export class Musou {
   gauge = 0; // 0..100
   active = false;
   chargeMul = 1; // 사당 '무쌍 충전' 버프 시 2 (run이 매 프레임 세팅)
+  private killRate = 0; // 최근 킬/초 EMA (#43 페이싱 — 몰살 구간 충전 체감)
+  private chargeLockT = 0; // 종료 후 킬 충전 잠금(연속 체이닝 방지)
   private timer = 0;
   private tick = 0;
   private stormAngle = 0;
@@ -52,6 +54,8 @@ export class Musou {
     this.initDone = false;
     this.introDone = false;
     this.chargeMul = 1;
+    this.killRate = 0;
+    this.chargeLockT = 0;
   }
 
   get ready(): boolean {
@@ -63,8 +67,14 @@ export class Musou {
   }
 
   addKill(comboCount: number): void {
-    if (this.active) return;
-    this.gauge = Math.min(100, this.gauge + (1 + Math.min(1.5, comboCount * 0.02)) * this.chargeMul);
+    if (this.active || this.chargeLockT > 0) return;
+    // #43 킬 충전 총량 캡: 임펄스 0.25 × τ4s → 정상상태 killRate ≈ 실제 킬/초.
+    // per-kill = min(base, 2.0/killRate) → 킬레이트 무관 초당 최대 ~2 게이지(만충 ~50s).
+    // 초반(≤1.5킬/초)은 base 그대로 — 몰살 구간만 구조적으로 완화. 실측 14~19s → 목표 45~70s.
+    this.killRate += 0.25;
+    const base = 1 + Math.min(1.5, comboCount * 0.02);
+    const gain = Math.min(base, 2.0 / Math.max(this.killRate, 0.5));
+    this.gauge = Math.min(100, this.gauge + gain * this.chargeMul);
   }
 
   addHit(): void {
@@ -89,6 +99,9 @@ export class Musou {
 
   // 실제(real) dt로 진행. active 동안 장수별 난무 수행. 종료 시 true(run이 후처리).
   update(dt: number, ctx: WeaponContext, player: Player): boolean {
+    // #43 페이싱 틱 — 비활성 프레임에도 킬레이트 감쇠·잠금 카운트다운 진행
+    this.killRate *= Math.exp(-dt / 4);
+    if (this.chargeLockT > 0) this.chargeLockT -= dt;
     if (!this.active) return false;
     this.timer -= dt;
     this.tick -= dt;
@@ -117,6 +130,7 @@ export class Musou {
 
     if (this.timer <= 0) {
       this.active = false;
+      this.chargeLockT = 6; // #43 여운 잠금 — 종료 직후 킬 충전 6s 냉각(피격 +3은 유지)
       // 마무리 대폭발: 시차 3중 충격파 + 대형 링 + 균열 데칼 + 전 화면 대미지
       ctx.effects.spawnTripleShock(player.x, player.z, 30, crest.r, crest.g, crest.b);
       ctx.effects.spawnRing(player.x, player.z, 26, 2.2, 1.7, 0.8, 0.7);

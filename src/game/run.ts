@@ -1704,6 +1704,7 @@ export class Run {
   get testStats() {
     return {
       time: this.gameTime,
+      musouGauge: this.musou.gauge,
       kills: this.kills,
       level: this.level,
       gold: Math.floor(this.gold),
