@@ -22,6 +22,7 @@ import {
   type AttackSpriteKind,
 } from './attackSprites';
 import { TelegraphBatch } from './telegraph';
+import { KOStarBatch } from './koStar';
 
 interface Slot {
   mesh: Mesh;
@@ -76,6 +77,7 @@ export class EffectsSystem {
   private flashThisFrame = 0; // #40 프레임당 flash 상한 카운터
   private readonly attackSprites: RetroAttackSpriteFx;
   private readonly telegraph: TelegraphBatch; // 보스 패턴 지면 텔레그래프(#40 14.6)
+  private readonly koStar: KOStarBatch; // KO 홈런 별(#45 19.2)
 
   // #18 무쌍 스펙터클 프리미티브
   private readonly decals: DecalSlot[] = []; // 장수 문장/팔괘진 지면 데칼
@@ -110,6 +112,7 @@ export class EffectsSystem {
     this.scene = scene;
     this.attackSprites = new RetroAttackSpriteFx(scene);
     this.telegraph = new TelegraphBatch(scene);
+    this.koStar = new KOStarBatch(scene);
     // 지면 평행 유닛 쿼드 (+X로 뻗음): 찌르기
     const thrustGeo = new PlaneGeometry(1, 1, 1, 1);
     thrustGeo.rotateX(-Math.PI / 2);
@@ -359,6 +362,11 @@ export class EffectsSystem {
     this.telegraph.spawn(shape, x, z, angle, sizeX, sizeZ, param, life, r, g, b);
   }
 
+  // KO 홈런 별(#45 19.2). 강타/무쌍/대넉백 처치 시 별이 포물선으로 튀어오름(동시 2 상한 내부 처리).
+  spawnKOStar(x: number, z: number, dirX: number, dirZ: number): void {
+    this.koStar.spawn(x, z, dirX, dirZ);
+  }
+
   // 낙뢰 볼트 (세로) + 착지 링 + 화면 미세 플래시.
   spawnLightning(x: number, z: number, r = 1.4, g = 1.8, b = 2.6, height = 7): void {
     const s = this.bolts[this.bCur];
@@ -482,6 +490,7 @@ export class EffectsSystem {
     this.flashThisFrame = 0; // #40: 프레임당 flash 스폰 카운터 리셋(대량 처치 킬플래시 누적 상한)
     this.attackSprites.update(dt);
     this.telegraph.update(dt);
+    this.koStar.update(dt);
     this.tickThrust(dt);
     this.tickArc(dt);
     this.tickRing(dt);
