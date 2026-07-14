@@ -218,9 +218,10 @@ export class Companion {
         this.hit(ctx, chain, nx, nz, base * 0.8 * boost, 2);
       }
     } else {
-      // 부채꼴 광역: 아크 시각 반경 축소(7→4.5, 히트 범위는 콘 7.5 유지) — 고빈도 대형 버스트 완화.
-      ctx.effects.spawnSlashArc(this.x, this.z, nx, nz, 4.5, 0.9, this.def.cr, this.def.cg, this.def.cb, 0.18);
-      this.cone(ctx, nx, nz, 7.5, base * boost, 4);
+      // #42 킬셰어 레버 (a): 기본 콘 히트 7.5→5.5 + 시각 아크 4.5→5.5로 일치("보이는 만큼 벤다").
+      // 밀집 시 커버리지가 킬셰어를 결정하므로 히트 반경 축소가 실효 레버. 특기(광역기) 반경은 불변.
+      ctx.effects.spawnSlashArc(this.x, this.z, nx, nz, 5.5, 0.9, this.def.cr, this.def.cg, this.def.cb, 0.18);
+      this.cone(ctx, nx, nz, 5.5, base * boost, 4);
     }
 
     this.attacks++;
