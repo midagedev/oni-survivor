@@ -37,6 +37,7 @@ export const WORLD_ASSETS = {
   dumplingCart: 9,
   shrine: 10,
   beacon: 11,
+  gong: 12, // 동라 銅鑼 전용 (아틀라스 셀 12 = row3,col0) — #41 동라/전고 시각 구분
 } as const;
 
 export type WorldAsset = (typeof WORLD_ASSETS)[keyof typeof WORLD_ASSETS];

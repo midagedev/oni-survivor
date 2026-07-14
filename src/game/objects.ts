@@ -272,8 +272,9 @@ export class BattlefieldObjects {
         this.batch.push(WORLD_ASSETS.dumplingCart, this.x[i], this.z[i], 2.5, 2.1, 1.18);
       } else if (this.kind[i] === KIND_SHRINE) {
         this.batch.push(WORLD_ASSETS.shrine, this.x[i], this.z[i], 2.8, 3.3, 1.13);
-      } else if (this.kind[i] === KIND_GONG || this.kind[i] === KIND_DRUM) {
-        // 동라/전고 전용 스프라이트 부재 → warDrum 재사용(글로우·이름표로 구분). TODO: 전용 동라 스프라이트.
+      } else if (this.kind[i] === KIND_GONG) {
+        this.batch.push(WORLD_ASSETS.gong, this.x[i], this.z[i], 2.4, 2.2, 1.1);
+      } else if (this.kind[i] === KIND_DRUM) {
         this.batch.push(WORLD_ASSETS.warDrum, this.x[i], this.z[i], 2.4, 2.2, 1.1);
       } else {
         this.batch.push(WORLD_ASSETS.palisade, this.x[i], this.z[i], 3.7, 2.15, 1.05);
