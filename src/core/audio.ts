@@ -367,8 +367,8 @@ class AudioSystem {
 
   private playGem(t: number): void {
     const ctx = this.ctx!;
-    // 연속 획득(0.35s 내)이면 음계 상승, 아니면 리셋
-    if (t - this.gemStepAt < 0.35) this.gemStep = Math.min(14, this.gemStep + 1);
+    // 연속 획득(0.8s 내, #45 19.3)이면 음계 상승, 아니면 리셋 — 픽업 런이 오래 이어지게.
+    if (t - this.gemStepAt < 0.8) this.gemStep = Math.min(14, this.gemStep + 1);
     else this.gemStep = 0;
     this.gemStepAt = t;
     const penta = [0, 2, 4, 7, 9]; // 장 펜타토닉 반음 오프셋
