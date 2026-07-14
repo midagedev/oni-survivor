@@ -16,6 +16,7 @@ export class GemPool {
   private readonly x = new Float32Array(GEM_CAP);
   private readonly z = new Float32Array(GEM_CAP);
   private readonly value = new Float32Array(GEM_CAP);
+  private readonly heal = new Uint8Array(GEM_CAP); // 1=회복 픽업(온백색), 0=혼백 젬(XP) — #41 15.2
   private readonly mag = new Uint8Array(GEM_CAP); // 자석 발동 여부
   private readonly cr = new Float32Array(GEM_CAP);
   private readonly cg = new Float32Array(GEM_CAP);
@@ -67,6 +68,7 @@ export class GemPool {
     this.x[i] = x;
     this.z[i] = z;
     this.value[i] = value;
+    this.heal[i] = 0;
     this.mag[i] = 0;
     this.alive[i] = 1;
     // 값에 따른 색 (파랑1 / 초록5 / 빨강20), HDR로 블룸
@@ -85,7 +87,34 @@ export class GemPool {
     }
   }
 
-  update(dt: number, px: number, pz: number, pickupMul: number, onCollect: (v: number) => void): void {
+  // 회복 픽업(온백색). value = 최대 체력 회복 비율(예: 0.06 = 6%). #41 15.2 — 뱀서 치킨 문법.
+  spawnHeal(x: number, z: number, value: number): void {
+    if (this.freeTop === 0) return;
+    const i = this.free[--this.freeTop];
+    this.x[i] = x;
+    this.z[i] = z;
+    this.value[i] = value;
+    this.heal[i] = 1;
+    this.mag[i] = 0;
+    this.alive[i] = 1;
+    this.cr[i] = 2.4; // 온백색(따뜻한 흰빛) — 냉색 XP 젬과 구분
+    this.cg[i] = 2.1;
+    this.cb[i] = 1.5;
+  }
+
+  // 동라(銅鑼): 필드의 모든 살아있는 젬을 즉시 자석 상태로. #41 15.7
+  magnetizeAll(): void {
+    for (let i = 0; i < GEM_CAP; i++) if (this.alive[i] === 1) this.mag[i] = 1;
+  }
+
+  // 화면상 활성 회복 픽업 수(동시 상한 게이트용). #41 15.2
+  get activeHealCount(): number {
+    let n = 0;
+    for (let i = 0; i < GEM_CAP; i++) if (this.alive[i] === 1 && this.heal[i] === 1) n++;
+    return n;
+  }
+
+  update(dt: number, px: number, pz: number, pickupMul: number, onCollect: (v: number) => void, onHeal?: (v: number) => void): void {
     this.time += dt;
     const radius = PICKUP_BASE * pickupMul;
     const r2 = radius * radius;
@@ -103,7 +132,8 @@ export class GemPool {
         this.x[i] += (dx / d) * speed * dt;
         this.z[i] += (dz / d) * speed * dt;
         if (d2 <= collect2) {
-          onCollect(this.value[i]);
+          if (this.heal[i] === 1) onHeal?.(this.value[i]);
+          else onCollect(this.value[i]);
           this.alive[i] = 0;
           this.free[this.freeTop++] = i;
         }

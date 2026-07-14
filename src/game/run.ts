@@ -334,6 +334,16 @@ export class Run {
       banner: (text, color) => {
         this.hud.banner(text, color, 40, 1400);
       },
+      playerHpFrac: () => this.player.hp / Math.max(1, this.player.maxHp),
+      magnetizeGems: () => this.gems.magnetizeAll(),
+      stunEnemies: (x, z, r, dur) => {
+        const n = this.hash.query(x, z, r, this.scratch);
+        for (let c = 0; c < n; c++) {
+          const j = this.scratch[c];
+          if (this.enemies.alive[j] === 1 && this.enemies.controlled[j] === 0)
+            this.enemies.stun[j] = Math.max(this.enemies.stun[j], dur);
+        }
+      },
     });
 
     // 재사용 무기 컨텍스트 (프레임당 할당 회피)
@@ -773,6 +783,17 @@ export class Run {
 
     // 전장 오브젝트: 접촉(만두/사당) + 화약통은 플레이어 근접 시 무기 판정으로 유폭
     this.objects.update(gdt, this.gameTime);
+    // 15.3 군영 軍營 취사장 오라 — 반경 5m 초당 2.5% 회복 + 취사 연기 + 온색 광원
+    for (const lm of this.map.landmarks) {
+      if (lm.kind !== 5) continue;
+      const ax = this.player.x - lm.x;
+      const az = this.player.z - lm.z;
+      if (ax * ax + az * az <= 25) {
+        this.player.heal(this.player.maxHp * 0.025 * gdt);
+        if (Math.random() < 6 * gdt) this.particles.steam(lm.x, lm.z + 0.4);
+        this.lightField.spawn(lm.x, 0.6, lm.z, 1.3, 0.9, 0.5, 6, 0.2);
+      }
+    }
     this.objects.hitAt(this.player.x, this.player.z, 4.0);
 
     // 무쌍 난무 (실제 dt로 진행, 종료 시 마무리 충격파)
@@ -815,7 +836,8 @@ export class Run {
     }
 
     // 픽업
-    this.gems.update(gdt, this.player.x, this.player.z, this.player.stats.pickupMul, this.onCollect);
+    this.gems.update(gdt, this.player.x, this.player.z, this.player.stats.pickupMul, this.onCollect,
+      (v) => { this.player.heal(this.player.maxHp * v); audio.sfx('buff'); });
     this.treasure.update(gdt, this.player.x, this.player.z, this.player.stats.pickupMul, this.onTreasure);
 
     // 연출 (실제 dt)
@@ -1142,6 +1164,11 @@ export class Run {
     // 일반: 사망 파티클 버스트(적 틴트) + 젬
     this.particles.burst(x, z, 2.2 * en.tr[i], 1.3 * en.tg[i], 0.5 * en.tb[i], 14, 4.5);
     this.gems.spawn(x, z, en.gemValue[i]);
+    // 15.2 적 드랍 회복 픽업 — 저체력 연민 2배, 동시 상한 6
+    {
+      const lowHp = this.player.hp < this.player.maxHp * 0.4;
+      if (this.gems.activeHealCount < 6 && rng.next() < (lowHp ? 0.024 : 0.012)) this.gems.spawnHeal(x, z, 0.06);
+    }
     this.addGold(this.player.stats.goldMul); // 소량 누적
     this.kills++;
     this.frameKills++;
