@@ -437,6 +437,10 @@ export class SiegeSystem {
   get counterRemainSec(): number {
     return this.state === 'counterattack' ? Math.max(0, COUNTER_DURATION - this.counterTimer) : -1;
   }
+  // 거점화 상태에서 탈환군 내습까지 대략 잔여 시간(초). 아니면 -1. (연기 조건이 걸리면 더 늘 수 있음)
+  get captureRemainSec(): number {
+    return this.state === 'captured' ? Math.max(0, COUNTER_DELAY - this.captureTimer) : -1;
+  }
 
   // === QA 훅(run 테스트 메서드가 호출 — 조건 무시 강제 진행) ===
   testForceLord(): void {

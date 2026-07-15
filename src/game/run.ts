@@ -450,10 +450,26 @@ export class Run {
       } else {
         this.player.heal(this.player.maxHp * 0.5);
       }
+      // 규칙 안내(첫 점령 시 무엇을 할지): 성에 머물러 보급 받고 탈환군에 대비.
+      this.hud.quote(
+        this.hero.name,
+        getLang() === 'en'
+          ? 'Luoyang is ours. Stay in the keep, resupply — the reclaimers will come.'
+          : '낙양은 우리 것이다. 성에 머물며 보급을 받고, 탈환군을 기다려라.',
+        4200,
+      );
     };
     this.siege.onCounterattack = () => {
       this.siegeEvents.counter++;
       this.hud.banner(siegeBanner('counter'), '#e85c4a', 56, 1800, 1);
+      // 규칙 안내(수성 승패 기준): 적을 본성에 들이지 말고 제한시간을 버텨라.
+      this.hud.quote(
+        this.hero.name,
+        getLang() === 'en'
+          ? 'Hold 75s! Keep foes out of the inner keep — if 12 break in, Luoyang falls.'
+          : '75초를 버텨라! 적이 본성에 들면 함락 게이지가 오르고, 12에 이르면 낙양이 함락된다.',
+        4600,
+      );
       audio.sfx('warn');
       audio.playBgm('siege');
       this.rig.addTrauma(0.4);
@@ -1313,12 +1329,20 @@ export class Run {
     } else if (s === 'lord') {
       this.hud.setObjective({ title: en ? 'Slay the warlord Hua Xiong' : '성주 화웅을 베어라', color: '#e85c4a' });
     } else if (s === 'captured') {
-      this.hud.setObjective({ title: en ? 'Hold the keep' : '본성을 거점화하라', color: '#9affc0' });
+      const cr = this.siege.captureRemainSec;
+      this.hud.setObjective({
+        title: en ? 'Luoyang taken — resupply' : '낙양 점령 — 보급·정비',
+        sub: en ? 'Stay in the keep. Reclaimers incoming' : '성에 머물러 대비 · 탈환군 내습 임박',
+        countdownSec: cr >= 0 ? cr : undefined,
+        color: '#9affc0',
+      });
     } else if (s === 'counterattack') {
       const rem = this.siege.counterRemainSec;
       this.hud.setObjective({
-        title: en ? 'Repel the reclaimers' : '탈환군을 물리쳐라',
-        sub: en ? `Fall gauge ${this.siege.fallGaugeValue}/12` : `함락 게이지 ${this.siege.fallGaugeValue}/12`,
+        title: en ? 'Hold Luoyang — survive!' : '낙양 사수 — 버텨라!',
+        sub: en
+          ? `Keep foes out of the keep · breach ${this.siege.fallGaugeValue}/12 = fall`
+          : `적을 본성에 들이지 마라 · 진입 ${this.siege.fallGaugeValue}/12 = 함락`,
         countdownSec: rem >= 0 ? rem : undefined,
         color: '#e85c4a',
       });
