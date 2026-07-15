@@ -450,12 +450,12 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
     name: '쌍환패',
     nameEn: 'Twin-Ring Pendant',
     hanja: '雙環佩',
-    desc: '투사체 +1, 사거리·투사체 속도 +10%',
-    descEn: 'Projectiles +1, Range & projectile speed +10%',
+    desc: '쿨다운 -12%, 사거리·투사체 속도 +10%',
+    descEn: 'Cooldown -12%, Range & projectile speed +10%',
     lore: '두 고리를 위아래로 이어 늘어뜨린 옥. 한 고리가 울면 다른 고리가 받아 부딪는 소리가 겹으로 길게 끌리니, 마주한 자가 함부로 값을 깎지 못한다.',
     loreEn: 'A jade of two rings hung one below the other. When one rings the other answers, the chime doubling and drawing long — so none who faces it dares haggle down its worth.',
     apply: (s) => {
-      s.projectileBonus += 1;
+      s.cooldownMul *= 0.88;
       s.rangeMul *= 1.1;
     },
   },
