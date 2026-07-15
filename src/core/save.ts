@@ -24,6 +24,7 @@ export interface SaveData {
   masterworks: string[]; // 획득한 명기(名器) id 목록 (도감 획득 이력, 누적)
   totalKills: number; // 누적 처치 수 (업적 판정용)
   totalWins: number; // 누적 승리 수
+  epithets: string[]; // 획득 칭호 id 이력(누적, 중복 없음)
 }
 
 function fresh(): SaveData {
@@ -40,6 +41,7 @@ function fresh(): SaveData {
     masterworks: [],
     totalKills: 0,
     totalWins: 0,
+    epithets: [],
   };
 }
 
@@ -85,6 +87,7 @@ function migrate(data: unknown): SaveData {
     masterworks: Array.isArray(d.masterworks) ? d.masterworks.filter((x) => typeof x === 'string') : [],
     totalKills: numOr(d.totalKills, 0),
     totalWins: numOr(d.totalWins, 0),
+    epithets: Array.isArray(d.epithets) ? d.epithets.filter((x) => typeof x === 'string') : [],
   };
 }
 

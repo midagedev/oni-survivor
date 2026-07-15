@@ -70,6 +70,7 @@ import { BattlefieldMap, castleRenderData, CASTLE } from './battlefieldMap';
 import type { GateBarrier, MapLandmark } from './battlefieldMap';
 import { SiegeSystem } from './siege';
 import { lordName, lordAppearLine, lordDeathLine, siegeQuestLine, siegeBanner } from '../data/siegeData';
+import { factionNarration, hulaoNarration, minibossHail } from '../data/narration';
 
 type State = 'attract' | 'play' | 'levelup' | 'paused' | 'dead' | 'victory';
 
@@ -89,6 +90,7 @@ export interface RunResult {
   masterworks: string[]; // 이번 런에서 획득한 명기 id (도감 이력 누적용)
   endless: boolean; // 무한 모드 진입 여부(10분 승리 후 계속 전투)
   canContinue: boolean; // 결과 화면에서 "계속 싸운다"(무한 진입) 가능 여부
+  luoyang: 'none' | 'captured' | 'held' | 'fallen'; // 낙양 공방전 도달 결과(칭호 판정). siegeEvents 파생.
 }
 
 // App이 주입하는 씬 전환 콜백.
@@ -282,7 +284,14 @@ export class Run {
     this.spawner = new Spawner(atlas, this.enemies, this.map);
     this.banner = new WaveBanner(this.scene);
     // 세력(웨이브) 전환 → 펄럭이는 배너 연출 (DESIGN 14.4 쇼케이스)
-    this.spawner.onWave = (f) => this.banner.trigger(f.hanja, f.ko, f.banner);
+    this.spawner.onWave = (f) => {
+      this.banner.trigger(f.hanja, f.ko, f.banner);
+      const n = factionNarration(f.id); // 동탁/원소/군웅 진입 시만. 시작 세력(황건)은 ''
+      if (n) {
+        this.hud.quote(this.hero.name, n, 3200);
+        this.nextHeroQuoteAt = this.gameTime + 30; // 직후 주기 대사 중복 방지(빈도 억제)
+      }
+    };
     this.weapons = [createWeapon(this.hero.startWeapon)];
 
     this.combo = new Combo(
@@ -415,7 +424,7 @@ export class Run {
     };
     this.siege.onLordSpawn = () => {
       this.siegeEvents.lordSpawn++;
-      this.hud.quote(lordName(), lordAppearLine(0), 3200);
+      this.hud.quote(lordName(), lordAppearLine(), 3200);
     };
     this.siege.onCapture = (x, z) => {
       this.siegeEvents.capture++;
@@ -827,6 +836,8 @@ export class Run {
       this.hulaoAt = 0;
       this.map.triggerHulao(this.player.x, this.player.z);
       this.hud.banner(`${t('bannerHulao')} 虎牢關`, '#ffb05a', 48, 1800);
+      this.hud.quote(this.hero.name, hulaoNarration(), 3200);
+      this.nextHeroQuoteAt = this.gameTime + 30;
       audio.sfx('warn');
     }
 
@@ -1107,8 +1118,13 @@ export class Run {
       );
       // 보스 등장 대사 (#37 q4 발췌·번안) — 상단 대사 박스로
       if (this.boss.typeId) {
-        const line = bossLine(this.boss.typeId, 'appear');
-        if (line) this.hud.quote(nameOf('hero', this.boss.typeId, this.boss.name), line, 3200);
+        // 무한 미니보스는 재대면 별칭(관찰 톤)으로 대체 — 화자=장수. 그 외는 기존 등장 대사. 빈도 불변.
+        const hail = this.endless ? minibossHail(this.boss.typeId) : '';
+        const line = hail || bossLine(this.boss.typeId, 'appear');
+        if (line) {
+          const speaker = hail ? this.hero.name : nameOf('hero', this.boss.typeId, this.boss.name);
+          this.hud.quote(speaker, line, 3200);
+        }
       }
     }
   }
@@ -1727,6 +1743,11 @@ export class Run {
       masterworks: [...this.masterworkIds],
       endless: this.endless,
       canContinue: victory && !this.endless && this.gameTime >= RUN_LENGTH,
+      luoyang:
+        this.siegeEvents.defended > 0 ? 'held'
+        : this.siegeEvents.lost > 0 ? 'fallen'
+        : this.siegeEvents.capture > 0 ? 'captured'
+        : 'none',
     };
     this.hooks.onEnd(result);
   }

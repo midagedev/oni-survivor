@@ -306,6 +306,26 @@ canvas {
   color: #d8dae2;
   line-height: 1.6;
 }
+/* 이번 전투의 칭호(訓章) — 업적 골드 토스트/회색 인용과 톤 분리(아이보리 인장). #49 W3 */
+.result-epithet {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 12px;
+  max-width: 620px;
+}
+.result-epithet .ep-label {
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: #8a8f9c;
+  white-space: nowrap;
+}
+.result-epithet .ep-name {
+  font-size: 17px;
+  letter-spacing: 1px;
+  color: #e8dcc0;
+  text-shadow: 0 0 14px rgba(232, 220, 192, 0.22);
+}
 
 /* ===== 상점 / 도감 ===== */
 .tabs {

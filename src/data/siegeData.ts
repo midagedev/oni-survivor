@@ -13,17 +13,24 @@ interface Line {
 export const LORD_ID = 'huaxiong';
 const LORD_NAME: Line = { ko: '화웅', en: 'Hua Xiong' };
 
-// 등장 대사(2줄 중 첫 등장 시 1줄 노출) + 처치 대사.
+// 등장 대사(풀에서 1줄 노출) + 처치 대사(풀에서 1줄). #49 보강: huaxiong.json voices 발췌·손질.
+// MUD 전용어('군표' 등)는 제거하고 관문 수비장의 위압 톤으로 번안.
 const LORD_APPEAR: Line[] = [
   { ko: '낙양은 상국(相國)께서 지키라 명하신 성. 한 걸음도 들이지 못한다!',
     en: 'Luoyang is the fortress the Chancellor bade me hold — not one step further!' },
   { ko: '화웅의 목을 노린 자, 모두 관문 앞의 흙이 되었다.',
     en: 'All who sought Hua Xiong’s head became dust before this pass.' },
+  { ko: '연합의 깃발이 많다 한들, 한 길목은 한 줄 창병이면 막는다.',
+    en: 'However many your banners — one pass needs but one line of spears.' },
+  { ko: '호로관 바람은 칼끝에 붙어도, 피 묻은 날을 닦지는 못한다.',
+    en: 'The Hulao wind clings to my blade, yet wipes no blood from it.' },
 ];
-const LORD_DEATH: Line = {
-  ko: '이 화웅이… 끝내 성문 앞에서 스러지는가.',
-  en: 'So Hua Xiong falls… here at the gate at last.',
-};
+const LORD_DEATH: Line[] = [
+  { ko: '이 화웅이… 끝내 성문 앞에서 스러지는가.',
+    en: 'So Hua Xiong falls… here at the gate at last.' },
+  { ko: '관문 앞 흙이 된 이름들에… 내 이름도 얹히는가.',
+    en: 'To the names turned to dust before this pass… mine is added.' },
+];
 
 // 성 최초 접근 시 hud.quote용 퀘스트 훅(화자는 선택 장수 — run 배선에서 이름 주입).
 const QUEST_HOOK: Line = {
@@ -44,11 +51,16 @@ const pick = (l: Line): string => (getLang() === 'en' ? l.en : l.ko);
 export function lordName(): string {
   return pick(LORD_NAME);
 }
-export function lordAppearLine(index = 0): string {
-  return pick(LORD_APPEAR[index % LORD_APPEAR.length]);
+// index 미지정(음수)이면 풀에서 랜덤 1줄, 지정 시 순환 조회(QA 결정론 검증용).
+export function lordAppearLine(index = -1): string {
+  const n = LORD_APPEAR.length;
+  const i = index < 0 ? Math.floor(Math.random() * n) : index % n;
+  return pick(LORD_APPEAR[i]);
 }
-export function lordDeathLine(): string {
-  return pick(LORD_DEATH);
+export function lordDeathLine(index = -1): string {
+  const n = LORD_DEATH.length;
+  const i = index < 0 ? Math.floor(Math.random() * n) : index % n;
+  return pick(LORD_DEATH[i]);
 }
 export function siegeQuestLine(): string {
   return pick(QUEST_HOOK);

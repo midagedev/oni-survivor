@@ -12,6 +12,7 @@ import { audio } from './core/audio';
 import { loadSave, writeSave, updateBest } from './core/save';
 import type { SaveData } from './core/save';
 import { computeMeta, UPGRADE_BY_ID, upgradeCost, LVBU_UNLOCK_COST } from './data/upgrades';
+import { pickEpithet } from './data/epithets';
 import { evaluateAchievements, bestTitle } from './data/achievements';
 import { isHeroUnlocked, unlockedHeroIds } from './data/heroUnlocks';
 import { unlockedWeaponIds, isWeaponUnlocked } from './data/weaponUnlocks';
@@ -142,6 +143,9 @@ loadAtlas()
       for (const id of newWeapons) save.unlockedWeapons.push(id);
       // 명기 획득 이력 누적 (#36 도감)
       for (const id of result.masterworks) if (!save.masterworks.includes(id)) save.masterworks.push(id);
+      // 이번 전투의 칭호 누적(중복 없이). 렌더는 screens.showResult가 동일 pickEpithet로 수행. #49 W3
+      const wonEpithet = pickEpithet(result, save);
+      if (wonEpithet && !save.epithets.includes(wonEpithet.id)) save.epithets.push(wonEpithet.id);
       writeSave(save);
       audio.playJingle(result.victory ? 'victory' : 'defeat');
       if (newAchievements.length > 0 || newWeapons.length > 0) audio.sfx('achievement');

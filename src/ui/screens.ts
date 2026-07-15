@@ -5,6 +5,7 @@ import { UPGRADE_DEFS, upgradeCost, LVBU_UNLOCK_COST } from '../data/upgrades';
 import { BOSS_DEFS } from '../game/boss';
 import { ACHIEVEMENT_BY_ID, ACHIEVEMENTS } from '../data/achievements';
 import { anyRandomLine, dialogueSelect } from '../data/dialogue';
+import { pickEpithet, epithetText } from '../data/epithets';
 import { heroUnlockText, isHeroUnlocked } from '../data/heroUnlocks';
 import { WEAPON_UNLOCK_ORDER, isWeaponUnlocked, weaponUnlockText } from '../data/weaponUnlocks';
 import { MASTERWORK_DEFS, masterworkName, masterworkDesc, masterworkLore, isMasterworkOwned, ownedMasterworks } from '../data/relics';
@@ -276,6 +277,15 @@ export class Screens {
       s.appendChild(el('div', 'result-sub', win ? t('resultWin') : t('resultLose')));
       const quote = dialogueSelect(result.heroId);
       if (quote) s.appendChild(el('div', 'result-quote', `“${quote}”`));
+
+      // 이번 전투의 칭호(訓章) — 조건 만족 시 1줄(업적 title과 별개, 절제된 톤). #49 W3
+      const ep = pickEpithet(result, save);
+      if (ep) {
+        const label = getLang() === 'en' ? 'Epithet' : '訓章';
+        s.appendChild(
+          el('div', 'result-epithet', `<span class="ep-label">${label}</span><span class="ep-name">“${epithetText(ep)}”</span>`),
+        );
+      }
 
       // 업적 달성 토스트 (새로 달성한 것만) — 이름은 언어별, 한자 공통
       if (share.newAchievements.length > 0) {
