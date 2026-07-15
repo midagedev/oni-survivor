@@ -11,7 +11,7 @@ import {
 // KO 홈런 별 (#45 19.2 · 대난투 문법). 강타/무쌍/대넉백 처치 시 별이 포물선으로 튀어올라
 // 회전·축소하며 반짝 사라진다. 동시 2개 상한. SDF 5각별(텍스처 없음), 애디티브 골드.
 const CAP = 6;
-const GRAV = 26; // 포물선 중력
+const GRAV = 22; // 포물선 중력(살짝 낮춰 floatier·우아한 호)
 
 export class KOStarBatch {
   private readonly x = new Float32Array(CAP);
@@ -51,11 +51,15 @@ export class KOStarBatch {
           float a = atan(p.y, p.x);
           // 5각별 SDF: 각도별 반경 경계
           float star = 0.5 + 0.42 * cos(floor(0.5 + a * 5.0 / 3.14159265 * 1.5) * 3.14159265 * 2.0 / 5.0 - a);
-          float m = smoothstep(star + 0.06, star - 0.02, r);
-          float core = smoothstep(0.6, 0.0, r) * 0.5;
-          float b = (m + core) * vFade;
+          // 채운 별 + 얇은 밝은 테두리 + 아주 옅은 중앙 광택 → 블롭이 아니라 '별 실루엣'으로 읽히게.
+          float fill = smoothstep(star + 0.05, star - 0.03, r) * 0.82;
+          float rim = smoothstep(0.09, 0.0, abs(r - star)) * 0.55;
+          float core = smoothstep(0.30, 0.0, r) * 0.13;
+          float b = (fill + rim + core) * vFade;
           if (b < 0.01) discard;
-          gl_FragColor = vec4(vec3(2.4, 1.9, 0.7) * b, b);
+          // 골드 톤 유지, 강도 하향(블룸 화이트아웃 방지). 테두리만 살짝 더 밝게.
+          vec3 col = vec3(1.5, 1.2, 0.55) + vec3(0.5, 0.4, 0.2) * rim;
+          gl_FragColor = vec4(col * b, b);
         }
       `,
       transparent: true,
@@ -89,13 +93,13 @@ export class KOStarBatch {
     const i = this.cursor;
     this.cursor = (this.cursor + 1) % CAP;
     this.x[i] = x; this.y[i] = 1.0; this.z[i] = z;
-    this.vx[i] = dirX * 7 + (Math.random() - 0.5) * 2;
-    this.vy[i] = 11 + Math.random() * 3; // 상승 초속(포물선)
-    this.vz[i] = dirZ * 7 + (Math.random() - 0.5) * 2;
+    this.vx[i] = dirX * 6 + (Math.random() - 0.5) * 1.6;
+    this.vy[i] = 9.5 + Math.random() * 2.5; // 상승 초속(포물선)
+    this.vz[i] = dirZ * 6 + (Math.random() - 0.5) * 1.6;
     this.rot[i] = Math.random() * 6.28;
-    this.spin[i] = 10 + Math.random() * 8;
-    this.life[i] = 0.85;
-    this.maxLife[i] = 0.85;
+    this.spin[i] = 7 + Math.random() * 5; // 회전 살짝 완만
+    this.life[i] = 1.0;
+    this.maxLife[i] = 1.0;
     this.alive[i] = 1;
   }
 
@@ -110,8 +114,12 @@ export class KOStarBatch {
       this.y[i] += this.vy[i] * dt;
       this.z[i] += this.vz[i] * dt;
       this.rot[i] += this.spin[i] * dt;
-      const f = this.life[i] / this.maxLife[i];
-      const s = (0.4 + f * 0.9) * 1.1; // 후반 축소
+      const f = this.life[i] / this.maxLife[i]; // 1 → 0
+      const age = this.maxLife[i] - this.life[i];
+      // 크기: 타격과 동시에 즉시 풀사이즈로 등장(팝인 거의 없음), 끝 28%만 완만히 0.8까지(급축소 제거).
+      const popScale = 0.88 + 0.12 * Math.min(1, age / 0.05);
+      const taper = 0.8 + 0.2 * Math.min(1, f / 0.28);
+      const s = 1.25 * popScale * taper;
       const c = Math.cos(this.rot[i]) * s;
       const sn = Math.sin(this.rot[i]) * s;
       const m = w * 16;
@@ -120,7 +128,10 @@ export class KOStarBatch {
       this.matArr[m + 4] = -sn; this.matArr[m + 5] = c; this.matArr[m + 6] = 0; this.matArr[m + 7] = 0;
       this.matArr[m + 8] = 0; this.matArr[m + 9] = 0; this.matArr[m + 10] = s; this.matArr[m + 11] = 0;
       this.matArr[m + 12] = this.x[i]; this.matArr[m + 13] = this.y[i]; this.matArr[m + 14] = this.z[i]; this.matArr[m + 15] = 1;
-      this.aFade[w] = Math.min(1, f * 2.2);
+      // 등장 즉시 밝게(타격 순간 ding, 0.08s 감쇠) → 사는 동안은 절제된 골드 → 끝 22% 페이드아웃.
+      const fadeOut = Math.min(1, f / 0.22);
+      const ding = 1 + 0.5 * Math.max(0, 1 - age / 0.08);
+      this.aFade[w] = Math.min(1.3, fadeOut * ding);
       w++;
     }
     this.mesh.count = w;

@@ -36,7 +36,7 @@ const KIND_PALISADE = 3;
 const KIND_GONG = 4; // 동라 銅鑼 — 접촉 시 필드 젬 자석 (#41 15.7)
 const KIND_DRUM = 5; // 전고 戰鼓 — 접근 시 북 울림 스턴 (#41 15.4)
 const BARREL_RADIUS = 6.5; // #41 15.6: 4→6.5
-const FUSE_TIME = 1.0; // #41 15.6: 점화 상태 지속
+const FUSE_TIME = 3.0; // 점화 후 폭발까지(오너 피드백: 1s→3s, 전략적 여유). 연쇄 도미노는 0.3s 유지
 const DRUM_CD = 25; // #41 15.4: 전고 재발동 쿨다운
 const HINT_RADIUS = 5.2; // 근접 힌트 표시 거리
 
@@ -284,13 +284,19 @@ export class BattlefieldObjects {
     this.d.banner(getLang() === 'en' ? 'Palisade Broken 木柵' : '목책 돌파 木柵', '#e4a05b');
   }
 
-  render(_time: number): void {
+  render(time: number): void {
     this.batch.begin();
     this.shadows.begin();
     for (let i = 0; i < OBJ_CAP; i++) {
       if (this.alive[i] === 0) continue;
       if (this.kind[i] === KIND_BARREL) {
-        this.batch.push(WORLD_ASSETS.powderCart, this.x[i], this.z[i], 2.4, 2.0, 1.12);
+        // 점화 중이면 통이 밝게↔어둡게 깜빡(폭발 임박할수록 빠르게 — 고전 폭탄 텔). 미점화면 상시 잔광.
+        let tint = 1.12;
+        if (this.igniteT[i] > 0) {
+          const freq = 2 + Math.max(0, FUSE_TIME - this.igniteT[i]) * 3.5; // 2Hz → ~12Hz
+          tint = Math.sin(time * freq * Math.PI * 2) > 0 ? 2.3 : 0.7;
+        }
+        this.batch.push(WORLD_ASSETS.powderCart, this.x[i], this.z[i], 2.4, 2.0, tint);
       } else if (this.kind[i] === KIND_DUMPLING) {
         this.batch.push(WORLD_ASSETS.dumplingCart, this.x[i], this.z[i], 2.5, 2.1, 1.18);
       } else if (this.kind[i] === KIND_SHRINE) {
