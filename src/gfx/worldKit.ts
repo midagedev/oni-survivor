@@ -325,7 +325,10 @@ export class BattlefieldWorld {
       if (gate.key === 'origin-north') {
         this.landmark.place(gate.x, gate.z);
       }
-      this.fortress.addGate(gate, breached, gate.key === 'origin-north');
+      // 낙양 성문(castle-*)도 완전 누각으로 렌더 — 문짝(봉쇄)/잔해(파성)가 보이게. 나머지 통로는 문표 기둥만.
+      // (호로관은 자체 망루 프롭이 있어 제외 — 이중 망루 방지.)
+      const monumental = gate.key === 'origin-north' || gate.key.startsWith('castle-');
+      this.fortress.addGate(gate, breached, monumental);
     }
     for (const prop of this.map.props) {
       this.sprites.push(prop.kind as WorldAsset, prop.x, prop.z, prop.width, prop.height, 0.96);

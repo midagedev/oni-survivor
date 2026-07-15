@@ -964,6 +964,7 @@ export class Run {
     this.enemyProj.update(
       edt, this.player.x, this.player.z, this.player.radius, this.onPlayerHit,
       this.particles, this.effects,
+      (x, z, r) => this.map.circleBlocked(x, z, r),
     );
 
     // 접촉 대미지

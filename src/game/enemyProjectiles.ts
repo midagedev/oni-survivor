@@ -325,6 +325,7 @@ export class EnemyProjectilePool {
     hitPlayer: (dmg: number, dirX: number, dirZ: number) => boolean,
     particles: ParticleSystem,
     effects: EffectsSystem,
+    blocked: ((x: number, z: number, r: number) => boolean) | null = null,
   ): void {
     const r2base = playerR;
     for (let i = 0; i < CAP; i++) {
@@ -340,6 +341,15 @@ export class EnemyProjectilePool {
       }
       this.x[i] += this.vx[i] * dt;
       this.z[i] += this.vz[i] * dt;
+      // 성벽·봉쇄 성문 충돌: 벽을 넘어 쏘지 못하게 소멸(파성된 개구부는 콜라이더 없어 통과). 근접 시만 검사.
+      if (blocked && blocked(this.x[i], this.z[i], this.radius[i])) {
+        particles.projectileImpact(
+          this.x[i], this.z[i], this.cr[i], this.cg[i], this.cb[i], this.kind[i] === EK_ARROW ? 0 : 3,
+        );
+        this.alive[i] = 0;
+        this.free[this.freeTop++] = i;
+        continue;
+      }
       this.trailT[i] -= dt;
       if (this.trailT[i] <= 0) {
         particles.projectileTrail(
