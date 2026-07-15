@@ -96,6 +96,7 @@ const EDGE_GLSL = /* glsl */ `
 const VERT_SINGLE = /* glsl */ `
   uniform vec2 uCellUv;
   uniform vec2 uUvOffset;
+  uniform float uFootDepth;
   varying vec2 vUv;
   ${LIGHT_PARS_VERT}
   ${FOG_PARS_V}
@@ -104,7 +105,15 @@ const VERT_SINGLE = /* glsl */ `
     vWorldXZ = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vFogDepth = -mv.z;
-    gl_Position = projectionMatrix * mv;
+    vec4 clip = projectionMatrix * mv;
+    // #52 발 기준 깊이: 켜지면 전체 스프라이트 깊이를 발(오브젝트 원점) 깊이로 통일.
+    // 기운 빌보드의 머리가 뒤로 밀려 3D 성벽 박스 깊이에 파묻혀 가려지던 문제 해소.
+    // 화면 x/y는 그대로 두고 z(깊이)만 발 기준 → 발이 벽 앞이면 전체가 앞, 뒤면 정상 가림.
+    if (uFootDepth > 0.5) {
+      vec4 footClip = projectionMatrix * modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+      clip.z = footClip.z / footClip.w * clip.w;
+    }
+    gl_Position = clip;
   }
 `;
 
@@ -297,6 +306,7 @@ export class SpriteQuad {
         uCellUv: { value: new Vector2(sheet.cellUvW, sheet.cellUvH) },
         uTexel: { value: new Vector2(1 / sheet.texW, 1 / sheet.texH) },
         uUvOffset: { value: new Vector2(0, 0) },
+        uFootDepth: { value: 0 },
         uFlash: { value: 0 },
         uTint: { value: new Color(1, 1, 1) },
         uPlayer: { value: 0 },
@@ -320,6 +330,12 @@ export class SpriteQuad {
   // 플레이어 강조: 셰이더 내 금색 림 아웃라인 + 미세 밝기 강화(군중 속 구분).
   setPlayer(on: boolean): void {
     this.mat.uniforms.uPlayer.value = on ? 1 : 0;
+  }
+
+  // 발 기준 깊이 통일 — 기운 빌보드(머리가 뒤로 밀림)가 3D 성벽 박스 깊이에 파묻혀
+  // 상반신이 가려지던 문제 해소(#52). 발이 벽 앞이면 전체가 앞, 뒤면 정상 가림(튜닝 불필요·결정적).
+  setFootDepth(on: boolean): void {
+    this.mat.uniforms.uFootDepth.value = on ? 1 : 0;
   }
 
   // 원군 강조: 청록 림 아웃라인(아군 표식 — 적/플레이어와 확실히 구분).

@@ -280,10 +280,9 @@ export class Boss {
       if (this.dashT <= 0) {
         this.dashState = 2;
         this.dashT = 0.5;
-        this.dashDx = dx;
-        this.dashDz = dz;
+        // dashDx/dashDz는 예고 시점에 잠금됨(#52) — 윈드업 중 재조준 금지로 예고 사각형=실제 돌진 방향 일치.
         en.damage[i] = 46; // 강화 돌진 고 대미지
-        ctx.effects.spawnThrust(en.x[i], en.z[i], dx, dz, 12, 3.2, 2.2, 0.7, 0.6);
+        ctx.effects.spawnThrust(en.x[i], en.z[i], this.dashDx, this.dashDz, 12, 3.2, 2.2, 0.7, 0.6);
         ctx.effects.spawnDecal?.(en.x[i], en.z[i], 4, 2.4, 1.0, 0.4); // 균열 데칼
       }
     } else if (this.dashState === 2) {
@@ -300,8 +299,10 @@ export class Boss {
       this.atk1 = 3.0;
       this.dashState = 1;
       this.dashT = 0.55;
-      // 돌진 경로 사각 텔레그래프 — 윈드업 동안 채워지고 종료 시 돌진(범위 밖 안전).
-      ctx.effects.spawnTelegraph(TG_RECT, en.x[i] + dx * 5.5, en.z[i] + dz * 5.5, Math.atan2(dz, dx), 11, 4.2, 0, 0.55);
+      this.dashDx = dx; // #52 예고 시점에 돌진 방향 잠금(윈드업 중 플레이어 추적 재조준 금지)
+      this.dashDz = dz;
+      // 돌진 경로 사각 텔레그래프 — 잠긴 방향으로 표시, 길이=실제 돌진거리(18×0.5≈9)+히트 여유.
+      ctx.effects.spawnTelegraph(TG_RECT, en.x[i] + dx * 5, en.z[i] + dz * 5, Math.atan2(dz, dx), 10, 4.2, 0, 0.55);
     }
     if (this.atk2 <= 0) {
       this.atk2 = 3.4;
@@ -379,10 +380,9 @@ export class Boss {
       if (this.dashT <= 0) {
         this.dashState = 2;
         this.dashT = 0.45;
-        this.dashDx = dx;
-        this.dashDz = dz;
+        // dashDx/dashDz는 예고 시점에 잠금됨(#52) — 예고 사각형=실제 돌진 방향 일치.
         en.damage[i] = 40; // 돌진 중 고 대미지
-        ctx.effects.spawnThrust(en.x[i], en.z[i], dx, dz, 10, 3, 2.2, 0.8, 0.7);
+        ctx.effects.spawnThrust(en.x[i], en.z[i], this.dashDx, this.dashDz, 10, 3, 2.2, 0.8, 0.7);
       }
     } else if (this.dashState === 2) {
       this.dashT -= dt;
@@ -397,7 +397,9 @@ export class Boss {
       this.atk1 = 4.5;
       this.dashState = 1;
       this.dashT = 0.6;
-      ctx.effects.spawnTelegraph(TG_RECT, en.x[i] + dx * 5, en.z[i] + dz * 5, Math.atan2(dz, dx), 10, 4.2, 0, 0.6); // 돌진 경로
+      this.dashDx = dx; // #52 예고 시점에 돌진 방향 잠금(재조준 금지)
+      this.dashDz = dz;
+      ctx.effects.spawnTelegraph(TG_RECT, en.x[i] + dx * 4.5, en.z[i] + dz * 4.5, Math.atan2(dz, dx), 9, 4.2, 0, 0.6); // 돌진 경로(길이=18×0.45≈8+여유)
     }
     // 참격파 (전방 부채꼴 마탄)
     if (this.atk2 <= 0) {
