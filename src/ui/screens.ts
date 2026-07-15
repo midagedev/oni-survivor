@@ -331,7 +331,15 @@ export class Screens {
           (result.comboBonus > 0 ? `<span class="bonus">${t('goldBonus', { n: result.comboBonus })}</span>` : ''),
       );
       s.appendChild(gold);
-      s.appendChild(el('div', 'controls-hint', t('baseBalance', { n: save.gold })));
+      // 골드 → 본진 강화 유도(강화 화면 발견성 강화, 오너 피드백). 잔액 + 명시적 CTA.
+      const en = getLang() === 'en';
+      s.appendChild(
+        el(
+          'div',
+          'controls-hint',
+          `${t('baseBalance', { n: save.gold })} · ${en ? 'spend it below to upgrade your camp' : '아래 강화로 본진을 영구 강화'}`,
+        ),
+      );
 
       // 빌드 요약 (이름 언어별)
       const bs = el('div', 'build-summary');
@@ -345,6 +353,15 @@ export class Screens {
 
       const row = el('div', 'btn-row');
       row.appendChild(this.button(t('retry'), this.cb.onRetry, { primary: true }));
+      // 본진 강화 직행 버튼 — 사망 후 획득 골드 소비 경로가 안 보였다는 피드백(#50). 금색 강조 + 잔액 표기.
+      const upgradeBtn = this.button(
+        `${en ? 'Upgrade' : '본진 강화'} ⟡ ${save.gold} 強化`,
+        () => this.cb.onOpenShop('upgrade'),
+      );
+      upgradeBtn.style.borderColor = '#e8c667';
+      upgradeBtn.style.color = '#f4dc8a';
+      upgradeBtn.style.boxShadow = '0 0 14px rgba(232, 198, 103, 0.28)';
+      row.appendChild(upgradeBtn);
       row.appendChild(
         this.button(t('share'), () =>
           openSharePreview(
