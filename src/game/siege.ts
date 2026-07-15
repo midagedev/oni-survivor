@@ -6,7 +6,6 @@ import { CASTLE, castleRenderData } from './battlefieldMap';
 import type { BattlefieldMap } from './battlefieldMap';
 import type { Spawner } from './spawner';
 import type { EnemyPool } from './enemies';
-import { ENEMY_CAP } from './enemies';
 import type { Rng } from '../core/rng';
 
 export type SiegeState =
@@ -80,7 +79,6 @@ export class SiegeSystem {
   private lordZ = 0;
   private gameTime = 0;
   private readonly volleys: VolleyShot[] = [];
-  private readonly keepCounted = new Uint8Array(ENEMY_CAP); // 내성 침입 1회 카운트(개체당)
   private readonly _pt = { x: 0, z: 0 };
 
   constructor(deps: SiegeDeps) {
@@ -101,7 +99,6 @@ export class SiegeSystem {
     this.gaugeThrottle = 0;
     this.supplyTimer = 0;
     this.volleys.length = 0;
-    this.keepCounted.fill(0);
   }
 
   update(dt: number, gameTime: number, px: number, pz: number): void {
@@ -238,7 +235,6 @@ export class SiegeSystem {
     this.fallGauge = 0;
     this.gaugeThrottle = 0;
     this.volleyTimer = this.d.rng.range(2, 4); // 개전 직후 첫 일제사
-    this.keepCounted.fill(0);
     this.volleys.length = 0;
     this.d.spawner.setSiegeActive(true);
     this.onCounterattack?.();
@@ -250,14 +246,14 @@ export class SiegeSystem {
     this.counterTimer += dt;
     this.tickSupplyRespawn(dt);
 
-    // 웨이브 t=0(개전)/25/50
-    while (this.waveIdx < 3 && this.counterTimer >= this.waveIdx * 25) {
+    // 왕창 몰려오는 웨이브: t=0/20/40/60 (4파). 순수 생존전 — 제한시간을 버티면 승리.
+    while (this.waveIdx < 4 && this.counterTimer >= this.waveIdx * 20) {
       this.spawnWave();
       this.waveIdx++;
     }
 
-    // 지속 트리클(파성된 성문 방향)
-    this.trickleAcc += 1.2 * dt;
+    // 지속 트리클(파성된 성문 방향) — 밀도 상향(왕창)
+    this.trickleAcc += 2.0 * dt;
     while (this.trickleAcc >= 1) {
       this.trickleAcc -= 1;
       this.spawnTrickle(minute);
@@ -271,24 +267,12 @@ export class SiegeSystem {
     }
     this.updateVolleys(dt, px, pz);
 
-    // 함락 게이지(스로틀 0.25s)
-    this.gaugeThrottle -= dt;
-    if (this.gaugeThrottle <= 0) {
-      this.gaugeThrottle = 0.25;
-      this.scanKeepIntruders();
-      if (this.fallGauge >= FALL_THRESHOLD) {
-        this.fall();
-        return;
-      }
-    }
-
-    // 성 이탈 → 함락
+    // 함락 게이지 폐기(오너 피드백: n/12는 너무 타이트). 이제 순수 생존:
+    // 성을 크게 벗어나면(=사수 포기) 실패, 그 외엔 제한시간을 버티기만 하면 사수 성공.
     if (distCenter > ABANDON_R) {
       this.fall();
       return;
     }
-
-    // 사수 성공
     if (this.counterTimer >= COUNTER_DURATION) this.defend();
   }
 
@@ -345,17 +329,6 @@ export class SiegeSystem {
         const dz = pz - v.z;
         if (dx * dx + dz * dz <= VOLLEY_HIT_R * VOLLEY_HIT_R) this.d.hitPlayer(VOLLEY_DMG);
         this.volleys.splice(i, 1);
-      }
-    }
-  }
-
-  private scanKeepIntruders(): void {
-    const en = this.d.enemies;
-    for (let i = 0; i < ENEMY_CAP; i++) {
-      if (en.alive[i] === 0 || en.controlled[i] === 1 || this.keepCounted[i] === 1) continue;
-      if (this.d.map.insideKeepBounds(en.x[i], en.z[i], 0)) {
-        this.keepCounted[i] = 1;
-        this.fallGauge++;
       }
     }
   }

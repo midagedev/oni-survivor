@@ -1340,9 +1340,7 @@ export class Run {
       const rem = this.siege.counterRemainSec;
       this.hud.setObjective({
         title: en ? 'Hold Luoyang — survive!' : '낙양 사수 — 버텨라!',
-        sub: en
-          ? `Keep foes out of the keep · breach ${this.siege.fallGaugeValue}/12 = fall`
-          : `적을 본성에 들이지 마라 · 진입 ${this.siege.fallGaugeValue}/12 = 함락`,
+        sub: en ? 'Survive in the castle until time runs out' : '성 안에서 시간이 다할 때까지 버텨라',
         countdownSec: rem >= 0 ? rem : undefined,
         color: '#e85c4a',
       });

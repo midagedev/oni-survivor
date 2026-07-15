@@ -33,15 +33,18 @@ document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0a0a12);
+// 게임과 동일한 55° 부감 — 스프라이트/네온 프레임의 베이크된 tilt가 정면으로 서게.
+const ELEV = 55 * Math.PI / 180, D = 18;
 const camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 200);
-camera.position.set(0, 13, 11); camera.lookAt(0, 0.7, 0);
+camera.position.set(0, 0.7 + D * Math.sin(ELEV), D * Math.cos(ELEV)); camera.lookAt(0, 0.7, 0);
 
 // 어두운 지면.
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshBasicMaterial({ color: 0x161b28 }));
 ground.rotation.x = -Math.PI / 2; scene.add(ground);
-// 중립 회색 플레이어 프록시 — additive 오라가 밝은 본체 위에서 화이트아웃되지 않는지 검증(과거 사고 패턴).
-const proxy = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 2.2), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.62, 0.62, 0.64) }));
-proxy.position.set(0, 1.1, 0); scene.add(proxy);
+// 플레이어 스프라이트 프록시: 발 정렬(1.8x2.4) + 동일 tilt. 중립 회색 → 네온 중앙 투명(안 가림) 검증.
+const pgeo = new THREE.PlaneGeometry(1.8, 2.4); pgeo.translate(0, 1.2, 0); pgeo.rotateX(-ELEV);
+const proxy = new THREE.Mesh(pgeo, new THREE.MeshBasicMaterial({ color: new THREE.Color(0.6, 0.6, 0.63) }));
+proxy.position.set(0, 0, 0); scene.add(proxy);
 
 const aura = new StarAura(scene);
 
@@ -88,20 +91,29 @@ const sample = async (page, w, h) => {
     const ctx = off.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
     const d = ctx.getImageData(0, 0, w, h).data;
     let bright = 0, hot = 0, n = 0, cr = 0, cg = 0, cb = 0, cn = 0;
-    for (let i = 0; i < d.length; i += 4) {
-      const r = d[i], g = d[i + 1], b = d[i + 2];
-      const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      if (l > 135) bright++;
-      if (l > 230) hot++;
-      // 오라 채색 픽셀: 채도 있는 중간밝기(지면·회색 프록시 배제) → 순환색 평균 추적.
-      const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-      if (l > 70 && mx - mn > 28) { cr += r; cg += g; cb += b; cn++; }
-      n++;
+    // 중앙 박스(프록시 몸통 내부, 밴드/글로우 없는 순수 내부) 평균 휘도 — 네온이 중앙 안 채우는지(투명) 검증.
+    const cx0 = Math.floor(w * 0.47), cx1 = Math.floor(w * 0.53);
+    const cy0 = Math.floor(h * 0.42), cy1 = Math.floor(h * 0.52);
+    let cLum = 0, cCnt = 0;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+        const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        if (l > 135) bright++;
+        if (l > 230) hot++;
+        // 네온 채색 픽셀: 채도 있는 중간밝기(지면·회색 프록시 배제) → 흐르는 색 평균 추적.
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+        if (l > 70 && mx - mn > 28) { cr += r; cg += g; cb += b; cn++; }
+        if (x >= cx0 && x < cx1 && y >= cy0 && y < cy1) { cLum += l; cCnt++; }
+        n++;
+      }
     }
     const inv = cn > 0 ? 1 / (cn * 255) : 0;
     return {
       brightFrac: +(bright / n).toFixed(4), hotFrac: +(hot / n).toFixed(4),
       col: [+(cr * inv).toFixed(3), +(cg * inv).toFixed(3), +(cb * inv).toFixed(3)], colN: cn,
+      centerLum: +(cLum / Math.max(1, cCnt)).toFixed(2),
     };
   }, { dataUrl, w, h });
 };
@@ -135,13 +147,14 @@ try {
   // ── (a) 오라 활성 + 색순환 전 구간 촘촘 샘플(최대 hotFrac 포착) ──
   await hook('setActive', true);
   const onSamples = [];
-  let hotMax = 0, brightMax = 0;
+  let hotMax = 0, brightMax = 0, colNMax = 0;
   for (let i = 0; i < 18; i++) {
-    await page.waitForTimeout(95); // ~1.7s 커버(색순환 CYCLE 1.3s 이상)
+    await page.waitForTimeout(95); // ~1.7s 커버(흐르는 색 1주기 이상)
     const s = await sample(page, 320, 180);
     onSamples.push(s);
     if (s.hotFrac > hotMax) hotMax = s.hotFrac;
     if (s.brightFrac > brightMax) brightMax = s.brightFrac;
+    if (s.colN > colNMax) colNMax = s.colN;
     if (i === 6) await page.screenshot({ path: `${OUT}/aura_on.png` });
   }
   // 색순환 폭: 오라 채색 평균의 정규화 색상(r-b, g-b)이 창 전체에서 얼마나 이동하는지.
@@ -166,20 +179,25 @@ try {
   report.faded = faded;
 
   report.hueSpread = +hueSpread.toFixed(3);
+  // 중앙 휘도: on 최대(네온이 중앙 채우면 급등) vs off. 프레임은 중앙 투명이라 거의 동일해야.
+  const centerOnMax = Math.max(...onSamples.map((s) => s.centerLum));
+  report.centerLum = { off: off.centerLum, onMax: centerOnMax };
 
   // 판정
-  const renders = brightMax > off.brightFrac * 1.3 + 0.002; // 오라가 밝은 픽셀을 눈에 띄게 추가
+  const renders = colNMax > 300 && brightMax > off.brightFrac; // 네온 채색 픽셀 다수(회색 프록시=0) + 밝기 증가
   const noWhiteout = hotMax < 0.03;
   const fadesOut = faded.brightFrac < (brightMax + off.brightFrac) / 2; // 중간점 아래로 회귀
-  const colorCycles = hueSpread > 0.05; // 골드↔청록↔자홍 순환으로 평균색이 유의미하게 이동
+  const flowing = hueSpread > 0.05; // 흐르는 색이 시간에 따라 평균색을 유의미하게 이동
+  const centerClear = centerOnMax < off.centerLum + 14; // 중앙(플레이어)은 네온에 안 가림
   report.checks = {
-    a_renders: { pass: renders, brightOn: brightMax, brightOff: off.brightFrac },
+    a_renders: { pass: renders, neonPxMax: colNMax, brightOn: brightMax, brightOff: off.brightFrac },
     b_noWhiteout: { pass: noWhiteout, hotFracMax: hotMax, limit: 0.03 },
     c_fadesOut: { pass: fadesOut, brightFaded: faded.brightFrac },
-    d_noErrors: { pass: errors.length === 0, count: errors.length },
-    e_colorCycle: { pass: colorCycles, hueSpread: +hueSpread.toFixed(3) },
+    d_centerClear: { pass: centerClear, centerOnMax, centerOff: off.centerLum },
+    e_flowing: { pass: flowing, hueSpread: +hueSpread.toFixed(3) },
+    f_noErrors: { pass: errors.length === 0, count: errors.length },
   };
-  report.pass = renders && noWhiteout && fadesOut && colorCycles && errors.length === 0;
+  report.pass = renders && noWhiteout && fadesOut && centerClear && flowing && errors.length === 0;
 } catch (e) {
   report.fatal = String(e);
   report.pass = false;
