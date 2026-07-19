@@ -336,19 +336,19 @@ export class OrbitWeapon implements Weapon {
   private built = -1;
 
   private count(): number {
-    return 2 + Math.floor((this.level - 1) / 2);
+    return 3 + Math.floor((this.level - 1) / 2);
   }
 
   update(ctx: WeaponContext): void {
     const want = this.count() + ctx.stats.projectileBonus;
     const radius = 3.2;
-    const angVel = 2.2 + (this.level - 1) * 0.15;
+    const angVel = 3.0 + (this.level - 1) * 0.15;
     const d = 8 * ctx.stats.damageMul * (1 + (this.level - 1) * 0.16);
     if (want !== this.built) {
       ctx.projectiles.clearOrbits();
       for (let k = 0; k < want; k++) {
         const a = (k / want) * Math.PI * 2;
-        ctx.projectiles.spawnOrbit(a, radius, angVel, d, 1.2, 0.4, 1.8, 0.9); // 등꽃 보라 오브
+        ctx.projectiles.spawnOrbit(a, radius, angVel, d, 1.2, 0.4, 1.8, 1.35); // 등꽃 보라 오브 크기 상향
       }
       this.built = want;
     }
