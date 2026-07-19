@@ -5,6 +5,7 @@ export interface HeroDef {
   hanja: string; // 한자 표기
   sheet: 'sgrade';
   charIndex: number; // sgrade 시트 내 캐릭터 인덱스
+  portrait?: string;
   baseHp: number;
   baseSpeed: number; // m/s
   // 고유 보너스 (시작 스탯 배수)
@@ -22,10 +23,11 @@ export interface HeroDef {
 export const HEROES: Record<string, HeroDef> = {
   zhaoyun: {
     id: 'zhaoyun',
-    name: '조운',
-    hanja: '趙雲',
+    name: '탄지로',
+    hanja: '竈門炭治郎',
     sheet: 'sgrade',
     charIndex: 17,
+    portrait: 'tanjiro',
     baseHp: 100,
     baseSpeed: 5.2,
     speedMul: 1.1, // 이동속도 +10%
@@ -35,15 +37,16 @@ export const HEROES: Record<string, HeroDef> = {
     rangeMul: 1,
     dmgTakenMul: 1,
     startWeapon: 'spear',
-    bonusText: '이동속도 +10%',
+    bonusText: '이동속도 +10% (전집중 호흡)',
     musou: 'zhaoyun',
   },
   guanyu: {
     id: 'guanyu',
-    name: '관우',
-    hanja: '關羽',
+    name: '토미오카 기유',
+    hanja: '冨岡義勇',
     sheet: 'sgrade',
     charIndex: 5,
+    portrait: 'tomioka',
     baseHp: 110,
     baseSpeed: 4.9,
     speedMul: 1,
@@ -53,15 +56,16 @@ export const HEROES: Record<string, HeroDef> = {
     rangeMul: 1,
     dmgTakenMul: 1,
     startWeapon: 'guandao',
-    bonusText: '공격력 +15%',
+    bonusText: '공격력 +15% (물의 호흡)',
     musou: 'guanyu',
   },
   zhangfei: {
     id: 'zhangfei',
-    name: '장비',
-    hanja: '張飛',
+    name: '카마도 네즈코',
+    hanja: '竈門禰豆子',
     sheet: 'sgrade',
     charIndex: 15,
+    portrait: 'nezuko',
     baseHp: 100,
     baseSpeed: 4.8,
     speedMul: 1,
@@ -71,15 +75,16 @@ export const HEROES: Record<string, HeroDef> = {
     rangeMul: 1,
     dmgTakenMul: 1,
     startWeapon: 'zhangba',
-    bonusText: '최대체력 +25%',
+    bonusText: '최대체력 +25% (혈귀술)',
     musou: 'zhangfei',
   },
   zhugeliang: {
     id: 'zhugeliang',
-    name: '제갈량',
-    hanja: '諸葛亮',
+    name: '칸로지 미츠리',
+    hanja: '甘露寺蜜璃',
     sheet: 'sgrade',
     charIndex: 19,
+    portrait: 'kanroji',
     baseHp: 90,
     baseSpeed: 4.9,
     speedMul: 1,
@@ -89,15 +94,16 @@ export const HEROES: Record<string, HeroDef> = {
     rangeMul: 1,
     dmgTakenMul: 1,
     startWeapon: 'baiyu',
-    bonusText: '쿨다운 -10%',
+    bonusText: '쿨다운 -10% (사랑의 호흡)',
     musou: 'zhugeliang',
   },
   huangzhong: {
     id: 'huangzhong',
-    name: '황충',
-    hanja: '黃忠',
+    name: '코쵸우 시노부',
+    hanja: '胡蝶しのぶ',
     sheet: 'sgrade',
     charIndex: 6,
+    portrait: 'shinobu',
     baseHp: 95,
     baseSpeed: 4.9,
     speedMul: 1,
@@ -107,15 +113,16 @@ export const HEROES: Record<string, HeroDef> = {
     rangeMul: 1.2, // 사거리/투사체속도 +20%
     dmgTakenMul: 1,
     startWeapon: 'crossbow',
-    bonusText: '사거리·투사체속도 +20%',
+    bonusText: '사거리·투사체속도 +20% (벌레의 호흡)',
     musou: 'huangzhong',
   },
   sunshangxiang: {
     id: 'sunshangxiang',
-    name: '손상향',
-    hanja: '孫尚香',
+    name: '아카자',
+    hanja: '猗窩座',
     sheet: 'sgrade',
     charIndex: 20,
+    portrait: 'akaza',
     baseHp: 90,
     baseSpeed: 5.3,
     speedMul: 1.1, // 이동속도 +10%
@@ -125,15 +132,16 @@ export const HEROES: Record<string, HeroDef> = {
     rangeMul: 1.15, // 사거리·투사체속도 +15% (궁술)
     dmgTakenMul: 1,
     startWeapon: 'twinring', // 쌍륜 雙輪 (roster.ts TwinringWeapon)
-    bonusText: '사거리·투사체속도 +15%, 이동속도 +10%',
+    bonusText: '사거리·투사체속도 +15%, 이동속도 +10% (파괴살)',
     musou: 'sunshangxiang',
   },
   lvbu: {
     id: 'lvbu',
-    name: '여포',
-    hanja: '呂布',
+    name: '렌고쿠 쿄쥬로',
+    hanja: '煉獄杏壽郎',
     sheet: 'sgrade',
     charIndex: 10,
+    portrait: 'rengoku',
     baseHp: 120,
     baseSpeed: 5.0,
     speedMul: 1,
@@ -143,7 +151,7 @@ export const HEROES: Record<string, HeroDef> = {
     rangeMul: 1,
     dmgTakenMul: 1.25, // 받는 피해 +25%
     startWeapon: 'halberd',
-    bonusText: '공격력 +25%, 받는 피해 +25%',
+    bonusText: '공격력 +25%, 받는 피해 +25% (화염의 호흡)',
     musou: 'lvbu',
   },
 };

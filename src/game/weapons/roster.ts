@@ -176,7 +176,9 @@ export class SpearWeapon extends TimedWeapon {
     const bx = ctx.px + ctx.aimX * length;
     const bz = ctx.pz + ctx.aimZ * length;
     capsuleHit(ctx, ctx.px, ctx.pz, bx, bz, width, d, 3);
-    ctx.effects.spawnThrust(ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, length, width * 2.2, 0.7, 0.95, 1.9);
+    ctx.effects.spawnThrust(ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, length, width * 2.2, 0.4, 0.9, 2.2);
+    ctx.effects.spawnRing(ctx.px + ctx.aimX * length * 0.4, ctx.pz + ctx.aimZ * length * 0.4, length * 0.5, 0.4, 0.9, 2.2, 0.35);
+    ctx.effects.spawnFlash(ctx.px + ctx.aimX * length * 0.5, ctx.pz + ctx.aimZ * length * 0.5, 0.4, 0.9, 2.2, 3.0);
   }
 }
 
@@ -189,7 +191,9 @@ export class GuandaoWeapon extends TimedWeapon {
     const half = 1.05 + (this.level - 1) * 0.02; // ~120°
     const d = dmg(ctx, 15, this.level, 0.18);
     arcHit(ctx, ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, half, d, 5);
-    ctx.effects.spawnSlashArc(ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, half, 0.6, 2.2, 1.1);
+    ctx.effects.spawnSlashArc(ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, half, 0.3, 0.7, 2.4);
+    ctx.effects.spawnRing(ctx.px, ctx.pz, radius * 0.9, 0.3, 0.8, 2.2, 0.35);
+    ctx.effects.spawnFlash(ctx.px + ctx.aimX * radius * 0.5, ctx.pz + ctx.aimZ * radius * 0.5, 0.3, 0.7, 2.4, 2.5);
   }
 }
 
@@ -205,7 +209,10 @@ export class ZhangbaWeapon extends TimedWeapon {
     const fz = ctx.aimZ;
     capsuleHit(ctx, ctx.px, ctx.pz, ctx.px + fx * length, ctx.pz + fz * length, width, d, 9);
     capsuleHit(ctx, ctx.px, ctx.pz, ctx.px - fx * length, ctx.pz - fz * length, width, d, 9);
-    ctx.effects.spawnDoubleThrust(ctx.px, ctx.pz, fx, fz, length, width * 2.2, 1.2, 1.0, 0.7);
+    ctx.effects.spawnDoubleThrust(ctx.px, ctx.pz, fx, fz, length, width * 2.2, 0.6, 0.8, 0.5);
+    ctx.effects.spawnTripleShock(ctx.px, ctx.pz, length * 0.5, 0.6, 0.8, 0.5);
+    ctx.effects.spawnFlash(ctx.px + fx * length * 0.5, ctx.pz + fz * length * 0.5, 0.6, 0.8, 0.5, 2.5);
+    ctx.effects.spawnFlash(ctx.px - fx * length * 0.5, ctx.pz - fz * length * 0.5, 0.6, 0.8, 0.5, 2.5);
   }
 }
 
@@ -249,6 +256,8 @@ export class CrossbowWeapon extends TimedWeapon {
         PK_ARROW, 2.0, 1.5, 0.7, 1.5, 0.55,
       );
     }
+    ctx.effects.spawnFlash(ctx.px, ctx.pz, 1.4, 0.4, 2.0, 2.0);
+    ctx.effects.spawnRing(ctx.px, ctx.pz, 2.0, 1.4, 0.4, 2.0, 0.3);
   }
 }
 
@@ -261,6 +270,7 @@ export class FireWeapon extends TimedWeapon {
     const life = 3 + (this.level - 1) * 0.3;
     const dps = 10 * ctx.stats.damageMul * (1 + (this.level - 1) * 0.15);
     ctx.zones.spawn(ctx.px, ctx.pz, radius, life, dps, 2.4, 0.9, 0.25);
+    ctx.effects.spawnFlash(ctx.px, ctx.pz, 2.4, 0.4, 1.5, 3.5);
   }
 }
 
@@ -278,6 +288,7 @@ export class ThunderWeapon extends TimedWeapon {
       const x = ctx.enemies.x[t];
       const z = ctx.enemies.z[t];
       ctx.effects.spawnLightning(x, z);
+      ctx.effects.spawnFlash(x, z, 2.8, 2.2, 0.3, 4.0);
       forEachInRadius(ctx, x, z, 2.0, (j) => {
         const died = ctx.enemies.damageAt(j, d);
         ctx.damageText.spawn(d, ctx.enemies.x[j], ctx.enemies.scale[j] * 0.7, ctx.enemies.z[j], true);
@@ -325,6 +336,7 @@ export class HalberdWeapon extends TimedWeapon {
     ctx.effects.spawnSlashArc(
       ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, Math.PI, 2.2, 0.7, 0.5, 0.28, ATTACK_HALBERD,
     );
+    ctx.effects.spawnFlash(ctx.px, ctx.pz, 0.8, 0.4, 2.2, 4.0);
   }
 }
 
@@ -347,6 +359,8 @@ export class CavalryWeapon extends TimedWeapon {
         sx, sz, dirX, dirZ, speed, d, 1.3, 9999, 3.0,
         PK_CAVALRY, 2.0, 1.4, 0.9, 4.5, 1.7, false, 0, true,
       );
+      ctx.effects.spawnTripleShock(sx, sz, 3.0, 2.8, 0.6, 0.15);
+      ctx.effects.spawnFlash(ctx.px, ctx.pz, 2.8, 0.6, 0.15, 3.5);
     }
   }
 }

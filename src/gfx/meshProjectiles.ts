@@ -87,8 +87,8 @@ export class ArrowMeshBatch {
         varying float vFogDepth;
         ${LIGHT_PARS_FRAG}
         void main() {
-          vec3 col = vColor * vShade;
-          col += sampleLights() * 0.9;
+          vec3 col = vColor * vShade * 2.5;
+          col += sampleLights() * 1.8;
           float fog = 1.0 - exp(-uFogDensity * uFogDensity * vFogDepth * vFogDepth);
           col = mix(col, uFogColor, clamp(fog, 0.0, 1.0));
           gl_FragColor = vec4(col, vFade);

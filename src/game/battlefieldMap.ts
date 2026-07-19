@@ -52,7 +52,7 @@ export interface CastleBanner {
 export const castleRenderData = {
   banners: [] as CastleBanner[],
   bannerVersion: 0,
-  title: { text: '낙양 외성 洛陽外城', x: CASTLE_CX, y: 6.4, z: CASTLE_CZ + CASTLE_OHZ - 8, alpha: 0 },
+  title: { text: '무한성 Mugen Castle', x: CASTLE_CX, y: 6.4, z: CASTLE_CZ + CASTLE_OHZ - 8, alpha: 0 },
   // 성 소유 상태 → markers 깃발 색 전환 웨이브 채널(낙양 공방전, DESIGN 20절).
   // flipVersion 증가가 전환 트리거, (flipX,flipZ) 원점에서 먼 깃발일수록 늦게 물든다.
   allied: false,
@@ -132,11 +132,11 @@ interface LandmarkType {
 // WORLD_ASSETS: tower=2, palisade=3, siegeWreck=4, camp=5, warDrum=6, beacon=11
 const LANDMARK_TYPES: LandmarkType[] = [
   // 랜드마크는 배경 — 밀집 전투에서 적을 가리지 않게 발광 반경·강도 하향(감사 #27).
-  { kind: 11, width: 3.2, height: 5.4, name: '봉화대 烽火', glow: 1.6, gr: 1.05, gg: 0.52, gb: 0.2 },
-  { kind: 5, width: 5.4, height: 4.0, name: '군영 軍營', glow: 0, gr: 0, gg: 0, gb: 0 },
-  { kind: 6, width: 3.0, height: 3.4, name: '전고 戰鼓', glow: 1.7, gr: 1.0, gg: 0.38, gb: 0.26 },
-  { kind: 2, width: 3.4, height: 5.6, name: '망루 望樓', glow: 0, gr: 0, gg: 0, gb: 0 },
-  { kind: 4, width: 4.8, height: 3.6, name: '공성 잔해 殘骸', glow: 0, gr: 0, gg: 0, gb: 0 },
+  { kind: 11, width: 3.2, height: 5.4, name: '등나무 제단 Wisteria Altar', glow: 1.6, gr: 1.2, gg: 0.4, gb: 1.8 },
+  { kind: 5, width: 5.4, height: 4.0, name: '귀살대 막사 Corps Barrack', glow: 0, gr: 0, gg: 0, gb: 0 },
+  { kind: 6, width: 3.0, height: 3.4, name: '비파 연주대 Biwa Dais', glow: 1.7, gr: 2.0, gg: 0.4, gb: 0.4 },
+  { kind: 2, width: 3.4, height: 5.6, name: '등꽃 망루 Wisteria Tower', glow: 0, gr: 0, gg: 0, gb: 0 },
+  { kind: 4, width: 4.8, height: 3.6, name: '목조 폐허 Wooden Ruin', glow: 0, gr: 0, gg: 0, gb: 0 },
 ];
 const LANDMARK_COUNT = 12;
 const GOLDEN_ANGLE = 2.399963229728653;
