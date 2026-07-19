@@ -24,7 +24,8 @@ export const LIGHT_PARS_FRAG = /* glsl */ `
       float a = clamp(1.0 - dist / uLightRadius[i], 0.0, 1.0);
       s += uLightColor[i] * a * a;
     }
-    return s;
+    // 겹친 폭발/무쌍 광원이 무한 가산되어 화면이 하얗게 타지 않도록 소프트 상한.
+    return min(s, vec3(1.25));
   }
 `;
 

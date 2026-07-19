@@ -567,10 +567,10 @@ export class ProjectilePool {
         );
       } else if (k === PK_BUTTERFLY) {
         // 벌레의 호흡: 날갯짓하며 팔랑이는 3D 독나비 (상하 흔들림 + 펄럭임)
-        const flap = 1.0 + Math.sin(time * 20 + i * 1.7) * 0.55;
+        const flap = 1.0 + Math.sin(time * 20 + i * 1.7) * 0.45;
         this.butterflies.push(
-          this.x[i], this.hy[i] + 0.45 + Math.sin(time * 10 + i) * 0.2, this.z[i], theta,
-          this.wid[i] * 2.6, flap * 1.4, this.wid[i] * 2.6,
+          this.x[i], this.hy[i] + 0.4 + Math.sin(time * 10 + i) * 0.16, this.z[i], theta,
+          this.wid[i] * 1.7, flap * 1.05, this.wid[i] * 1.7,
           this.cr[i], this.cg[i], this.cb[i], fade,
         );
       } else if (k === PK_FLAME) {

@@ -115,7 +115,7 @@ export class Musou {
       this.introDone = true;
       ctx.effects.spawnCrest(player.x, player.z, crest.char, crest.r, crest.g, crest.b, DURATION);
     }
-    ctx.effects.spawnMusouLight?.(player.x, player.z, crest.r * 0.32, crest.g * 0.32, crest.b * 0.32, 6.5, 0.07);
+    ctx.effects.spawnMusouLight?.(player.x, player.z, crest.r * 0.24, crest.g * 0.24, crest.b * 0.24, 6.0, 0.07);
 
     switch (this.heroMusou) {
       case 'tanjiro': this.runTanjiro(ctx, player); break;
@@ -138,9 +138,10 @@ export class Musou {
       this.active = false;
       this.chargeLockT = 6;
       // 마무리 대폭발: 시차 3중 충격파 + 대형 링 + 전 화면 대미지
-      ctx.effects.spawnTripleShock(player.x, player.z, 30, crest.r, crest.g, crest.b);
-      ctx.effects.spawnRing(player.x, player.z, 26, crest.r, crest.g, crest.b, 0.7);
-      ctx.effects.spawnMusouLight?.(player.x, player.z, crest.r * 0.6, crest.g * 0.6, crest.b * 0.6, 15, 0.5);
+      // (시각 규모는 절제 — 데미지 반경 30은 유지하되 화면을 태우는 광원/링은 축소)
+      ctx.effects.spawnTripleShock(player.x, player.z, 18, crest.r, crest.g, crest.b);
+      ctx.effects.spawnRing(player.x, player.z, 15, crest.r, crest.g, crest.b, 0.7);
+      ctx.effects.spawnMusouLight?.(player.x, player.z, crest.r * 0.4, crest.g * 0.4, crest.b * 0.4, 10, 0.5);
       this.aoe(ctx, player.x, player.z, 30, 400 * ctx.stats.damageMul, 6);
       return true;
     }
@@ -189,8 +190,8 @@ export class Musou {
   private runNezuko(ctx: WeaponContext, player: Player): void {
     if (!this.initDone) {
       this.initDone = true;
-      ctx.effects.spawnTripleShock(player.x, player.z, 28, 2.4, 0.5, 0.9);
-      ctx.effects.spawnTechniqueMesh('blood', player.x, 0.2, player.z, 0, 12, 1.0, 12, 2.4, 0.4, 0.9, 0.8);
+      ctx.effects.spawnTripleShock(player.x, player.z, 17, 2.4, 0.5, 0.9);
+      ctx.effects.spawnTechniqueMesh('blood', player.x, 0.2, player.z, 0, 8, 1.0, 8, 2.4, 0.4, 0.9, 0.8);
       this.aoe(ctx, player.x, player.z, 30, 90 * ctx.stats.damageMul, 10);
     }
     if (this.tick > 0) return;
@@ -371,7 +372,7 @@ export class Musou {
     if (!this.initDone) {
       this.initDone = true;
       this.stunAll(ctx, player.x, player.z, 30, 3.0);
-      ctx.effects.spawnTripleShock(player.x, player.z, 28, 1.6, 1.3, 0.7);
+      ctx.effects.spawnTripleShock(player.x, player.z, 17, 1.6, 1.3, 0.7);
       this.aoe(ctx, player.x, player.z, 30, 100 * ctx.stats.damageMul, 12);
     }
     if (this.tick > 0) return;

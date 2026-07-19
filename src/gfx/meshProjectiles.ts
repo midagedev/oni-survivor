@@ -12,7 +12,6 @@ import {
   DynamicDrawUsage,
   Vector3,
   BufferGeometry,
-  AdditiveBlending,
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LIGHT_PARS_FRAG, LIGHT_PARS_VERT, type LightUniforms } from './lightField';
@@ -223,17 +222,18 @@ export class GlowMeshBatch {
         varying float vFogDepth;
         ${LIGHT_PARS_FRAG}
         void main() {
-          vec3 col = vColor * vShade * 1.5;
-          col += sampleLights() * 1.2;
+          // 본체는 불투명(NormalBlending)으로 그려 겹쳐도 밝기가 누적되지 않게 한다.
+          // (이전 AdditiveBlending은 투사체가 몰릴수록 화면이 하얗게 타버렸다 — 가독성 회복)
+          vec3 col = vColor * vShade * 1.05;
+          col += sampleLights() * 0.8;
           float fog = 1.0 - exp(-uFogDensity * uFogDensity * vFogDepth * vFogDepth);
           col = mix(col, uFogColor, clamp(fog, 0.0, 1.0));
           gl_FragColor = vec4(col, vFade);
         }
       `,
       transparent: true,
-      depthWrite: false,
+      depthWrite: true,
       depthTest: true,
-      blending: AdditiveBlending,
     });
     this.mesh = new InstancedMesh(geo, mat, cap);
     this.mesh.instanceMatrix.setUsage(DynamicDrawUsage);

@@ -426,8 +426,9 @@ export class EffectsSystem {
     (s.mat.uniforms.uColor.value as Color).setRGB(r, g, b);
     s.mat.uniforms.uT.value = 0;
     // 큰 충격파/폭발만 지면을 밝히고 균열을 남긴다(작은 타격 링은 제외).
+    // 광원 반경은 상한을 둬 대형 링이 화면 전체를 태우지 않게 한다(폭발 중심만 발광).
     if (maxRadius >= 3) {
-      if (this.spawnLight) this.spawnLight(x, z, r, g, b, maxRadius * 1.8, dur * 0.7);
+      if (this.spawnLight) this.spawnLight(x, z, r, g, b, Math.min(maxRadius * 1.3, 15), dur * 0.7);
       if (this.spawnDecal) this.spawnDecal(x, z, maxRadius * 1.15, r, g, b);
     }
   }
@@ -449,7 +450,7 @@ export class EffectsSystem {
     s.mesh.scale.setScalar(radius * 0.6);
     (s.mat.uniforms.uColor.value as Color).setRGB(r, g, b);
     s.mat.uniforms.uT.value = 0;
-    if (this.spawnLight) this.spawnLight(x, z, r, g, b, radius * 1.6, 0.12 + radius * 0.02);
+    if (this.spawnLight) this.spawnLight(x, z, r, g, b, Math.min(radius * 1.4, 13), 0.12 + radius * 0.02);
   }
 
   // 보스 패턴 지면 텔레그래프(#40 14.6). shape: TG_CIRCLE|TG_CONE|TG_RECT.
