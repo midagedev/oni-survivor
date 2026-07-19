@@ -14,7 +14,7 @@ export const WEAPON_DEFS: Record<string, WeaponDef> = {
   zhangba: { id: 'zhangba', name: '짐승의 호흡', hanja: '獣の呼吸', maxLevel: 8, desc: '전후방 송곳니 참격' },
   baiyu: { id: 'baiyu', name: '매혹의 연기', hanja: '惑血', maxLevel: 8, desc: '유도 폭발 환각 꽃망울' },
   crossbow: { id: 'crossbow', name: '벌레의 호흡', hanja: '蟲の呼吸', maxLevel: 8, desc: '가장 가까운 적 자동 독침' },
-  fire: { id: 'fire', name: '혈귀술 폭혈', hanja: '爆血', maxLevel: 8, desc: '발밑 폭결 장판 형성' },
+  fire: { id: 'fire', name: '혈귀술 폭혈격', hanja: '爆血擊', maxLevel: 8, desc: '전방 발차기 참격 후 폭혈 장판 형성' },
   thunder: { id: 'thunder', name: '번개의 호흡', hanja: '雷の呼吸', maxLevel: 8, desc: '신속의 일격 무작위 낙뢰' },
   orbit: { id: 'orbit', name: '등꽃 부적', hanja: '藤の護符', maxLevel: 8, desc: '주위를 도는 등꽃 수호구' },
   halberd: { id: 'halberd', name: '파괴살', hanja: '破壊殺', maxLevel: 8, desc: '360° 전방위 충격파 난무' },

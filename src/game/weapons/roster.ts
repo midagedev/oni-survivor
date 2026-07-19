@@ -262,17 +262,27 @@ export class CrossbowWeapon extends TimedWeapon {
   }
 }
 
-// 6. 혈귀술 폭혈 — 발밑 화염 장판 형성 및 3D 핏빛 연꽃 결정
+// 6. 혈귀술 폭혈격 — 전방 격투 발차기(할퀴기) 타격 + 타격점 폭혈 장판 폭발
 export class FireWeapon extends TimedWeapon {
   readonly id = 'fire';
-  protected baseCooldown = 3.0;
+  protected baseCooldown = 2.4; // 격투 연사를 위해 쿨타운 소폭 감소 (3.0 -> 2.4)
   protected fire(ctx: WeaponContext): void {
     const radius = (2.2 + (this.level - 1) * 0.28) * ctx.stats.areaMul;
-    const life = 3 + (this.level - 1) * 0.3;
-    const dps = 10 * ctx.stats.damageMul * (1 + (this.level - 1) * 0.15);
-    ctx.zones.spawn(ctx.px, ctx.pz, radius, life, dps, 2.5, 0.3, 1.2); // 네즈코 혈귀술 분홍 화염
-    ctx.effects.spawnTechniqueMesh('blood', ctx.px, 0.15, ctx.pz, 0, radius * 1.2, 1.0, radius * 1.2, 2.4, 0.4, 1.5, 0.95);
-    ctx.effects.spawnTripleShock(ctx.px, ctx.pz, radius * 1.3, 2.4, 0.4, 1.5);
+    const life = 3.0 + (this.level - 1) * 0.3;
+    const dps = 8 * ctx.stats.damageMul * (1 + (this.level - 1) * 0.15);
+    const contactDmg = 12 * ctx.stats.damageMul * (1 + (this.level - 1) * 0.18);
+
+    // 1) 전방 110도 부채꼴 발차기 격투 타격 (물리 대미지)
+    const sweepRange = radius * 1.3;
+    arcHit(ctx, ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, sweepRange, Math.PI * 0.6, contactDmg, 5);
+
+    // 2) 발차기 타격 지점(앞방향 1.5m 정도)에 폭혈 장판 형성
+    const targetX = ctx.px + ctx.aimX * 1.5;
+    const targetZ = ctx.pz + ctx.aimZ * 1.5;
+    ctx.zones.spawn(targetX, targetZ, radius, life, dps, 2.5, 0.3, 1.2); // 네즈코 혈귀술 분홍 화염
+    ctx.effects.spawnTechniqueMesh('blood', targetX, 0.15, targetZ, 0, radius * 1.2, 1.0, radius * 1.2, 2.4, 0.4, 1.5, 0.95);
+    ctx.effects.spawnTripleShock(targetX, targetZ, radius * 1.3, 2.4, 0.4, 1.5);
+    ctx.effects.spawnFlash(targetX, targetZ, 2.4, 0.4, 1.5, 3.5);
   }
 }
 

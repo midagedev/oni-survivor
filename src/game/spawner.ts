@@ -186,6 +186,7 @@ export class Spawner {
     // factionIdx 지정 시 시간대 무시하고 해당 세력 틴트로 고정(무한성 수비대·탈환군=동탁군).
     const faction = FACTIONS[factionIdx ?? factionForMinute(minute)];
     // 색변형 스프라이트: 세력 구간 내 무작위 → 대군에 미세한 몸체 다양성(1분 이후).
+    /*
     if (minute >= 1) {
       const variants = this.atlas.variantBlocks(type.id);
       if (variants.length > 0) {
@@ -196,6 +197,7 @@ export class Spawner {
         blockPy = vb.r * 256;
       }
     }
+    */
     const i = this.pool.spawn(
       x, z, hp, type.speed, type.radius, type.damage, type.gemValue, type.worldScale,
       sheetId, blockPx, blockPy,
