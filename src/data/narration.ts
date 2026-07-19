@@ -1,8 +1,6 @@
-// 이벤트 내레이션 + 미니보스 별칭 (한/영). #49 W4.
-// 원천: three-kingdoms-mud gunungjeon q4 스레드 stage prompt(무대 내레이션)를 1줄(≤40자)로 압축,
-//   미니보스 별칭은 data/bosses.json의 전역별 별칭("정군산의 그 선봉" 류)에서 톤 맞는 것만 번안.
-// 순수 데이터. 노출은 기존 경로(hud.quote)만 사용 — 세력 전환·호로관·무한 미니보스 등장의 기존 비트에
-//   1줄을 얹거나(전환/호로관) 기존 등장 대사를 대체(미니보스)해 노출 빈도를 늘리지 않는다(절제).
+// 이벤트 내레이션 + 미니보스 별칭 (한/영).
+// 귀멸의 칼날 세계관: 세력 전환(떠돌이 혈귀→하현→상현→십이귀월), 무한성 관문, 무한 미니보스.
+// 순수 데이터. 노출은 기존 경로(hud.quote)만 사용 — 노출 빈도는 늘리지 않는다(절제).
 import { getLang } from '../core/i18n';
 
 interface Line {
@@ -12,50 +10,49 @@ interface Line {
 
 const pick = (l: Line): string => (getLang() === 'en' ? l.en : l.ko);
 
-// 세력 전환 내레이션 — spawner.onWave의 faction.id 기준. 시작 세력(황건)은 배너/내레이션 없이 진입.
+// 세력 전환 내레이션 — spawner.onWave의 faction.id 기준. 시작 세력(떠돌이 혈귀)은 배너/내레이션 없이 진입.
 const FACTION: Record<string, Line> = {
-  dongzhuo: {
-    ko: '무한성 상공이 칠흑 같은 어둠에 휩싸인다. 십이귀월이 밀려온다.',
-    en: 'The Luoyang sky darkens at noon — Dong Zhuo’s host presses in.',
+  lower: {
+    ko: '무한성의 하늘이 핏빛으로 물든다. 하현의 혈귀가 몰려온다.',
+    en: 'The sky of the Infinity Castle bleeds red — the Lower Moons close in.',
   },
-  yuanshao: {
-    ko: '하북의 대군이 둑을 넘는다. 넓은 군세, 넓은 그늘.',
-    en: 'Hebei’s great host crosses the dike — a wide army, a wide shadow.',
+  upper: {
+    ko: '공기가 얼어붙는다. 상현의 혈귀가 모습을 드러낸다.',
+    en: 'The air freezes over — the Upper Moons reveal themselves.',
   },
-  warlords: {
-    ko: '깃발이 갈라진다. 이제부터는 군웅의 땅이다.',
-    en: 'The banners splinter — from here, the land of warlords.',
+  kizuki: {
+    ko: '달이 열둘로 갈라진다. 십이귀월이 강림한다.',
+    en: 'The moon splits into twelve — the Twelve Kizuki descend.',
   },
 };
 
-// 호로관 세트피스 출현 내레이션(런 1회).
+// 무한성 관문 세트피스 출현 내레이션(런 1회).
 const HULAO: Line = {
-  ko: '호로관 성문이 솟는다. 바람이 칼끝에 붙는다.',
-  en: 'The gate of Hulao rises — the wind clings to the blade.',
+  ko: '무한성의 거대한 관문이 솟아오른다. 칼끝에 살기가 맺힌다.',
+  en: 'The great gate of the Infinity Castle rises — bloodlust clings to the blade.',
 };
 
 // 무한 모드 미니보스 별칭 — 재대면하는 적을 알아보는 관찰 톤(3인칭). MINIBOSS_CYCLE 키 기준.
-// 등장 배너 옆 기존 appear 대사를 대체(빈도 불변)하도록 완결형 1줄로 둔다.
 const MINIBOSS_HAIL: Record<string, Line> = {
-  dianwei: {
-    ko: '완성 문을 지킨 그 교위가 다시 나섰다.',
-    en: 'That captain who held the Wancheng gate rides out again.',
+  gyutaro: {
+    ko: '유곽을 지배했던 그 남매의 오라비가 다시 낫을 든다.',
+    en: 'That brother of the pleasure-district siblings takes up his sickle again.',
   },
-  gaoshun: {
-    ko: '함진영을 이끈 그 진장이 다시 줄을 세운다.',
-    en: 'That captain of the Trap-Breaker Camp forms his ranks anew.',
+  daki: {
+    ko: '팔중 오비를 두른 그 여귀가 다시 거리를 활보한다.',
+    en: 'That she-demon of the eightfold obi prowls the streets once more.',
   },
-  xiahouyuan: {
-    ko: '정군산의 그 선봉이 또 길목을 친다.',
-    en: 'That vanguard of Dingjun strikes the road once more.',
+  hantengu: {
+    ko: '넷으로 갈라지는 그 겁쟁이가 또다시 나타난다.',
+    en: 'That coward who splits into four appears yet again.',
   },
-  lumeng: {
-    ko: '형주를 삼킨 그 도독이 흰 옷으로 다시 온다.',
-    en: 'That commander who swallowed Jing comes again in white.',
+  kaigaku: {
+    ko: '번개를 훔친 그 배신자가 다시 칼을 뽑는다.',
+    en: 'That traitor who stole the lightning draws his blade again.',
   },
-  luxun: {
-    ko: '이릉의 그 별장이 또 불줄을 편다.',
-    en: 'That lieutenant of Yiling lays out his fire-line again.',
+  handemon: {
+    ko: '손의 원한을 품은 그 혈귀가 또 기어 나온다.',
+    en: 'That demon of grasping hands crawls out once more.',
   },
 };
 
@@ -65,7 +62,7 @@ export function factionNarration(factionId: string): string {
   return l ? pick(l) : '';
 }
 
-// 호로관 출현 내레이션(현재 언어).
+// 무한성 관문 출현 내레이션(현재 언어).
 export function hulaoNarration(): string {
   return pick(HULAO);
 }

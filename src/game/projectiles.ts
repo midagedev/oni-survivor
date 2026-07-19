@@ -13,7 +13,20 @@ import type { DamageText } from '../gfx/damageText';
 import type { ParticleSystem } from '../gfx/particles';
 import type { EffectsSystem } from '../gfx/effects';
 import { RetroProjectileBatch } from '../gfx/projectileSprites';
-import { ArrowMeshBatch, GlowMeshBatch, makeSlashGeometry, makeOrbGeometry, makeCrystalGeometry, makeCavalryGeometry } from '../gfx/meshProjectiles';
+import {
+  ArrowMeshBatch,
+  GlowMeshBatch,
+  makeSlashGeometry,
+  makeOrbGeometry,
+  makeCrystalGeometry,
+  makeCavalryGeometry,
+  makeWaterStreamGeometry,
+  makeButterflyGeometry,
+  makeFlameDragonGeometry,
+  makeCompassGeometry,
+  makeThornGeometry,
+  makeBloodLotusGeometry,
+} from '../gfx/meshProjectiles';
 import type { LightUniforms } from '../gfx/lightField';
 
 const CAP = 384;
@@ -27,13 +40,20 @@ const HITMAX = 8; // 관통 시 중복 타격 방지용 최근 타격 목록 크
 const BOSS_DMG_MULT = 8;
 const ORBIT_BOSS_SCALE = 0.35;
 
-// 시각 종류
+// 시각 종류 — 0~5는 후광 셰이더가 kind 분기로 직접 처리, 6+는 캐릭터 시그니처 3D 메시.
 export const PK_ARROW = 0;
 export const PK_TALISMAN = 1;
 export const PK_SLASHWAVE = 2;
 export const PK_ORB = 3;
 export const PK_CAVALRY = 4;
 export const PK_FIRE_ARROW = 5; // 원융노(진화) 화염 화살
+// 귀멸 캐릭터 시그니처 투사체 메시 (meshProjectiles 지오메트리 연결)
+export const PK_WATER = 6; // 물의 호흡 — 유선형 물결 참격파 (탄지로/기유)
+export const PK_BUTTERFLY = 7; // 벌레의 호흡 — 팔랑이는 독나비 (시노부/카나오)
+export const PK_FLAME = 8; // 화염의 호흡 — 불꽃 용 아크 돌격 (쿄쥬로)
+export const PK_COMPASS = 9; // 파괴살 — 나침반 충격파 링 (아카자계)
+export const PK_THORN = 10; // 등꽃/사랑 — 회전하는 등가시 결정 (미츠리)
+export const PK_LOTUS = 11; // 혈귀술 — 핏빛 연꽃 결정 (네즈코/유도 꽃망울)
 
 // 플레이어 투사체 풀. SoA 시뮬 + 지면정렬 발광 쿼드 InstancedMesh 렌더.
 // 관통/유도/궤도(팔진도)/기마(서량철기) 모드를 하나로 처리.
@@ -83,6 +103,14 @@ export class ProjectilePool {
   private readonly orbs: GlowMeshBatch;
   private readonly crystals: GlowMeshBatch;
   private readonly cavalries: GlowMeshBatch;
+  // 귀멸 캐릭터 시그니처 투사체 메시 배치
+  private readonly waters: GlowMeshBatch;
+  private readonly butterflies: GlowMeshBatch;
+  private readonly flames: GlowMeshBatch;
+  private readonly compasses: GlowMeshBatch;
+  private readonly thorns: GlowMeshBatch;
+  private readonly lotuses: GlowMeshBatch;
+  private readonly sigBatches: GlowMeshBatch[]; // begin/end 일괄 처리용
 
   constructor(scene: Scene, light: LightUniforms) {
     for (let i = 0; i < CAP; i++) this.free[i] = CAP - 1 - i;
@@ -199,6 +227,15 @@ export class ProjectilePool {
     this.orbs = new GlowMeshBatch(scene, makeOrbGeometry(), CAP, light);
     this.crystals = new GlowMeshBatch(scene, makeCrystalGeometry(), CAP, light);
     this.cavalries = new GlowMeshBatch(scene, makeCavalryGeometry(), CAP, light);
+    // 귀멸 시그니처 메시: 각 무기가 캐릭터 호흡법에 맞는 3D 투사체를 발사.
+    const SIG = 128; // 시그니처 투사체는 동시 상한이 낮아 별도 소형 풀
+    this.waters = new GlowMeshBatch(scene, makeWaterStreamGeometry(), SIG, light);
+    this.butterflies = new GlowMeshBatch(scene, makeButterflyGeometry(), SIG, light);
+    this.flames = new GlowMeshBatch(scene, makeFlameDragonGeometry(), SIG, light);
+    this.compasses = new GlowMeshBatch(scene, makeCompassGeometry(), SIG, light);
+    this.thorns = new GlowMeshBatch(scene, makeThornGeometry(), SIG, light);
+    this.lotuses = new GlowMeshBatch(scene, makeBloodLotusGeometry(), SIG, light);
+    this.sigBatches = [this.waters, this.butterflies, this.flames, this.compasses, this.thorns, this.lotuses];
   }
 
   get object(): InstancedMesh {
@@ -274,7 +311,7 @@ export class ProjectilePool {
     this.oVel[i] = angVel;
     this.damage[i] = damage;
     this.radius[i] = size * 0.6;
-    this.kind[i] = PK_ORB;
+    this.kind[i] = PK_THORN; // 등꽃 수호구 — 회전하는 등가시 결정
     this.cr[i] = r;
     this.cg[i] = g;
     this.cb[i] = b;
@@ -363,18 +400,22 @@ export class ProjectilePool {
       particles.projectileImpact(
         enemies.x[j], enemies.z[j], this.cr[i], this.cg[i], this.cb[i], this.kind[i],
       );
-      if (this.kind[i] === PK_SLASHWAVE) {
+      const kk = this.kind[i];
+      if (kk === PK_SLASHWAVE || kk === PK_WATER) {
         effects.spawnRing(enemies.x[j], enemies.z[j], 1.5, this.cr[i], this.cg[i], this.cb[i], 0.2);
-      } else if (this.kind[i] === PK_ORB && orbitPulse) {
+      } else if (isOrbit && orbitPulse) {
         effects.spawnRing(enemies.x[j], enemies.z[j], 0.75, this.cr[i], this.cg[i], this.cb[i], 0.18);
-      } else if (this.kind[i] === PK_CAVALRY) {
-        effects.spawnRing(enemies.x[j], enemies.z[j], 1.9, 1.5, 0.75, 0.35, 0.24);
+      } else if (kk === PK_CAVALRY || kk === PK_FLAME) {
+        effects.spawnRing(enemies.x[j], enemies.z[j], 1.9, 2.4, 0.9, 0.3, 0.24);
+      } else if (kk === PK_COMPASS) {
+        effects.spawnRing(enemies.x[j], enemies.z[j], 1.2, this.cr[i], this.cg[i], this.cb[i], 0.16);
       }
-      // 기술별 넉백: 기마=강하게 진행방향으로 쓸어냄, 참격파=중간, 오브=접촉 시 살짝
+      // 기술별 넉백: 화염 돌진=강하게 쓸어냄, 물/참격파=중간, 오브=접촉 시 살짝
       if (!died) {
-        if (this.kind[i] === PK_CAVALRY || this.kind[i] === PK_SLASHWAVE) {
+        if (kk === PK_CAVALRY || kk === PK_FLAME || kk === PK_SLASHWAVE || kk === PK_WATER) {
           const sp = Math.hypot(this.vx[i], this.vz[i]) || 1;
-          enemies.push(j, this.vx[i] / sp, this.vz[i] / sp, this.kind[i] === PK_CAVALRY ? 7 : 3);
+          const strong = kk === PK_CAVALRY || kk === PK_FLAME;
+          enemies.push(j, this.vx[i] / sp, this.vz[i] / sp, strong ? 7 : 3);
         } else if (isOrbit) {
           const dx = enemies.x[j] - px;
           const dz = enemies.z[j] - pz;
@@ -468,6 +509,7 @@ export class ProjectilePool {
     this.orbs.begin();
     this.crystals.begin();
     this.cavalries.begin();
+    for (const batch of this.sigBatches) batch.begin();
     let w = 0;
     for (let i = 0; i < CAP; i++) {
       if (this.alive[i] === 0) continue;
@@ -515,36 +557,79 @@ export class ProjectilePool {
       }
       this.fadeArr[w] = fade;
 
-      const isArrow = this.kind[i] === PK_ARROW || this.kind[i] === PK_FIRE_ARROW;
-      if (isArrow) {
+      const k = this.kind[i];
+      if (k === PK_WATER) {
+        // 물의 호흡: 진행 방향으로 넓게 흐르는 3D 물줄기 참격파
+        this.waters.push(
+          this.x[i], this.hy[i] + 0.28, this.z[i], theta,
+          this.len[i], 1.0, this.wid[i] * 1.35,
+          this.cr[i], this.cg[i], this.cb[i], fade,
+        );
+      } else if (k === PK_BUTTERFLY) {
+        // 벌레의 호흡: 날갯짓하며 팔랑이는 3D 독나비 (상하 흔들림 + 펄럭임)
+        const flap = 1.0 + Math.sin(time * 20 + i * 1.7) * 0.55;
+        this.butterflies.push(
+          this.x[i], this.hy[i] + 0.45 + Math.sin(time * 10 + i) * 0.2, this.z[i], theta,
+          this.wid[i] * 2.6, flap * 1.4, this.wid[i] * 2.6,
+          this.cr[i], this.cg[i], this.cb[i], fade,
+        );
+      } else if (k === PK_FLAME) {
+        // 화염의 호흡: 크고 길게 뻗는 3D 불꽃 용 아크 돌격
+        this.flames.push(
+          this.x[i], this.hy[i] + 0.5, this.z[i], theta,
+          this.len[i] * 0.9, 1.35, this.wid[i] * 1.35,
+          this.cr[i], this.cg[i], this.cb[i], fade,
+        );
+      } else if (k === PK_COMPASS) {
+        // 파괴살: 지면 위에서 회전하며 날아가는 나침반 충격파 파편(작고 또렷하게)
+        this.compasses.push(
+          this.x[i], this.hy[i] + 0.12, this.z[i], time * 5.0,
+          this.len[i] * 0.5, 1.0, this.len[i] * 0.5,
+          this.cr[i] * 0.7, this.cg[i] * 0.7, this.cb[i] * 0.7, fade * 0.85,
+        );
+      } else if (k === PK_THORN) {
+        // 등꽃/사랑: 자체 회전하는 등가시 결정
+        this.thorns.push(
+          this.x[i], this.hy[i] + 0.3, this.z[i], theta + time * 4.5,
+          this.len[i], this.len[i], this.wid[i],
+          this.cr[i], this.cg[i], this.cb[i], fade,
+        );
+      } else if (k === PK_LOTUS) {
+        // 혈귀술: 부드럽게 회전하는 핏빛 연꽃 결정
+        this.lotuses.push(
+          this.x[i], this.hy[i] + 0.3, this.z[i], time * 3.0,
+          this.len[i] * 0.95, this.len[i] * 0.95, this.wid[i] * 0.95,
+          this.cr[i], this.cg[i], this.cb[i], fade,
+        );
+      } else if (k === PK_ARROW || k === PK_FIRE_ARROW) {
         // 3D 화살 메시: 스프라이트 본체를 대체(후광 쿼드는 유지).
         this.arrows.push(
           this.x[i], this.hy[i] + 0.2, this.z[i], theta,
           this.len[i] * 1.05, Math.max(this.wid[i], 0.5) * 1.05,
           this.cr[i], this.cg[i], this.cb[i], fade,
         );
-      } else if (this.kind[i] === PK_SLASHWAVE) {
+      } else if (k === PK_SLASHWAVE) {
         // 3D 검기 메시
         this.slashes.push(
           this.x[i], this.hy[i] + 0.2, this.z[i], theta,
           this.len[i], 1.0, this.wid[i],
           this.cr[i], this.cg[i], this.cb[i], fade,
         );
-      } else if (this.kind[i] === PK_ORB) {
+      } else if (k === PK_ORB) {
         // 3D 구체 메시
         this.orbs.push(
           this.x[i], this.hy[i] + 0.2, this.z[i], theta,
           this.len[i], this.len[i], this.wid[i],
           this.cr[i], this.cg[i], this.cb[i], fade,
         );
-      } else if (this.kind[i] === PK_TALISMAN) {
+      } else if (k === PK_TALISMAN) {
         // 3D 크리스탈/부적 메시 (회전 추가)
         this.crystals.push(
           this.x[i], this.hy[i] + 0.2, this.z[i], theta + time * 4.0,
           this.len[i] * 0.8, this.len[i] * 0.8, this.wid[i] * 0.8,
           this.cr[i], this.cg[i], this.cb[i], fade,
         );
-      } else if (this.kind[i] === PK_CAVALRY) {
+      } else if (k === PK_CAVALRY) {
         // 3D 기마(화염 돌격) 원뿔 메시
         this.cavalries.push(
           this.x[i], this.hy[i] + 0.5, this.z[i], theta,
@@ -552,13 +637,9 @@ export class ProjectilePool {
           this.cr[i], this.cg[i], this.cb[i], fade,
         );
       } else {
-        // 기본 2D 스프라이트 폴백
-        const artScale = this.kind[i] === PK_CAVALRY
-          ? this.len[i]
-          : this.kind[i] === PK_SLASHWAVE
-            ? Math.max(this.len[i], this.wid[i])
-            : this.len[i] * 1.18;
-        this.spriteBatches[this.kind[i]].push(
+        // 기본 2D 스프라이트 폴백 (0~5 범위만 안전)
+        const artScale = this.len[i] * 1.18;
+        this.spriteBatches[k].push(
           this.x[i], this.hy[i] + 0.055, this.z[i], theta, artScale, artScale, fade,
         );
       }
@@ -575,6 +656,7 @@ export class ProjectilePool {
     this.orbs.end();
     this.crystals.end();
     this.cavalries.end();
+    for (const batch of this.sigBatches) batch.end();
   }
 }
 

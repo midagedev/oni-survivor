@@ -276,8 +276,9 @@ export class ParticleSystem {
     const speed = Math.hypot(vx, vz) || 1;
     const nx = vx / speed;
     const nz = vz / speed;
-    const count = kind === 4 ? 2 : 1;
-    const size = kind === 2 || kind === 4 ? 0.75 : kind === 3 ? 0.58 : 0.38;
+    // kind: 2=참격파 4=돌진 8=화염용 → 굵은 꼬리 2줄, 6=물 3=오브 → 중간, 7=나비 → 잔가루
+    const count = kind === 4 || kind === 8 ? 2 : 1;
+    const size = kind === 2 || kind === 4 || kind === 8 ? 0.75 : kind === 3 || kind === 6 ? 0.58 : kind === 7 ? 0.32 : 0.38;
     for (let k = 0; k < count; k++) {
       const side = (Math.random() - 0.5) * (kind === 4 ? 1.2 : 0.35);
       const back = Math.random() * (kind === 4 ? 1.4 : 0.45);
@@ -308,8 +309,8 @@ export class ParticleSystem {
     b: number,
     kind: number,
   ): void {
-    const count = kind === 2 || kind === 4 ? 9 : kind === 3 ? 6 : 4;
-    const force = kind === 4 ? 5.2 : kind === 2 ? 4.0 : 2.8;
+    const count = kind === 2 || kind === 4 || kind === 8 ? 9 : kind === 3 || kind === 6 || kind === 9 ? 6 : 4;
+    const force = kind === 4 || kind === 8 ? 5.2 : kind === 2 || kind === 6 ? 4.0 : 2.8;
     for (let k = 0; k < count; k++) {
       const angle = (k / count) * Math.PI * 2 + Math.random() * 0.45;
       const speed = force * (0.45 + Math.random() * 0.7);

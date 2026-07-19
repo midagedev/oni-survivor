@@ -8,7 +8,7 @@ export interface DialoguePack {
 }
 
 export const DIALOGUE: Record<string, DialoguePack> = {
-  zhaoyun: {
+  tanjiro: {
     name: "Tanjiro",
     select: "Tanjiro Kamado, ready to slay demons!",
     lines: [
@@ -23,7 +23,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "At night I track down demons with my Nichirin sword.",
     ],
   },
-  guanyu: {
+  tomioka: {
     name: "Giyu",
     select: "Even at the cost of my life, please delay Nezuko's judgment.",
     lines: [
@@ -39,7 +39,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "At night I have never forsaken the righteousness of my comrades.",
     ],
   },
-  zhangfei: {
+  nezuko: {
     name: "Nezuko",
     select: "Mmh... Mmh! (Brother, I will fight with you!)",
     lines: [
@@ -55,22 +55,22 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "At night I kick the demons who target my brother.",
     ],
   },
-  zhugeliang: {
-    name: "Tamayo",
-    select: "The medicine to turn demons back to humans will be completed.",
+  kanroji: {
+    name: "Mitsuri Kanroji",
+    select: "My heart is pounding! With the power of love, I'll slay the demons!",
     lines: [
-      "Blood Demon Art: Magical Aroma of Illusion!",
-      "I have searched for ways to defeat demons without harming humans.",
-      "Muzan... I will personally send you to hell.",
-      "Yushiro, let us make the medicine together.",
-      "As a doctor and a human, I will walk the path of atonement.",
-      "At dawn I examine demon cells under a microscope.",
-      "At noon I brew herbal medicines in the quiet study.",
-      "At dusk I wait for the daylight to fade completely.",
-      "At night I check the state of chemical synthesis with my art.",
+      "Love Breathing First Form: Shivers of First Love!",
+      "Three bowls of rice! No, five is easy! I must eat well to stay strong!",
+      "My Nichirin blade bends like a whip. My muscles are eight times denser than most!",
+      "Everyone is so precious to me... this feeling makes my blade even stronger!",
+      "I want to meet someone stronger than me. That's why I became a Hashira!",
+      "At dawn I braid my cherry-blossom hair and greet the day.",
+      "At noon I share bentos with my comrades and laugh together.",
+      "At dusk I lovingly maintain my soft whip-like blade.",
+      "At night I rush toward the demons with my heart pounding.",
     ],
   },
-  huangzhong: {
+  shinobu: {
     name: "Shinobu",
     select: "Insect Breathing, Butterfly Dance: Caprice!",
     lines: [
@@ -85,7 +85,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "At night I hunt down demons like a silent butterfly.",
     ],
   },
-  lvbu: {
+  rengoku: {
     name: "Kyojuro",
     select: "Set your heart ablaze. Go beyond your limits!",
     lines: [
@@ -100,22 +100,22 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "At night I guard the path of the Mugen Train.",
     ],
   },
-  sunshangxiang: {
-    name: "Akaza",
-    select: "Become a demon. Reach the peak of martial arts with me!",
+  kanao: {
+    name: "Kanao",
+    select: "No coin toss this time. My own heart decided.",
     lines: [
-      "The strong survive, the weak die. This is the law.",
-      "Destructive Death: Compass Needle... I see your battle spirit!",
-      "Kyojuro, you are too valuable to die like this!",
-      "Bring me a stronger opponent! Come at me!",
-      "My fists have no limits. They pierce the void!",
-      "At dawn I throw punches to reach the peak of martial arts.",
-      "At noon I close my eyes and meditate on battle spirit.",
-      "At dusk I watch the red sunset and wander through old memories.",
-      "At night I duel with the strongest to the death.",
+      "Flower Breathing, Insect Breathing... I carry on Lady Shinobu's blade.",
+      "Flower Breathing, Final Form: Equinoctial Vermilion Eye!",
+      "When I focus my eyes, your movements slow to a crawl.",
+      "Sister Kanae, Lady Shinobu... I fight for you both.",
+      "Now I move by the voice of my own heart.",
+      "At dawn I follow the butterflies and steady my breath.",
+      "At noon I gaze at the garden flowers and calm my mind.",
+      "At dusk I tend the wounded alongside Aoi.",
+      "At night I hone the blade my sisters left behind.",
     ],
   },
-  liubei: {
+  urokodaki: {
     name: "Urokodaki",
     select: "Too slow! Stay focused!",
     lines: [
@@ -130,7 +130,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "At night I write letters thinking of the siblings' future.",
     ],
   },
-  caocao: {
+  sabito: {
     name: "Sabito",
     select: "If you were born a man, endure the pain!",
     lines: [
@@ -145,7 +145,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "At night I guard Mt. Sagiri where spirits dwell.",
     ],
   },
-  zhouyu: {
+  yushiro: {
     name: "Yushiro",
     select: "Do not be rude to Tamayo-sama!",
     lines: [
@@ -160,7 +160,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "At night I brew tea for Tamayo-sama and guard her.",
     ],
   },
-  zhangliao: {
+  inosuke: {
     name: "Inosuke",
     select: "Pig rush! Pig rush! Here I come!",
     lines: [
@@ -175,7 +175,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "At night I sniff out the aura of the strongest demon.",
     ],
   },
-  yuanshao: {
+  doma: {
     name: "Doma",
     select: "I am the leader of the Eternal Paradise Cult. Let me guide you to paradise.",
     lines: [
@@ -190,7 +190,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "At night I select a follower and enjoy a quiet feast.",
     ],
   },
-  dongzhuo: {
+  enmu: {
     name: "Enmu",
     select: "I will show you a happy dream. A sweet dream you will never wake from...",
     lines: [
@@ -205,7 +205,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "At night I release sleep gas to control all cabins.",
     ],
   },
-  xiahoudun: {
+  akaza: {
     name: "Akaza",
     select: "Technique Development: Compass Needle!",
     lines: [
@@ -220,7 +220,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "At night I cross the battlefield to hunt down Hashiras.",
     ],
   },
-  sunce: {
+  kokushibo: {
     name: "Kokushibo",
     select: "Moon Breathing... Open your eyes, Nichirin sword.",
     lines: [
@@ -235,7 +235,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "At night I command the Upper Ranks and strike down intruders.",
     ],
   },
-  simayi: {
+  rui: {
     name: "Rui",
     select: "Do not interfere with my family's bonds.",
     lines: [

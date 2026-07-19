@@ -15,42 +15,42 @@ export interface UpgradeDef {
 export const UPGRADE_DEFS: UpgradeDef[] = [
   {
     id: 'attack',
-    name: '무예 단련',
+    name: '완력 단련',
     hanja: '武藝鍛鍊',
     maxLevel: 5,
     desc: (l) => (getLang() === 'en' ? `Attack +${l * 8}%` : `공격력 +${l * 8}%`),
   },
   {
     id: 'health',
-    name: '철갑 강화',
+    name: '육체 단련',
     hanja: '鐵甲强化',
     maxLevel: 5,
     desc: (l) => (getLang() === 'en' ? `Max HP +${l * 10}%` : `최대 체력 +${l * 10}%`),
   },
   {
     id: 'speed',
-    name: '준마 훈련',
+    name: '축지법 수련',
     hanja: '駿馬訓鍊',
     maxLevel: 5,
     desc: (l) => (getLang() === 'en' ? `Move speed +${l * 5}%` : `이동속도 +${l * 5}%`),
   },
   {
     id: 'pickup',
-    name: '집혼 향낭',
+    name: '기척 감지',
     hanja: '集魂香囊',
     maxLevel: 5,
     desc: (l) => (getLang() === 'en' ? `Pickup radius +${l * 12}%` : `픽업 반경 +${l * 12}%`),
   },
   {
     id: 'cooldown',
-    name: '전술 통달',
+    name: '호흡 조율',
     hanja: '戰術通達',
     maxLevel: 5,
     desc: (l) => (getLang() === 'en' ? `Cooldown -${(100 * (1 - Math.pow(0.96, l))).toFixed(0)}%` : `쿨다운 -${(100 * (1 - Math.pow(0.96, l))).toFixed(0)}%`),
   },
   {
     id: 'startLevel',
-    name: '숙련 출진',
+    name: '실전 경험',
     hanja: '熟練出陣',
     maxLevel: 5,
     desc: (l) =>
@@ -64,7 +64,7 @@ export const UPGRADE_DEFS: UpgradeDef[] = [
   },
   {
     id: 'revive',
-    name: '기사회생',
+    name: '생환의 의지',
     hanja: '起死回生',
     maxLevel: 1,
     desc: (l) =>
@@ -88,7 +88,7 @@ export function upgradeCost(def: UpgradeDef, currentLevel: number): number {
 }
 
 // 여포 해금 비용.
-export const LVBU_UNLOCK_COST = 5000;
+export const RENGOKU_UNLOCK_COST = 5000;
 
 // 메타 강화 레벨 → 런에 적용할 배수/세팅.
 export interface MetaMods {

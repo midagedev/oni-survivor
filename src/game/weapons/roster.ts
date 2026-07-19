@@ -6,6 +6,12 @@ import {
   PK_SLASHWAVE,
   PK_CAVALRY,
   PK_FIRE_ARROW,
+  PK_WATER,
+  PK_BUTTERFLY,
+  PK_FLAME,
+  PK_COMPASS,
+  PK_THORN,
+  PK_LOTUS,
 } from '../projectiles';
 import { ATTACK_HALBERD } from '../../gfx/attackSprites';
 import { NEW_WEAPONS } from '../../data/weaponUnlocks';
@@ -171,9 +177,9 @@ export class SpearWeapon extends TimedWeapon {
   protected baseCooldown = 1.1;
   protected fire(ctx: WeaponContext): void {
     const length = (5.0 + (this.level - 1) * 0.6) * ctx.stats.rangeMul;
-    const width = 0.72;
-    const isHinokami = ctx.musouActive && ctx.musouKey === 'zhaoyun';
-    const d = dmg(ctx, isHinokami ? 15 : 8, this.level, 0.15);
+    const width = 1.0; // 두께 상향 (0.72 -> 1.0)
+    const isHinokami = ctx.musouActive && ctx.musouKey === 'tanjiro';
+    const d = dmg(ctx, isHinokami ? 20 : 11, this.level, 0.15); // 데미지 상향 (8 -> 11)
     const bx = ctx.px + ctx.aimX * length;
     const bz = ctx.pz + ctx.aimZ * length;
     capsuleHit(ctx, ctx.px, ctx.pz, bx, bz, width, d, 3);
@@ -190,7 +196,7 @@ export class SpearWeapon extends TimedWeapon {
 // 2. 잔잔한 물결 (유동참) — 전방 120° 부채꼴 슬래시
 export class GuandaoWeapon extends TimedWeapon {
   readonly id = 'guandao';
-  protected baseCooldown = 1.45;
+  protected baseCooldown = 1.2; // 쿨다운 상향 (1.45 -> 1.2)
   protected fire(ctx: WeaponContext): void {
     const radius = (4.4 + (this.level - 1) * 0.35) * ctx.stats.areaMul;
     const half = 1.05 + (this.level - 1) * 0.02; // ~120°
@@ -209,7 +215,7 @@ export class ZhangbaWeapon extends TimedWeapon {
   protected fire(ctx: WeaponContext): void {
     const length = (4.6 + (this.level - 1) * 0.4) * ctx.stats.rangeMul;
     const width = 0.85;
-    const d = dmg(ctx, 10, this.level, 0.15);
+    const d = dmg(ctx, 13, this.level, 0.15); // 데미지 상향 (10 -> 13)
     const fx = ctx.aimX;
     const fz = ctx.aimZ;
     capsuleHit(ctx, ctx.px, ctx.pz, ctx.px + fx * length, ctx.pz + fz * length, width, d, 9);
@@ -225,14 +231,14 @@ export class BaiyuWeapon extends TimedWeapon {
   protected fire(ctx: WeaponContext): void {
     const count = 2 + Math.floor((this.level - 1) / 2) + ctx.stats.projectileBonus;
     const d = dmg(ctx, 9, this.level, 0.14);
-    const speed = 8.5 * ctx.stats.rangeMul;
+    const speed = 10.5 * ctx.stats.rangeMul; // 투사체 속도 상향 (8.5 -> 10.5)
     const pierce = 1 + Math.floor(this.level / 3);
     const base = Math.atan2(ctx.aimZ, ctx.aimX);
     for (let k = 0; k < count; k++) {
       const a = base + (k - (count - 1) * 0.5) * 0.24;
       ctx.projectiles.spawn(
         ctx.px, ctx.pz, Math.cos(a), Math.sin(a), speed, d, 0.5, pierce, 2.6,
-        PK_TALISMAN, 1.8, 0.5, 0.8, 1.5, 0.7, true, 7,
+        PK_LOTUS, 1.9, 0.35, 1.0, 1.3, 1.0, true, 7, // 매혹의 연기 — 유도 핏빛 연꽃
       );
     }
   }
@@ -241,13 +247,13 @@ export class BaiyuWeapon extends TimedWeapon {
 // 5. 벌레의 호흡 (나비 춤) — 최근접 적 자동 연사 독침
 export class CrossbowWeapon extends TimedWeapon {
   readonly id = 'crossbow';
-  protected baseCooldown = 0.55;
+  protected baseCooldown = 0.45; // 쿨다운 상향 (0.55 -> 0.45)
   protected cooldownPerLevel = 0.04;
   protected fire(ctx: WeaponContext): void {
     const dirX = ctx.aimX;
     const dirZ = ctx.aimZ;
     const shots = 1 + ctx.stats.projectileBonus;
-    const d = dmg(ctx, 7, this.level, 0.12);
+    const d = dmg(ctx, 9, this.level, 0.12); // 데미지 상향 (7 -> 9)
     const speed = 15 * ctx.stats.rangeMul;
     const pierce = Math.floor((this.level - 1) / 2);
     ctx.particles.butterflyPoison(ctx.px, ctx.pz, 6);
@@ -256,7 +262,7 @@ export class CrossbowWeapon extends TimedWeapon {
       const a = Math.atan2(dirZ, dirX) + spread;
       ctx.projectiles.spawn(
         ctx.px, ctx.pz, Math.cos(a), Math.sin(a), speed, d, 0.45, pierce, 1.6,
-        PK_ARROW, 0.7, 0.3, 0.9, 1.5, 0.55, // 시노부 보랏빛 침
+        PK_BUTTERFLY, 1.3, 0.45, 1.9, 1.4, 0.8, // 벌레의 호흡 — 팔랑이는 보랏빛 독나비
       );
     }
   }
@@ -289,11 +295,11 @@ export class FireWeapon extends TimedWeapon {
 // 7. 번개의 호흡 · 벽력일섬 (Thunderclap and Flash) — 초고속 순보 참격
 export class ThunderWeapon extends TimedWeapon {
   readonly id = 'thunder';
-  protected baseCooldown = 2.4;
+  protected baseCooldown = 2.1; // 쿨다운 상향 (2.4 -> 2.1)
   protected cooldownPerLevel = 0.03;
   protected fire(ctx: WeaponContext): void {
     const dashes = 2 + Math.floor(this.level / 2) + ctx.stats.projectileBonus;
-    const d = dmg(ctx, 22, this.level, 0.16);
+    const d = dmg(ctx, 26, this.level, 0.16); // 데미지 상향 (22 -> 26)
     let curX = ctx.px;
     let curZ = ctx.pz;
     const hitEnemies = new Set<number>();
@@ -393,7 +399,7 @@ export class HalberdWeapon extends TimedWeapon {
       const dz = Math.sin(ang);
       ctx.projectiles.spawn(
         ctx.px, ctx.pz, dx, dz, 13, d * 0.45, 1.2, 3, 0.6, // 투사체 대미지 계수 하향 (0.7 -> 0.45)
-        PK_SLASHWAVE, 0.8, 0.4, 2.2, radius * 0.7, radius * 0.5, false, 0, true,
+        PK_COMPASS, 0.85, 0.45, 2.3, radius * 0.7, radius * 0.5, false, 0, true, // 파괴살 — 나침반 충격파 링
       );
     }
   }
@@ -402,11 +408,11 @@ export class HalberdWeapon extends TimedWeapon {
 // 10. 화염의 호흡 — 화면 가로지르는 불호랑이 돌격
 export class CavalryWeapon extends TimedWeapon {
   readonly id = 'cavalry';
-  protected baseCooldown = 4.0;
+  protected baseCooldown = 3.0; // 쿨다운 상향 (4.0 -> 3.0)
   protected fire(ctx: WeaponContext): void {
     const count = 1 + Math.floor(this.level / 2) + ctx.stats.projectileBonus;
     const d = dmg(ctx, 18, this.level, 0.15);
-    const speed = 16;
+    const speed = 20; // 속도 상향 (16 -> 20)
     for (let k = 0; k < count; k++) {
       const a = ctx.rng.next() * Math.PI * 2;
       const dirX = Math.cos(a);
@@ -416,7 +422,7 @@ export class CavalryWeapon extends TimedWeapon {
       const sz = ctx.pz - dirZ * 22;
       ctx.projectiles.spawn(
         sx, sz, dirX, dirZ, speed, d, 1.3, 9999, 3.0,
-        PK_CAVALRY, 2.8, 0.6, 0.15, 4.5, 1.7, false, 0, true, // 쿄쥬로 불호랑이 질주
+        PK_FLAME, 2.9, 0.7, 0.12, 4.5, 1.7, false, 0, true, // 화염의 호흡 — 불꽃 용 돌격
       );
     }
   }
@@ -749,6 +755,99 @@ export class TwinringWeapon extends TimedWeapon {
   }
 }
 
+// 14. 사랑의 호흡 (미츠리) — 유연한 채찍검이 넓은 부채꼴을 휘감는 광역 참격
+export class LoveWeapon extends TimedWeapon {
+  readonly id = 'love';
+  protected baseCooldown = 1.3;
+  protected fire(ctx: WeaponContext): void {
+    const radius = (5.0 + (this.level - 1) * 0.4) * ctx.stats.areaMul;
+    const d = dmg(ctx, 14, this.level, 0.16);
+    arcHit(ctx, ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, 1.7, d, 4); // ~200° 채찍 스윕
+    const ang = Math.atan2(-ctx.aimZ, ctx.aimX);
+    ctx.effects.spawnTechniqueMesh('ribbon', ctx.px, 0.4, ctx.pz, ang, radius * 0.85, 0.8, radius * 0.85, 2.4, 0.7, 1.4, 0.85); // 사랑 분홍 리본
+    ctx.effects.spawnSlashArc(ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, 1.7, 2.4, 0.7, 1.4, 0.28);
+    ctx.particles.burst(ctx.px + ctx.aimX * radius * 0.6, ctx.pz + ctx.aimZ * radius * 0.6, 2.4, 0.7, 1.4, 8, 3);
+  }
+}
+
+// 15. 안개의 호흡 (무이치로) — 안개 속 순보로 전방을 꿰뚫는 3연속 고속 찌르기
+export class MistWeapon extends TimedWeapon {
+  readonly id = 'mist';
+  protected baseCooldown = 1.0;
+  protected cooldownPerLevel = 0.03;
+  protected fire(ctx: WeaponContext): void {
+    const length = (5.5 + (this.level - 1) * 0.5) * ctx.stats.rangeMul;
+    const d = dmg(ctx, 10, this.level, 0.14);
+    const base = Math.atan2(ctx.aimZ, ctx.aimX);
+    const spread = 1 + Math.floor(this.level / 3) + ctx.stats.projectileBonus; // 다중 순보 확장
+    for (let k = -spread; k <= spread; k++) {
+      const a = base + k * 0.16;
+      const dx = Math.cos(a);
+      const dz = Math.sin(a);
+      capsuleHit(ctx, ctx.px, ctx.pz, ctx.px + dx * length, ctx.pz + dz * length, 0.75, d, 3);
+      ctx.effects.spawnThrust(ctx.px, ctx.pz, dx, dz, length, 1.5, 1.2, 1.8, 2.1); // 안개 연청
+    }
+    ctx.particles.burst(ctx.px + ctx.aimX * length, ctx.pz + ctx.aimZ * length, 1.2, 1.8, 2.1, 8, 3);
+  }
+}
+
+// 16. 음의 호흡 (우즈이) — 폭약 콩알을 던져 전방에서 폭발시키는 폭명 충격파
+export class SoundWeapon extends TimedWeapon {
+  readonly id = 'sound';
+  protected baseCooldown = 2.2;
+  protected fire(ctx: WeaponContext): void {
+    const radius = (3.0 + (this.level - 1) * 0.3) * ctx.stats.areaMul;
+    const d = dmg(ctx, 22, this.level, 0.16);
+    const tx = ctx.px + ctx.aimX * 4;
+    const tz = ctx.pz + ctx.aimZ * 4;
+    arcHit(ctx, tx, tz, ctx.aimX, ctx.aimZ, radius, Math.PI, d, 6); // 360° 폭발
+    ctx.effects.spawnTripleShock(tx, tz, radius * 1.3, 2.2, 1.6, 0.6); // 음 금색
+    ctx.effects.spawnFlash(tx, tz, 2.2, 1.6, 0.6, radius);
+    ctx.effects.spawnRing(tx, tz, radius, 2.2, 1.6, 0.6, 0.3);
+    ctx.particles.burst(tx, tz, 2.2, 1.6, 0.6, 14, 6);
+  }
+}
+
+// 17. 바람의 호흡 (사네미) — 회오리 참격 + 사방으로 흩어지는 칼바람 참격파
+export class WindWeapon extends TimedWeapon {
+  readonly id = 'wind';
+  protected baseCooldown = 1.4;
+  protected fire(ctx: WeaponContext): void {
+    const radius = (4.6 + (this.level - 1) * 0.35) * ctx.stats.areaMul;
+    const d = dmg(ctx, 15, this.level, 0.16);
+    arcHit(ctx, ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, Math.PI, d, 4); // 360° 회오리
+    ctx.effects.spawnRing(ctx.px, ctx.pz, radius, 0.5, 1.9, 1.0, 0.3); // 바람 초록
+    const count = 4 + ctx.stats.projectileBonus;
+    for (let k = 0; k < count; k++) {
+      const a = (k / count) * Math.PI * 2 + this.level * 0.2;
+      ctx.projectiles.spawn(
+        ctx.px, ctx.pz, Math.cos(a), Math.sin(a), 12, d * 0.6, 1.2, 4, 1.2,
+        PK_SLASHWAVE, 0.5, 1.9, 1.0, 2.6, 1.9, // 초록 칼바람 참격파
+      );
+    }
+  }
+}
+
+// 18. 바위의 호흡 (히메지마) — 철구+도끼로 전방 지면을 내리찍는 광역 강타
+export class StoneWeapon extends TimedWeapon {
+  readonly id = 'stone';
+  protected baseCooldown = 1.8;
+  protected fire(ctx: WeaponContext): void {
+    const radius = (3.8 + (this.level - 1) * 0.35) * ctx.stats.areaMul;
+    const d = dmg(ctx, 24, this.level, 0.18);
+    const tx = ctx.px + ctx.aimX * radius * 0.6;
+    const tz = ctx.pz + ctx.aimZ * radius * 0.6;
+    arcHit(ctx, tx, tz, ctx.aimX, ctx.aimZ, radius, Math.PI, d, 8); // 강한 넉백
+    ctx.effects.spawnRing(tx, tz, radius, 1.6, 1.3, 0.7, 0.4); // 바위 갈금
+    ctx.effects.spawnFlash(tx, tz, 1.6, 1.3, 0.7, radius * 0.8);
+    ctx.effects.spawnTripleShock(tx, tz, radius, 1.6, 1.3, 0.7);
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      ctx.particles.dust(tx + Math.cos(a) * 2, tz + Math.sin(a) * 2);
+    }
+  }
+}
+
 // 진화 무기 -----------------------------------------------------------------
 
 // 수류참 (잔잔한 물결 진화) — 회전 참격파 발사 + 강화 부채꼴
@@ -767,7 +866,7 @@ export class ZhanmaWeapon extends TimedWeapon {
       const a = base + k * 0.28;
       ctx.projectiles.spawn(
         ctx.px, ctx.pz, Math.cos(a), Math.sin(a), 12, d, 1.4, 6, 1.4,
-        PK_SLASHWAVE, 0.7, 2.4, 1.2, 3.0, 2.2,
+        PK_WATER, 0.55, 2.2, 2.6, 3.2, 2.2, // 십일의 형 나기 — 푸른 물 참격파
       );
     }
   }
@@ -787,7 +886,7 @@ export class BamenWeapon extends TimedWeapon {
       const a = base + (k / count) * Math.PI * 2;
       ctx.projectiles.spawn(
         ctx.px, ctx.pz, Math.cos(a), Math.sin(a), speed, d, 0.55, 6, 3.0,
-        PK_TALISMAN, 1.6, 1.9, 2.4, 1.2, 1.0, true, 5, // 아군 청백 규약(#15)
+        PK_THORN, 1.5, 0.7, 2.4, 1.3, 1.1, true, 5, // 등꽃 결계 — 관통 등가시 결정
       );
     }
   }
@@ -881,7 +980,7 @@ export class YuanrongWeapon extends TimedWeapon {
       const a = (k / dirs) * Math.PI * 2;
       ctx.projectiles.spawn(
         ctx.px, ctx.pz, Math.cos(a), Math.sin(a), speed, d, 0.45, 2, 1.5,
-        PK_FIRE_ARROW, 2.6, 1.4, 0.5, 1.5, 0.55,
+        PK_BUTTERFLY, 1.4, 0.5, 2.0, 1.4, 0.8, // 나비의 춤 — 전방위 독나비 폭풍
       );
     }
   }
@@ -903,6 +1002,11 @@ export const WEAPON_CTORS: Record<string, WeaponCtor> = {
   caltrop: CaltropWeapon,
   poison: PoisonWeapon,
   twinring: TwinringWeapon,
+  love: LoveWeapon,
+  mist: MistWeapon,
+  sound: SoundWeapon,
+  wind: WindWeapon,
+  stone: StoneWeapon,
   zhanma: ZhanmaWeapon,
   bamen: BamenWeapon,
   chibi: ChibiWeapon,

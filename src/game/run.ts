@@ -190,7 +190,7 @@ export class Run {
   private readonly levelup = new LevelUp();
   private readonly hooks: RunHooks;
 
-  private hero: HeroDef = HEROES.zhaoyun;
+  private hero: HeroDef = HEROES.tanjiro;
   private meta: MetaMods | null = null;
   private state: State = 'attract';
   private gameTime = 0;
@@ -323,7 +323,7 @@ export class Run {
       (text) => this.hud.banner(text, '#e8c667', 60),
       () => this.hud.punchCombo(),
     );
-    this.musou = new Musou(this.hero.musou, () => {
+    this.musou = new Musou(this.hero.id, () => {
       this.musouFreezeT = 1.2; // 1.2초 동안 일러스트 컷인을 위한 시간정지 연출 활성화
       this.hud.banner('奧義 · 全集中', '#ffe9a8', 96, 1200, 3);
       this.hud.musouCutin(this.hero);
@@ -331,19 +331,19 @@ export class Run {
       audio.sfx('musou');
     });
     const BOSS_PORTRAITS: Record<string, string> = {
-      yuanshao: 'doma',
-      dongzhuo: 'enmu',
-      lvbu: 'muzan',
-      xiahoudun: 'akaza',
-      sunce: 'kokushibo',
-      simayi: 'rui',
-      zhouyu: 'gyokko',
-      huaxiong: 'nakime',
-      dianwei: 'gyutaro',
-      gaoshun: 'daki',
-      xiahouyuan: 'hantengu',
-      lumeng: 'akaza',
-      luxun: 'hand_demon',
+      doma: 'doma',
+      enmu: 'enmu',
+      muzan: 'muzan',
+      akaza: 'akaza',
+      kokushibo: 'kokushibo',
+      rui: 'rui',
+      gyokko: 'gyokko',
+      nakime: 'nakime',
+      gyutaro: 'gyutaro',
+      daki: 'daki',
+      hantengu: 'hantengu',
+      kaigaku: 'kokushibo', // 카이가쿠 전용 원화 부재 → 검객 계열 임시 대체 (GEMINI_API_KEY 설정 시 생성 가능)
+      handemon: 'hand_demon',
     };
     this.boss = new Boss(atlas, (name, hanja, typeId) => {
       this.hud.banner(`${name} ${t('bannerAppear')} ${hanja}`, '#e85c4a', 44, 1800, 2);
@@ -450,7 +450,7 @@ export class Run {
       hulaoActive: () => this.map.hulaoOn,
       requestLord: (x, z) => {
         if (this.boss.active) return;
-        this.boss.spawn('huaxiong', Math.max(1, this.gameTime / 60), this.ctx, x, z + 16);
+        this.boss.spawn('nakime', Math.max(1, this.gameTime / 60), this.ctx, x, z + 16);
         if (this.boss.idx >= 0) {
           this.enemies.x[this.boss.idx] = x;
           this.enemies.z[this.boss.idx] = z;
@@ -493,7 +493,7 @@ export class Run {
       this.hud.quote(
         this.hero.name,
         getLang() === 'en'
-          ? 'Luoyang is ours. Stay in the keep, resupply — the reclaimers will come.'
+          ? 'The Infinity Castle is ours. Hold the barrier — annihilate Muzan.'
           : '무한성을 함락시켰다. 결계를 사수하고 무잔을 소멸시켜라.',
         4200,
       );
@@ -652,7 +652,7 @@ export class Run {
     if (!h) return;
     this.hero = h;
     this.player.setHero(h);
-    this.musou.setHero(h.musou);
+    this.musou.setHero(h.id);
   }
 
   // 타이틀/선택/상점 배경용 어트랙트 모드(적 없이 지면+반딧불만, 플레이어 숨김).
@@ -931,7 +931,7 @@ export class Run {
     if (this.hulaoAt > 0 && this.gameTime >= this.hulaoAt && !this.map.hulaoOn && !this.map.isGateBreached()) {
       this.hulaoAt = 0;
       this.map.triggerHulao(this.player.x, this.player.z);
-      this.hud.banner(`${t('bannerHulao')} 虎牢關`, '#ffb05a', 48, 1800);
+      this.hud.banner(`${t('bannerHulao')} 無限城門`, '#ffb05a', 48, 1800);
       this.hud.quote(this.hero.name, hulaoNarration(), 3200);
       this.nextHeroQuoteAt = this.gameTime + 30;
       audio.sfx('warn');
@@ -1101,7 +1101,7 @@ export class Run {
     const preMusouZ = this.player.z;
     if (this.musou.update(dt, this.ctx, this.player)) this.cinematics.onMusouEnd();
     // 기유의 잔잔한 물결(凪): 무쌍 중 9.5m 반경 내 모든 적 투사체 소멸 및 푸른 시각 표식 생성
-    if (this.musou.active && this.hero.musou === 'guanyu') {
+    if (this.musou.active && this.hero.id === 'tomioka') {
       this.enemyProj.clearInCircle(this.player.x, this.player.z, 9.5, this.particles);
       if (Math.random() < 3.5 * dt) {
         this.effects.spawnTelegraph(0, this.player.x, this.player.z, 0, 19, 19, 0, 0.45); // 0 = TG_CIRCLE
@@ -1353,8 +1353,8 @@ export class Run {
   }
 
   // 슬롯별 등장 후보(랜덤). 9분 슬롯은 최종보스 여포 고정.
-  private static readonly BOSS_SLOT_3 = ['yuanshao', 'xiahoudun', 'sunce'];
-  private static readonly BOSS_SLOT_6 = ['dongzhuo', 'simayi', 'zhouyu'];
+  private static readonly BOSS_SLOT_3 = ['doma', 'akaza', 'kokushibo'];
+  private static readonly BOSS_SLOT_6 = ['enmu', 'rui', 'gyokko'];
 
   private checkBossSpawn(): void {
     if (this.boss.active) return;
@@ -1372,7 +1372,7 @@ export class Run {
       spawned = true;
     } else if (!this.bossFlags.b9 && this.gameTime >= 540) {
       this.bossFlags.b9 = true;
-      this.boss.spawn('lvbu', minute, this.ctx, this.player.x, this.player.z);
+      this.boss.spawn('muzan', minute, this.ctx, this.player.x, this.player.z);
       spawned = true;
     } else if (this.endless && this.gameTime >= this.nextMinibossAt) {
       // 무한 모드: 12분부터 3분 주기로 미니보스 5종 순환 (HP는 minute 스케일로 상승)
@@ -1542,12 +1542,12 @@ export class Run {
         progress01: done / 3,
       });
     } else if (s === 'lord') {
-      this.hud.setObjective({ title: en ? 'Slay the warlord Hua Xiong' : '성주 화웅을 베어라', color: '#e85c4a' });
+      this.hud.setObjective({ title: en ? 'Slay the warden Nakime' : '무한성 성주 나키메를 베어라', color: '#e85c4a' });
     } else if (s === 'captured') {
       const cr = this.siege.captureRemainSec;
       this.hud.setObjective({
         title: en ? 'Mugen Castle breached' : '무한성 침투 — 정비',
-        sub: en ? 'Stay in the keep. Reclaimers incoming' : '성에 머물러 대비 · 탈환군 내습 임박',
+        sub: en ? 'Hold the barrier. Demon horde incoming' : '결계를 사수 · 혈귀 무리 내습 임박',
         countdownSec: cr >= 0 ? cr : undefined,
         color: '#9affc0',
       });
@@ -1656,7 +1656,7 @@ export class Run {
     }
     if (en.boss[i] === 1) {
       // 무한성 수호자(화웅): 일반 보스 보상 경로 우회 → 공방전 점령으로 처리. (DESIGN 20)
-      if (this.boss.typeId === 'huaxiong') {
+      if (this.boss.typeId === 'nakime') {
         this.captureCastle(i);
         return;
       }
@@ -1701,7 +1701,7 @@ export class Run {
     }
     // 일반: 사망 파티클 버스트(적 틴트) + 젬
     // 시노부(황충) 패시브 고유 스킬: 처치 시 등나무꽃 독성 나비 영역(Zones) 생성 + 연쇄 폭발
-    if (this.hero.id === 'huangzhong') {
+    if (this.hero.id === 'shinobu') {
       this.zones.spawn(x, z, 2.4, 1.8, 42 * this.player.stats.damageMul, 0.7, 0.3, 0.9);
       this.particles.burst(x, z, 0.7, 0.3, 0.9, 8, 3.2);
     }
@@ -1774,7 +1774,7 @@ export class Run {
       this.hud.banner(`${getLang() === 'en' ? 'Gate Breached' : '성문 돌파'} 城門突破`, '#ffb05a', 52, 1600, 1);
       return;
     }
-    this.hud.banner(`${t('bannerHulaoBreak')} 虎牢關破城`, '#ffb05a', 58, 1900);
+    this.hud.banner(`${t('bannerHulaoBreak')} 無限城門突破`, '#ffb05a', 58, 1900);
     this.gateRushTimer = 0.8;
     this.gateRushX = gate.x;
     this.gateRushZ = gate.z;

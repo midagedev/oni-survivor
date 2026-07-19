@@ -20,8 +20,8 @@ export interface ShareData {
 
 const CARD_W = 1200;
 const CARD_H = 630;
-const GAME_URL = 'midagedev.github.io/threesur';
-const SHARE_URL = 'https://midagedev.github.io/threesur/';
+const GAME_URL = 'midagedev.github.io/oni-survivor';
+const SHARE_URL = 'https://midagedev.github.io/oni-survivor/';
 
 function fmtTime(sec: number): string {
   const mm = Math.floor(sec / 60);
@@ -217,7 +217,7 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.closePath();
 }
 
-// 朱印(주인) 스타일 도장: 승리=天下統一(붉은 원형 인장), 전사=戰死(먹빛).
+// 朱印(주인) 스타일 도장: 승리=無惨討伐(붉은 원형 인장), 전사=戰死(먹빛).
 function drawSeal(ctx: CanvasRenderingContext2D, cx: number, cy: number, victory: boolean): void {
   const r = 78;
   ctx.save();
@@ -236,8 +236,8 @@ function drawSeal(ctx: CanvasRenderingContext2D, cx: number, cy: number, victory
   ctx.textBaseline = 'middle';
   ctx.font = 'bold 40px "Nanum Myeongjo","Times New Roman",serif';
   if (victory) {
-    ctx.fillText('天下', 0, -26);
-    ctx.fillText('統一', 0, 26);
+    ctx.fillText('無惨', 0, -26);
+    ctx.fillText('討伐', 0, 26);
   } else {
     ctx.font = 'bold 62px "Nanum Myeongjo","Times New Roman",serif';
     ctx.fillText('戰死', 0, 0);
@@ -301,7 +301,7 @@ export async function shareCanvas(cv: HTMLCanvasElement, text: string): Promise<
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'ilgidangcheon.png';
+    a.download = 'oni-survivor.png';
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -377,7 +377,7 @@ export function openSharePreview(data: ShareData, atlas?: Atlas): void {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'ilgidangcheon.png';
+    a.download = 'oni-survivor.png';
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
     flash(en ? 'Image saved' : '이미지를 저장했습니다');

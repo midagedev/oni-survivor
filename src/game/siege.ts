@@ -11,7 +11,7 @@ import type { Rng } from '../core/rng';
 export type SiegeState =
   | 'enemy_held' // 적 점령(런 시작 상태) — 외성 3성문 + 내성문 봉쇄
   | 'breached' // 외성문 ≥1 파성
-  | 'lord' // 성주(화웅) 출진, 교전 중
+  | 'lord' // 성주(나키메) 출진, 교전 중
   | 'captured' // 성주 처치 → 거점화, 수성 개전 대기
   | 'counterattack' // 수성(탈환군 내습) 진행 중
   | 'held' // 사수 성공(종결)
@@ -30,8 +30,8 @@ export interface SiegeDeps {
   enemies: EnemyPool;
   rng: Rng;
   bossActive: () => boolean; // 보스전 중이면 성주 출진·수성 개전 연기
-  hulaoActive: () => boolean; // 호로관 세트피스 중이면 수성 개전 연기
-  requestLord: (x: number, z: number) => void; // run이 boss.spawn('huaxiong', …) 배선
+  hulaoActive: () => boolean; // 무한성 관문 세트피스 중이면 수성 개전 연기
+  requestLord: (x: number, z: number) => void; // run이 boss.spawn('nakime', …) 배선
   hitPlayer: (dmg: number) => void; // 불화살 착탄 피해(run.onPlayerHit 경로)
   placeSupply: (kind: 'dumpling' | 'gong', x: number, z: number) => void; // 거점화 보급 배치
 }

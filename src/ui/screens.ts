@@ -1,7 +1,7 @@
 import { HEROES, type HeroDef } from '../data/heroes';
 import { WEAPON_DEFS, EVOLUTIONS } from '../data/weapons';
 import { PASSIVE_BY_ID } from '../data/passives';
-import { UPGRADE_DEFS, upgradeCost, LVBU_UNLOCK_COST } from '../data/upgrades';
+import { UPGRADE_DEFS, upgradeCost, RENGOKU_UNLOCK_COST } from '../data/upgrades';
 import { BOSS_DEFS } from '../game/boss';
 import { ACHIEVEMENT_BY_ID, ACHIEVEMENTS } from '../data/achievements';
 import { anyRandomLine, dialogueSelect } from '../data/dialogue';
@@ -25,12 +25,12 @@ export interface ShareInfo {
 
 // 장수 선택 순서.
 const HERO_ORDER = [
-  'zhaoyun', 'zhugeliang', 'huangzhong', // 기본 해금 3인 (탄지로, 미츠리, 시노부)
-  'guanyu', 'zhangfei', 'sunshangxiang', 'lvbu',
+  'tanjiro', 'kanroji', 'shinobu', // 기본 해금 3인 (탄지로, 미츠리, 시노부)
+  'tomioka', 'nezuko', 'kanao', 'rengoku',
   'zenitsu', 'inosuke', 'tokito', 'uzui', 'sanemi', 'himejima',
 ];
 // 도감 보스 순서.
-const BOSS_ORDER = ['yuanshao', 'dongzhuo', 'lvbu'];
+const BOSS_ORDER = ['doma', 'enmu', 'muzan'];
 
 export interface ScreenCallbacks {
   onStart: () => void; // 타이틀 → 선택
@@ -39,7 +39,7 @@ export interface ScreenCallbacks {
   onBackToTitle: () => void;
   onRetry: () => void; // 결과 → 다시 출진
   onBuyUpgrade: (id: string) => void;
-  onUnlockLvbu: () => void;
+  onUnlockRengoku: () => void;
   onToggleMute: () => boolean; // 새 muted 상태 반환
   onResume: () => void;
   onAbandon: () => void;
@@ -227,7 +227,7 @@ export class Screens {
     this.current = 'select';
     const build = (): void => {
       const s = el('div', 'screen');
-      s.appendChild(el('div', 'section-title', `${t('selectTitle')} <small>將帥選擇</small>`));
+      s.appendChild(el('div', 'section-title', `${t('selectTitle')} <small>隊士選抜</small>`));
 
       const grid = el('div', 'hero-grid');
       for (const id of HERO_ORDER) {
@@ -235,7 +235,7 @@ export class Screens {
         if (!h) continue;
         const locked = !isHeroUnlocked(id, save);
         const card = el('div', locked ? 'hero-card locked' : 'hero-card');
-        if (locked && id === 'lvbu') card.classList.add('shop-lock');
+        if (locked && id === 'rengoku') card.classList.add('shop-lock');
         const port = heroPortrait(h, 2.4);
         card.appendChild(port);
         if (locked) {
@@ -252,7 +252,7 @@ export class Screens {
         const quote = dialogueSelect(id);
         if (quote && !locked) card.appendChild(el('div', 'hero-quote', `“${quote}”`));
         if (locked) {
-          if (id === 'lvbu') card.addEventListener('click', () => this.cb.onOpenShop('upgrade'));
+          if (id === 'rengoku') card.addEventListener('click', () => this.cb.onOpenShop('upgrade'));
         } else {
           card.addEventListener('click', () => this.cb.onSelectHero(id));
         }
@@ -272,19 +272,19 @@ export class Screens {
   private musouText(id: string): string {
     if (getLang() === 'en') return HERO_MUSOU_EN[id] ?? 'Musou';
     const map: Record<string, string> = {
-      zhaoyun: '무쌍 히노카미 카구라 — 조종 가능 무적 불꽃 돌격',
-      guanyu: '무쌍 나기(凪) — 거대 물 소용돌이 참격',
-      zhangfei: '무쌍 폭혈 — 전화면 혈폭 충격파',
-      zhugeliang: '무쌍 사랑의 호흡 — 주변 적 매혹 장막',
-      huangzhong: '무쌍 백화요란 — 전방위 맹독 침 폭풍',
-      sunshangxiang: '무쌍 파괴살 나침 — 충격파 난무',
-      lvbu: '무쌍 염호 — 조종 가능 무적 화염 돌격',
-      zenitsu: '무쌍 벽력일섬 — 8방향 무적 전광 돌격',
+      tanjiro: '무쌍 히노카미 카구라·원무 — 회전 태양 화염륜',
+      tomioka: '무쌍 나기(凪) — 거대 물 소용돌이 참격',
+      nezuko: '무쌍 폭혈 — 전화면 혈폭 + 혈염 장판',
+      kanroji: '무쌍 사랑의 호흡 — 유연한 채찍검 광역 난무',
+      shinobu: '무쌍 나비의 춤 — 전방위 독나비 폭풍',
+      kanao: '무쌍 피안주안 — 집중 참격과 방사 나비',
+      rengoku: '무쌍 염호 — 조종 가능 무적 화염 돌격',
+      zenitsu: '무쌍 벽력일섬·육련 — 번개 순보 연쇄 참격',
       inosuke: '무쌍 저돌맹진 — 8방향 무적 이도류 돌진',
-      tokito: '무쌍 안개의 호흡 — 거대 물안개 소용돌이 참격',
-      uzui: '무쌍 향응폭명 — 전화면 화약 폭발 충격파',
-      sanemi: '무쌍 바람의 호흡 — 거대 칼바람 소용돌이 참격',
-      himejima: '무쌍 암석의 호흡 — 전화면 대지 파쇄 충격파',
+      tokito: '무쌍 안개의 호흡 — 안개 순보 다중 참격',
+      uzui: '무쌍 음의 호흡 — 전화면 폭발 리듬 충격파',
+      sanemi: '무쌍 바람의 호흡 — 회오리 칼바람 참격',
+      himejima: '무쌍 바위의 호흡 — 전체 스턴 후 철구 강타',
     };
     return map[id] ?? '무쌍난무';
   }
@@ -499,16 +499,16 @@ export class Screens {
     }
 
     // 여포 해금
-    if (!save.lvbuUnlocked) {
+    if (!save.rengokuUnlocked) {
       const row = el('div', 'shop-row');
       const info = el('div', 'shop-info');
-      info.appendChild(el('div', 'name', `${t('lvbuUnlockName')}<span class="hanja">呂布</span>`));
-      info.appendChild(el('div', 'desc', t('lvbuUnlockDesc')));
+      info.appendChild(el('div', 'name', `${t('rengokuUnlockName')}<span class="hanja">煉獄</span>`));
+      info.appendChild(el('div', 'desc', t('rengokuUnlockDesc')));
       row.appendChild(info);
       const buyWrap = el('div', 'shop-buy');
-      buyWrap.appendChild(el('div', 'controls-hint', `⟡ ${LVBU_UNLOCK_COST}`));
+      buyWrap.appendChild(el('div', 'controls-hint', `⟡ ${RENGOKU_UNLOCK_COST}`));
       buyWrap.appendChild(
-        this.button(t('unlockBuy'), this.cb.onUnlockLvbu, { disabled: save.gold < LVBU_UNLOCK_COST }),
+        this.button(t('unlockBuy'), this.cb.onUnlockRengoku, { disabled: save.gold < RENGOKU_UNLOCK_COST }),
       );
       row.appendChild(buyWrap);
       list.appendChild(row);

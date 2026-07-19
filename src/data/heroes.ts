@@ -21,8 +21,8 @@ export interface HeroDef {
 }
 
 export const HEROES: Record<string, HeroDef> = {
-  zhaoyun: {
-    id: 'zhaoyun',
+  tanjiro: {
+    id: 'tanjiro',
     name: '탄지로',
     hanja: '竈門 炭治郎',
     portrait: 'tanjiro',
@@ -38,10 +38,10 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'spear',
     bonusText: '이동속도 +10%',
-    musou: 'lvbu',
+    musou: 'rengoku',
   },
-  guanyu: {
-    id: 'guanyu',
+  tomioka: {
+    id: 'tomioka',
     name: '기유',
     hanja: '冨岡 義勇',
     portrait: 'tomioka',
@@ -57,10 +57,10 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'guandao',
     bonusText: '공격력 +15%',
-    musou: 'guanyu',
+    musou: 'tomioka',
   },
-  zhangfei: {
-    id: 'zhangfei',
+  nezuko: {
+    id: 'nezuko',
     name: '네즈코',
     hanja: '竈門 禰豆子',
     portrait: 'nezuko',
@@ -76,10 +76,10 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'fire',
     bonusText: '최대체력 +25%',
-    musou: 'zhangfei',
+    musou: 'nezuko',
   },
-  zhugeliang: {
-    id: 'zhugeliang',
+  kanroji: {
+    id: 'kanroji',
     name: '미츠리',
     hanja: '甘露寺 蜜璃',
     portrait: 'kanroji',
@@ -93,12 +93,12 @@ export const HEROES: Record<string, HeroDef> = {
     cooldownMul: 0.95,
     rangeMul: 1,
     dmgTakenMul: 1,
-    startWeapon: 'orbit',
+    startWeapon: 'love',
     bonusText: '이동속도 +5% & 공격력 +10%',
-    musou: 'zhugeliang',
+    musou: 'kanroji',
   },
-  huangzhong: {
-    id: 'huangzhong',
+  shinobu: {
+    id: 'shinobu',
     name: '시노부',
     hanja: '胡蝶 しのぶ',
     portrait: 'shinobu',
@@ -114,29 +114,29 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'crossbow',
     bonusText: '사거리·투사체속도 +20%',
-    musou: 'huangzhong',
+    musou: 'shinobu',
   },
-  sunshangxiang: {
-    id: 'sunshangxiang',
-    name: '아카자',
-    hanja: '猗窩座',
-    portrait: 'akaza',
-    sheet: 'sgrade',
+  kanao: {
+    id: 'kanao',
+    name: '카나오',
+    hanja: '栗花落 カナヲ',
+    portrait: 'kanao',
+    sheet: 'apriority',
     charIndex: 5,
     baseHp: 90,
     baseSpeed: 5.3,
     speedMul: 1.1,
-    damageMul: 1,
+    damageMul: 1.05,
     maxHpMul: 1,
     cooldownMul: 1,
-    rangeMul: 1.15,
+    rangeMul: 1.2,
     dmgTakenMul: 1,
-    startWeapon: 'halberd',
-    bonusText: '사거리·투사체속도 +15%, 이동속도 +10%',
-    musou: 'sunshangxiang',
+    startWeapon: 'baiyu',
+    bonusText: '사거리·투사체속도 +20%, 이동속도 +10%',
+    musou: 'kanao',
   },
-  lvbu: {
-    id: 'lvbu',
+  rengoku: {
+    id: 'rengoku',
     name: '쿄쥬로',
     hanja: '煉獄 杏寿郎',
     portrait: 'rengoku',
@@ -152,7 +152,7 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1.25,
     startWeapon: 'cavalry',
     bonusText: '공격력 +25%, 받는 피해 +25%',
-    musou: 'lvbu',
+    musou: 'rengoku',
   },
   zenitsu: {
     id: 'zenitsu',
@@ -171,7 +171,7 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'thunder',
     bonusText: '이동속도 +15% & 쿨다운 -10%',
-    musou: 'zhaoyun',
+    musou: 'tanjiro',
   },
   inosuke: {
     id: 'inosuke',
@@ -190,7 +190,7 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'zhangba',
     bonusText: '공격력 +20% & 최대체력 +10%',
-    musou: 'zhaoyun',
+    musou: 'tanjiro',
   },
   tokito: {
     id: 'tokito',
@@ -207,9 +207,9 @@ export const HEROES: Record<string, HeroDef> = {
     cooldownMul: 0.85,
     rangeMul: 1,
     dmgTakenMul: 1,
-    startWeapon: 'guandao',
+    startWeapon: 'mist',
     bonusText: '쿨다운 -15% & 공격력 +15%',
-    musou: 'guanyu',
+    musou: 'tomioka',
   },
   uzui: {
     id: 'uzui',
@@ -226,9 +226,9 @@ export const HEROES: Record<string, HeroDef> = {
     cooldownMul: 1,
     rangeMul: 1.1,
     dmgTakenMul: 1,
-    startWeapon: 'zhangba',
+    startWeapon: 'sound',
     bonusText: '이동속도 +10% & 공격력 +15%',
-    musou: 'zhangfei',
+    musou: 'nezuko',
   },
   sanemi: {
     id: 'sanemi',
@@ -245,9 +245,9 @@ export const HEROES: Record<string, HeroDef> = {
     cooldownMul: 0.95,
     rangeMul: 1,
     dmgTakenMul: 1,
-    startWeapon: 'zhangba',
+    startWeapon: 'wind',
     bonusText: '공격력 +20% & 이동속도 +10%',
-    musou: 'guanyu',
+    musou: 'tomioka',
   },
   himejima: {
     id: 'himejima',
@@ -264,8 +264,8 @@ export const HEROES: Record<string, HeroDef> = {
     cooldownMul: 1,
     rangeMul: 1,
     dmgTakenMul: 0.85,
-    startWeapon: 'guandao',
+    startWeapon: 'stone',
     bonusText: '최대체력 +30% & 받는 피해 -15%',
-    musou: 'zhangfei',
+    musou: 'nezuko',
   },
 };

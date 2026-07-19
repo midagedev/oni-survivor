@@ -30,7 +30,7 @@ export class Companion {
   z = 0;
   readonly radius = 0.45;
 
-  private def: CompanionDef = COMPANION_BY_HERO.zhaoyun;
+  private def: CompanionDef = COMPANION_BY_HERO.tanjiro;
   private readonly atlas: Atlas;
   private sheet: SheetInfo;
   private readonly quad: SpriteQuad;
@@ -75,7 +75,7 @@ export class Companion {
 
   // opts로 2호(다른 정의/좌측 오프셋/270s 합류/위상차)를 구성. 미지정 시 1호 기본값.
   reset(heroId: string, opts?: { def?: CompanionDef; side?: 1 | -1; joinTime?: number; specialPhase?: number }): void {
-    this.def = opts?.def ?? COMPANION_BY_HERO[heroId] ?? COMPANION_BY_HERO.zhaoyun;
+    this.def = opts?.def ?? COMPANION_BY_HERO[heroId] ?? COMPANION_BY_HERO.tanjiro;
     const sheetName = this.def.sheet ?? 'apriority';
     this.sheet = this.atlas[sheetName];
     this.quad.setSheet(this.sheet);

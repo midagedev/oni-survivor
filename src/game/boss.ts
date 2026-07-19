@@ -14,8 +14,8 @@ import { ENEMY_TYPES } from '../data/enemyTypes';
 import type { Player } from './player';
 
 // 패턴: 기존 AI 파라미터 변형(신규 AI 최소화). fan=부채꼴 사격 / firezone=화염장판 /
-// dash=강화 돌진+참격 / rush=쾌속 근접 연속돌진 / delaybolt=지연 낙뢰(예고→광기둥) / lvbu=최종 복합.
-type BossPattern = 'fan' | 'firezone' | 'dash' | 'rush' | 'delaybolt' | 'lvbu';
+// dash=강화 돌진+참격 / rush=쾌속 근접 연속돌진 / delaybolt=지연 낙뢰(예고→광기둥) / muzan=최종 복합.
+type BossPattern = 'fan' | 'firezone' | 'dash' | 'rush' | 'delaybolt' | 'muzan';
 
 interface BossDef {
   name: string;
@@ -34,28 +34,28 @@ interface BossDef {
 
 // 3분/6분/9분 슬롯 + 무한 미니보스. 전부 스프라이트 보유(sgrade/apriority manifest charIndex).
 export const BOSS_DEFS: Record<string, BossDef> = {
-  // 3분 슬롯 (랜덤 1)
-  yuanshao: { name: '도마', hanja: '童磨', charIndex: 1, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 9000, speed: 2.5, contact: 14, radius: 1.4, tr: 0.8, tg: 1.2, tb: 1.5 },
-  xiahoudun: { name: '아카자', hanja: '猗窩座', charIndex: 5, sheet: SHEET_SGRADE, pattern: 'dash', hp: 9000, speed: 2.9, contact: 16, radius: 1.45, tr: 1.5, tg: 0.8, tb: 1.1 },
-  sunce: { name: '코쿠시보', hanja: '黒死牟', charIndex: 6, sheet: SHEET_SGRADE, pattern: 'rush', hp: 8800, speed: 3.3, contact: 15, radius: 1.35, tr: 1.0, tg: 0.6, tb: 1.3 },
-  // 6분 슬롯 (랜덤 1)
-  dongzhuo: { name: '엔무', hanja: '魘夢', charIndex: 2, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 5500, speed: 2.1, contact: 18, radius: 1.6, tr: 0.8, tg: 1.3, tb: 1.2 },
-  simayi: { name: '루이', hanja: '累', charIndex: 9, sheet: SHEET_SOLDIERS, pattern: 'delaybolt', hp: 6000, speed: 2.3, contact: 16, radius: 1.5, tr: 1.2, tg: 1.2, tb: 1.2 },
-  zhouyu: { name: '교코', hanja: '玉壺', charIndex: 3, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 5500, speed: 2.4, contact: 16, radius: 1.5, tr: 0.7, tg: 1.4, tb: 0.9 },
-  // 9분 고정 최종
-  lvbu: { name: '무잔', hanja: '鬼舞辻 無惨', charIndex: 7, sheet: SHEET_SGRADE, pattern: 'lvbu', hp: 12500, speed: 3.6, contact: 20, radius: 1.5, tr: 1.6, tg: 0.4, tb: 0.4 },
-  // 무한성 성주 나키메
-  huaxiong: { name: '나키메', hanja: '鳴女', charIndex: 8, sheet: SHEET_SOLDIERS, pattern: 'dash', hp: 7800, speed: 2.7, contact: 16, radius: 1.45, tr: 0.7, tg: 0.4, tb: 0.8 },
+  // 3분 슬롯 (랜덤 1) — 상현 혈귀
+  doma: { name: '도마', hanja: '童磨', charIndex: 1, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 9000, speed: 2.5, contact: 14, radius: 1.4, tr: 0.55, tg: 1.35, tb: 1.7 }, // 얼음 부채·연꽃 청록
+  akaza: { name: '아카자', hanja: '猗窩座', charIndex: 5, sheet: SHEET_SGRADE, pattern: 'dash', hp: 9000, speed: 2.9, contact: 16, radius: 1.45, tr: 1.7, tg: 0.55, tb: 0.9 }, // 파괴살 격투 분홍적
+  kokushibo: { name: '코쿠시보', hanja: '黒死牟', charIndex: 6, sheet: SHEET_SGRADE, pattern: 'rush', hp: 8800, speed: 3.3, contact: 15, radius: 1.35, tr: 1.4, tg: 0.5, tb: 1.05 }, // 달의 참격 붉보라
+  // 6분 슬롯 (랜덤 1) — 하현/상현 혈귀
+  enmu: { name: '엔무', hanja: '魘夢', charIndex: 2, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 5500, speed: 2.1, contact: 18, radius: 1.6, tr: 1.5, tg: 0.5, tb: 1.15 }, // 꿈 최면 분홍
+  rui: { name: '루이', hanja: '累', charIndex: 9, sheet: SHEET_SOLDIERS, pattern: 'delaybolt', hp: 6000, speed: 2.3, contact: 16, radius: 1.5, tr: 1.6, tg: 0.35, tb: 0.45 }, // 거미실 붉은
+  gyokko: { name: '교코', hanja: '玉壺', charIndex: 3, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 5500, speed: 2.4, contact: 16, radius: 1.5, tr: 0.4, tg: 1.25, tb: 1.6 }, // 물감옥 청록
+  // 9분 고정 최종 — 혈귀의 왕
+  muzan: { name: '무잔', hanja: '鬼舞辻 無惨', charIndex: 7, sheet: SHEET_SGRADE, pattern: 'muzan', hp: 12500, speed: 3.6, contact: 20, radius: 1.5, tr: 1.7, tg: 0.35, tb: 0.35 }, // 검붉은 촉수
+  // 무한성 성주 나키메 — 공간을 다루는 비파의 혈귀
+  nakime: { name: '나키메', hanja: '鳴女', charIndex: 8, sheet: SHEET_SOLDIERS, pattern: 'dash', hp: 7800, speed: 2.7, contact: 16, radius: 1.45, tr: 0.9, tg: 0.4, tb: 1.45 }, // 공간 이동 보라
   // 무한 미니보스 (12분+ 순환, 스케일링)
-  dianwei: { name: '규타로', hanja: '妓夫太郎', charIndex: 4, sheet: SHEET_SOLDIERS, pattern: 'dash', hp: 7500, speed: 2.8, contact: 17, radius: 1.4, tr: 1.3, tg: 1.1, tb: 0.7 },
-  gaoshun: { name: '다키', hanja: '堕姫', charIndex: 0, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 7500, speed: 2.5, contact: 15, radius: 1.35, tr: 1.5, tg: 0.8, tb: 1.2 },
-  xiahouyuan: { name: '한텐구', hanja: '半天狗', charIndex: 6, sheet: SHEET_SOLDIERS, pattern: 'delaybolt', hp: 7500, speed: 2.6, contact: 15, radius: 1.4, tr: 1.1, tg: 0.9, tb: 0.6 },
-  lumeng: { name: '카이가쿠', hanja: '獪岳', charIndex: 7, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 7500, speed: 2.5, contact: 16, radius: 1.45, tr: 0.5, tg: 0.8, tb: 1.5 },
-  luxun: { name: '손 혈귀', hanja: '手鬼', charIndex: 5, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 7500, speed: 2.5, contact: 15, radius: 1.4, tr: 0.4, tg: 1.4, tb: 0.8 },
+  gyutaro: { name: '규타로', hanja: '妓夫太郎', charIndex: 4, sheet: SHEET_SOLDIERS, pattern: 'dash', hp: 7500, speed: 2.8, contact: 17, radius: 1.4, tr: 1.4, tg: 0.85, tb: 0.4 }, // 독 낫 황갈
+  daki: { name: '다키', hanja: '堕姫', charIndex: 0, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 7500, speed: 2.5, contact: 15, radius: 1.35, tr: 1.7, tg: 0.6, tb: 1.2 }, // 오비 채찍 분홍
+  hantengu: { name: '한텐구', hanja: '半天狗', charIndex: 6, sheet: SHEET_SOLDIERS, pattern: 'delaybolt', hp: 7500, speed: 2.6, contact: 15, radius: 1.4, tr: 1.5, tg: 1.1, tb: 0.4 }, // 분열·속성 황
+  kaigaku: { name: '카이가쿠', hanja: '獪岳', charIndex: 7, sheet: SHEET_SOLDIERS, pattern: 'delaybolt', hp: 7500, speed: 2.5, contact: 16, radius: 1.45, tr: 2.2, tg: 1.9, tb: 0.4 }, // 번개 낙뢰 노랑
+  handemon: { name: '손 혈귀', hanja: '手鬼', charIndex: 5, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 7500, speed: 2.5, contact: 15, radius: 1.4, tr: 0.5, tg: 1.3, tb: 0.9 }, // 붙잡는 손 청록
 };
 
 // 무한 모드 미니보스 순환 순서.
-export const MINIBOSS_CYCLE = ['dianwei', 'gaoshun', 'xiahouyuan', 'lumeng', 'luxun'];
+export const MINIBOSS_CYCLE = ['gyutaro', 'daki', 'hantengu', 'kaigaku', 'handemon'];
 
 const SGRADE_BLOCK = 4 * 48; // sgrade/apriority 캐릭터 블록 폭(px, 4열)
 
@@ -125,7 +125,7 @@ export class Boss {
     this.onWarn(def.name, def.hanja, typeId);
     this.atk1 = 2.0;
     // 여포의 첫 번개 창은 돌진 전에 보여 회피 방향을 읽을 시간을 준다.
-    this.atk2 = def.pattern === 'lvbu' ? 1.15 : 3.5;
+    this.atk2 = def.pattern === 'muzan' ? 1.15 : 3.5;
     this.atk3 = 6.0;
     this.dashState = 0;
     this.boltT = -1;
@@ -171,8 +171,8 @@ export class Boss {
     dx /= dist;
     dz /= dist;
 
-    // 아카자(xiahoudun) 고유 스킬: 술식 전개 파괴살 나침 (바닥 눈결정 링 전개 및 가속)
-    if (this.typeId === 'xiahoudun') {
+    // 아카자(akaza) 고유 스킬: 술식 전개 파괴살 나침 (바닥 눈결정 링 전개 및 가속)
+    if (this.typeId === 'akaza') {
       if (this.atk3 <= 0) {
         this.atk3 = 4.0;
         ctx.effects.spawnTelegraph(0, en.x[i], en.z[i], 0, 12, 12, 0, 0.8); // 0 = TG_CIRCLE
@@ -209,7 +209,7 @@ export class Boss {
       case 'dash': this.updateDash(dt, ctx, enemyProj, i, dx, dz); break;
       case 'rush': this.updateRush(dt, ctx, enemyProj, i, dx, dz); break;
       case 'delaybolt': this.updateDelaybolt(dt, ctx, enemyProj, i, px, pz); break;
-      case 'lvbu': this.updateLvbu(dt, ctx, enemyProj, i, player, dx, dz); break;
+      case 'muzan': this.updateMuzan(dt, ctx, enemyProj, i, player, dx, dz); break;
     }
   }
 
@@ -393,7 +393,7 @@ export class Boss {
   }
 
   // 여포 -> 무잔: 돌진 + 참격파 + 진공 인력 흡입 + 졸개 소환
-  private updateLvbu(dt: number, ctx: WeaponContext, enemyProj: EnemyProjectilePool, i: number, player: Player, dx: number, dz: number): void {
+  private updateMuzan(dt: number, ctx: WeaponContext, enemyProj: EnemyProjectilePool, i: number, player: Player, dx: number, dz: number): void {
     const en = ctx.enemies;
     const px = player.x;
     const pz = player.z;

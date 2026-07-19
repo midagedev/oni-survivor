@@ -119,7 +119,7 @@ export class BattlefieldEvents {
     this.rushDirZ = Math.sin(a);
     this.rushRemaining = 30;
     this.rushAcc = 0;
-    this.d.banner(getLang() === 'en' ? 'Yellow Turban Horde 黃巾大軍' : '황건 대군 黃巾大軍', '#e8c667');
+    this.d.banner(getLang() === 'en' ? 'Demon Horde 血鬼大群' : '혈귀 대군 血鬼大群', '#e8c667');
   }
 
   private tickRush(dt: number, gameTime: number): void {

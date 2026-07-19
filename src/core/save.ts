@@ -1,7 +1,7 @@
 // 영구 저장 (localStorage). 골드·메타 강화·해금·최고기록·보스 도감·음소거.
 // 버전 필드 + 마이그레이션 가드로 스키마 변경에 안전.
 
-const KEY = 'threesur-save-v1';
+const KEY = 'oni-survivor-save-v1';
 const VERSION = 1;
 
 export interface BestRecord {
@@ -15,7 +15,7 @@ export interface SaveData {
   version: number;
   gold: number;
   upgrades: Record<string, number>; // 메타 강화 id → 레벨
-  lvbuUnlocked: boolean;
+  rengokuUnlocked: boolean;
   muted: boolean;
   best: BestRecord;
   bosses: string[]; // 처치한 보스 type id 목록 (도감)
@@ -32,7 +32,7 @@ function fresh(): SaveData {
     version: VERSION,
     gold: 0,
     upgrades: {},
-    lvbuUnlocked: false,
+    rengokuUnlocked: false,
     muted: false,
     best: { time: 0, kills: 0, level: 1, combo: 0 },
     bosses: [],
@@ -73,7 +73,7 @@ function migrate(data: unknown): SaveData {
     version: VERSION,
     gold: numOr(d.gold, 0),
     upgrades: sanitizeUpgrades(d.upgrades),
-    lvbuUnlocked: d.lvbuUnlocked === true,
+    rengokuUnlocked: d.rengokuUnlocked === true,
     muted: d.muted === true,
     best: {
       time: numOr(d.best?.time, 0),

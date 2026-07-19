@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://threesur.midagedev.com/sitemap.xml
+Sitemap: https://oni-survivor.midagedev.com/sitemap.xml

@@ -38,19 +38,19 @@ export interface Faction {
 }
 
 const FACTIONS: Faction[] = [
-  { id: 'yellowturban', ko: '황건적', hanja: '黃巾', en: 'Yellow Turbans',
+  { id: 'strays', ko: '떠돌이 혈귀', hanja: '徒鬼', en: 'Stray Demons',
     banner: [0.85, 0.62, 0.24],
     tints: [[1.32, 1.06, 0.5], [1.38, 1.12, 0.56], [1.24, 0.98, 0.46]],
     variantStart: 0, variantCount: 7 },
-  { id: 'dongzhuo', ko: '동탁군', hanja: '董卓', en: "Dong Zhuo's Host",
+  { id: 'lower', ko: '하현의 혈귀', hanja: '下弦', en: 'Lower Moons',
     banner: [0.72, 0.2, 0.17],
     tints: [[1.4, 0.66, 0.56], [1.28, 0.58, 0.5], [1.46, 0.74, 0.64]],
     variantStart: 7, variantCount: 7 },
-  { id: 'yuanshao', ko: '원소군', hanja: '袁紹', en: "Yuan Shao's Host",
+  { id: 'upper', ko: '상현의 혈귀', hanja: '上弦', en: 'Upper Moons',
     banner: [0.24, 0.44, 0.72],
     tints: [[0.66, 0.84, 1.4], [0.74, 0.9, 1.32], [0.6, 0.78, 1.46]],
     variantStart: 14, variantCount: 6 },
-  { id: 'warlords', ko: '군웅', hanja: '群雄', en: 'Warlords',
+  { id: 'kizuki', ko: '십이귀월', hanja: '十二鬼月', en: 'Twelve Kizuki',
     banner: [0.5, 0.54, 0.6],
     tints: [[0.88, 0.9, 1.02], [0.78, 0.82, 0.94], [1.0, 0.94, 0.92]],
     variantStart: 20, variantCount: 4 },
@@ -77,19 +77,11 @@ export class Spawner {
   private readonly atlas: Atlas;
   private readonly pool: EnemyPool;
   private readonly map: BattlefieldMap;
-  private readonly apriorityNames: string[];
 
   constructor(atlas: Atlas, pool: EnemyPool, map: BattlefieldMap) {
     this.atlas = atlas;
     this.pool = pool;
     this.map = map;
-    // apriority 인덱스→한글 이름
-    const chars = atlas.manifest.sheets.apriority.chars;
-    this.apriorityNames = new Array(16).fill('장수');
-    for (const key in chars) {
-      const idx = chars[key];
-      this.apriorityNames[idx] = atlas.manifest.names[key] ?? key;
-    }
   }
 
   reset(): void {
@@ -232,20 +224,21 @@ export class Spawner {
   private spawnElite(minute: number, px: number, pz: number): void {
     if (this.pool.aliveCount >= ENEMY_SOFT_CAP) return;
     this.ringPos(px, pz, this._p);
-    const charIndex = rng.int(16);
+    // 엘리트는 혈귀(soldiers 시트, 10종)에서 무작위 — 아군 柱 시트가 아니라 오니 정예.
+    const charIndex = rng.int(10);
     const hp = ENEMY_TYPES.guard.hp * 25 * this.hpScale(minute);
     const i = this.pool.spawn(
       this._p.x, this._p.z, hp, 2.2, 0.85, 13, 20, 1.5,
-      SHEET_APRIORITY, charIndex * APRIORITY_BLOCK, 0,
+      SHEET_SOLDIERS, charIndex * APRIORITY_BLOCK, 0,
     );
     if (i < 0) return;
     this.pool.elite[i] = 1;
     this.pool.kbResist[i] = 0.5; // 엘리트: 넉백 50% 저항
     this.pool.behavior[i] = BEHAVIOR_SHIELD;
     this.pool.tr[i] = 1.5;
-    this.pool.tg[i] = 1.2;
+    this.pool.tg[i] = 0.6;
     this.pool.tb[i] = 0.7;
-    this.pool.labels[i] = `${this.apriorityNames[charIndex]} 精銳`;
+    this.pool.labels[i] = '혈귀 정예 血鬼';
     this.pool.markSpecial(i);
   }
 

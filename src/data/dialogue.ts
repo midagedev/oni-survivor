@@ -8,7 +8,7 @@ export interface DialoguePack {
 }
 
 export const DIALOGUE: Record<string, DialoguePack> = {
-  zhaoyun: {
+  tanjiro: {
     name: "탄지로",
     select: "가마도 탄지로, 혈귀를 베기 위해 검을 들었습니다!",
     lines: [
@@ -23,7 +23,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "밤에는 일륜도를 쥔 채 오니들을 추격한다.",
     ],
   },
-  guanyu: {
+  tomioka: {
     name: "기유",
     select: "내 목숨을 걸고서라도 네즈코의 처분을 미뤄 다오.",
     lines: [
@@ -39,7 +39,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "밤이 깊어도 동료들의 의를 저버린 적 없다.",
     ],
   },
-  zhangfei: {
+  nezuko: {
     name: "네즈코",
     select: "음… 음음! (오빠, 내가 같이 싸울게!)",
     lines: [
@@ -55,22 +55,22 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "밤엔 오빠의 등 뒤를 노리는 혈귀들에게 발차기를 날린다.",
     ],
   },
-  zhugeliang: {
-    name: "타마요",
-    select: "인간으로 되돌릴 약은 반드시 완성될 것입니다.",
+  kanroji: {
+    name: "미츠리",
+    select: "가슴이 두근두근! 사랑의 힘으로 오니를 무찌를게요!",
     lines: [
-      "혈귀술, 감각을 어지럽히는 향기!",
-      "인간을 해치지 않고 오니를 무찌르는 방법을 갈구해 왔습니다.",
-      "무잔... 당신은 반드시 내가 지옥으로 보낼 것입니다.",
-      "유시로, 나를 도와 함께 약을 만들어 보아요.",
-      "의사로서, 그리고 한 인간으로서 속죄의 길을 걷겠습니다.",
-      "새벽에는 현미경으로 오니의 세포를 조사한다.",
-      "한낮에는 조용한 서재에서 한약재를 정성스레 다린다.",
-      "저물녘에는 동틀 녘의 기운이 사라지길 조용히 기다린다.",
-      "밤에는 혈귀술로 약물의 융합 상태를 확인한다.",
+      "사랑의 호흡 제1형 — 첫사랑의 떨림!",
+      "밥은 세 그릇! 아니, 다섯 그릇도 거뜬해요! 잘 먹어야 힘이 나니까요!",
+      "제 일륜도는 부드럽게 휘어져요. 근력이 남들의 여덟 배거든요!",
+      "다들 정말 소중해요… 이 마음이 제 검을 더 강하게 만들어요!",
+      "저보다 강한 분을 만나고 싶어요. 그래서 주(柱)가 되었는걸요!",
+      "새벽에는 벚꽃빛 머리를 곱게 땋으며 하루를 시작해요.",
+      "한낮에는 동료들과 도시락을 나눠 먹으며 웃음꽃을 피워요.",
+      "저물녘에는 부드러운 채찍검을 정성껏 손질해요.",
+      "밤에는 두근거리는 마음을 안고 오니를 향해 달려나가요.",
     ],
   },
-  huangzhong: {
+  shinobu: {
     name: "시노부",
     select: "벌레의 호흡, 춤(舞) — 나비 춤!",
     lines: [
@@ -85,7 +85,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "밤엔 소리 없이 날아다니는 나비처럼 혈귀를 찾아 나선다.",
     ],
   },
-  lvbu: {
+  rengoku: {
     name: "쿄쥬로",
     select: "마음을 불태워라. 한계를 뛰어넘어라!",
     lines: [
@@ -100,22 +100,22 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "밤에는 무한열차의 달리는 길목을 수호한다.",
     ],
   },
-  sunshangxiang: {
-    name: "아카자",
-    select: "너도 혈귀가 되어라. 나와 함께 무술의 극의를 걷자!",
+  kanao: {
+    name: "카나오",
+    select: "동전은 던지지 않아. 이번엔... 내 마음이 정했으니까.",
     lines: [
-      "강한 자는 살아남고, 약한 자는 도태된다. 이것이 이치다.",
-      "파괴살 나침... 네 투기(鬪氣)가 다 보이는군!",
-      "쿄쥬로, 너는 이대로 죽기엔 너무나 아깝다!",
-      "더 강한 강자를 내놔라! 멈추지 말고 덤벼라!",
-      "내 주먹은 한계가 없다. 허공을 뚫고 지나가리라!",
-      "새벽에는 무림의 극한을 찾아 주먹을 내지른다.",
-      "한낮에는 조용히 눈을 감고 투기의 조화를 살핀다.",
-      "저물녘에는 붉은 노을을 보며 옛 기억의 단편을 헤매인다.",
-      "밤에는 끝없는 강자들과 생사를 겨룬다.",
+      "꽃의 호흡, 벌레의 호흡... 시노부 님께 배운 검을 잇겠어요.",
+      "꽃의 호흡 · 종ノ형, 피안주안(彼岸朱眼)!",
+      "눈에 힘을 모으면, 당신의 움직임이 느리게 보여요.",
+      "카나에 언니, 시노부 님... 두 분의 몫까지 베겠습니다.",
+      "이제는 내 마음의 소리에 따라 움직여요.",
+      "새벽에는 나비를 따라 조용히 숨을 고른다.",
+      "한낮에는 정원의 꽃을 바라보며 마음을 다잡는다.",
+      "저물녘에는 아오이와 함께 부상병을 돌본다.",
+      "밤에는 언니들이 남긴 검을 홀로 갈고닦는다.",
     ],
   },
-  liubei: {
+  urokodaki: {
     name: "우로코다키",
     select: "판단이 늦다! 정신 차려라!",
     lines: [
@@ -130,7 +130,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "밤에는 두 남매의 장래를 생각하며 편지를 적는다.",
     ],
   },
-  caocao: {
+  sabito: {
     name: "사비토",
     select: "사내로 태어났다면 고통을 견뎌라!",
     lines: [
@@ -145,7 +145,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "밤에는 사령(死靈)의 목소리가 들리는 좁사 산을 지킨다.",
     ],
   },
-  zhouyu: {
+  yushiro: {
     name: "유시로",
     select: "타마요 님께 무례하게 굴지 마라!",
     lines: [
@@ -160,7 +160,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "밤에는 타마요 님을 위해 차를 끓이고 곁을 지킨다.",
     ],
   },
-  zhangliao: {
+  inosuke: {
     name: "이노스케",
     select: "저돌맹진! 저돌맹진!! 이 몸이 가신다!",
     lines: [
@@ -175,7 +175,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "밤에는 제일 큰 혈귀의 기운을 감지하며 냄새를 쫓는다.",
     ],
   },
-  yuanshao: {
+  doma: {
     name: "도마",
     select: "나는 만세극락교의 교주란다. 슬픔도 아픔도 없는 극락으로 인도해 주마.",
     lines: [
@@ -190,7 +190,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "밤에는 맛있는 신도를 골라 한구석에서 만찬을 즐긴다.",
     ],
   },
-  dongzhuo: {
+  enmu: {
     name: "엔무",
     select: "행복한 꿈을 꾸게 해 줄게. 영원히 깨어나지 않는 달콤한 꿈을...",
     lines: [
@@ -205,7 +205,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "밤에는 강제 수면 가스를 뿜어 전 차량을 지배한다.",
     ],
   },
-  xiahoudun: {
+  akaza: {
     name: "아카자",
     select: "술식을 전개한다. 나침!",
     lines: [
@@ -220,7 +220,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "밤에는 귀살대의 주들을 토벌하러 전장을 종횡무진한다.",
     ],
   },
-  sunce: {
+  kokushibo: {
     name: "코쿠시보",
     select: "달의 호흡... 눈을 떠라, 일륜의 검이여.",
     lines: [
@@ -235,7 +235,7 @@ export const DIALOGUE: Record<string, DialoguePack> = {
       "밤에는 상현의 1로서 오니들을 통솔하고 침입자를 벤다.",
     ],
   },
-  simayi: {
+  rui: {
     name: "루이",
     select: "내 가족의 인연을 방해하지 마라.",
     lines: [

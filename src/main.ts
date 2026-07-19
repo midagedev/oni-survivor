@@ -11,7 +11,7 @@ import { Joystick, isTouchDevice } from './ui/joystick';
 import { audio } from './core/audio';
 import { loadSave, writeSave, updateBest } from './core/save';
 import type { SaveData } from './core/save';
-import { computeMeta, UPGRADE_BY_ID, upgradeCost, LVBU_UNLOCK_COST } from './data/upgrades';
+import { computeMeta, UPGRADE_BY_ID, upgradeCost, RENGOKU_UNLOCK_COST } from './data/upgrades';
 import { pickEpithet } from './data/epithets';
 import { evaluateAchievements, bestTitle } from './data/achievements';
 import { isHeroUnlocked, unlockedHeroIds } from './data/heroUnlocks';
@@ -26,8 +26,8 @@ const app = document.getElementById('app')!;
 const loading = document.createElement('div');
 loading.id = 'loading';
 loading.innerHTML =
-  '<div style="font-size:30px;">일기당천 一騎當千</div>' +
-  '<div style="font-size:15px;color:#b8bcc8;">전장 준비 중…</div>';
+  '<div style="font-size:30px;">滅鬼無雙</div>' +
+  '<div style="font-size:15px;color:#b8bcc8;">출진 준비 중…</div>';
 document.body.appendChild(loading);
 
 const renderer = createRenderer(app);
@@ -41,7 +41,7 @@ loadAtlas()
     audio.setMuted(save.muted);
 
     let scene: Scene = 'title';
-    let lastHero = 'zhaoyun';
+    let lastHero = 'tanjiro';
     let lastResult: RunResult | null = null;
 
     const run = new Run(
@@ -65,7 +65,7 @@ loadAtlas()
       onBackToTitle: () => goTitle(),
       onRetry: () => startRun(lastResult?.heroId ?? lastHero),
       onBuyUpgrade: (id) => buyUpgrade(id),
-      onUnlockLvbu: () => unlockLvbu(),
+      onUnlockRengoku: () => unlockRengoku(),
       onToggleMute: () => {
         save.muted = audio.toggleMuted();
         writeSave(save);
@@ -174,10 +174,10 @@ loadAtlas()
       audio.sfx('uiClick');
       screens.rerenderShop();
     }
-    function unlockLvbu(): void {
-      if (save.lvbuUnlocked || save.gold < LVBU_UNLOCK_COST) return;
-      save.gold -= LVBU_UNLOCK_COST;
-      save.lvbuUnlocked = true;
+    function unlockRengoku(): void {
+      if (save.rengokuUnlocked || save.gold < RENGOKU_UNLOCK_COST) return;
+      save.gold -= RENGOKU_UNLOCK_COST;
+      save.rengokuUnlocked = true;
       writeSave(save);
       audio.sfx('revive');
       screens.rerenderShop();
@@ -265,7 +265,7 @@ loadAtlas()
         screens.rerenderShop();
       },
       buyUpgrade: (id: string) => buyUpgrade(id),
-      unlockLvbu: () => unlockLvbu(),
+      unlockRengoku: () => unlockRengoku(),
       killPlayer: () => run.testKillPlayer(),
       damagePlayer: (n: number) => run.testDamagePlayer(n),
       killBoss: () => run.testKillBoss(),
@@ -276,7 +276,7 @@ loadAtlas()
         return {
           gold: save.gold,
           upgrades: { ...save.upgrades },
-          lvbuUnlocked: save.lvbuUnlocked,
+          rengokuUnlocked: save.rengokuUnlocked,
           best: { ...save.best },
           bosses: [...save.bosses],
           achievements: [...save.achievements],

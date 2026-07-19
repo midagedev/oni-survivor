@@ -23,13 +23,13 @@ const CASTLE_FLOW_OFF = 41; // 히스테리시스: 이 밖이면 비활성
 const CASTLE_TITLE_R = 30; // 구역 이름표 페이드 반경
 
 // === 성문 HP 직접 타격(#50 21.2) ===
-// 봉쇄 성문·호로관에 HP 부여. run이 근접 딜(초당 근사)을 damageGate로 중계해 깎는다.
+// 봉쇄 성문·무한성 관문에 HP 부여. run이 근접 딜(초당 근사)을 damageGate로 중계해 깎는다.
 // 기존 "9m 내 12킬" 카운트는 폐기 — 비가시·비직관이라 성문 파성이 전달되지 않았다.
 // 밸런스: run은 근접 시 초당 ~120·player.damageMul을 흘려보낸다(GATE_STREAM_DPS 배선 근거).
 //   외성문 800 → 기본 damageMul 1에서 focused ~6.7초, 후반 배수 2~3배면 2~3초.
-//   호로관은 세트피스라 900(≈7.5초). 잡몹 처치도 GATE_KILL_DMG만큼 소량 기여(공성 감각).
+//   무한성 관문은 세트피스라 900(≈7.5초). 잡몹 처치도 GATE_KILL_DMG만큼 소량 기여(공성 감각).
 export const GATE_MAX_HP = 800; // 외성 3성문(리드 튜닝 가능)
-export const GATE_MAX_HP_HULAO = 900; // 호로관 세트피스 게이트
+export const GATE_MAX_HP_HULAO = 900; // 무한성 관문 세트피스 게이트
 const GATE_KILL_DMG = 26; // 성문 인근 처치 1회 기여(소량 — 주 파성 경로는 근접 딜 스트림)
 const GATE_KILL_R = 9; // 처치 기여 반경(성문에서 이 거리 안)
 
@@ -226,7 +226,7 @@ export class BattlefieldMap {
     'castle-w': GATE_MAX_HP,
     hulao: GATE_MAX_HP_HULAO,
   };
-  // 오픈필드가 기본. 정적 성곽 구역은 상시 존재, 호로관 성벽/게이트는 세트피스 동안만 존재.
+  // 오픈필드가 기본. 정적 성곽 구역은 상시 존재, 무한성 관문 성벽/게이트는 세트피스 동안만 존재.
   private hulaoActive = false;
   private hulaoTimer = 0;
   private hulaoX = 0;
@@ -250,7 +250,7 @@ export class BattlefieldMap {
     this.playerX = playerX;
     this.playerZ = playerZ;
 
-    // 호로관 세트피스 타이머(성곽과 독립적으로 유지).
+    // 무한성 관문 세트피스 타이머(성곽과 독립적으로 유지).
     if (this.hulaoActive) {
       this.hulaoTimer -= dt;
       if (this.hulaoTimer <= 0 || this.breached.has('hulao')) this.endHulao();
@@ -269,7 +269,7 @@ export class BattlefieldMap {
       this.flowTimer = 0; // 전이 즉시 flow 재구성
     }
 
-    // flow-field는 성곽 근처이거나 호로관 세트피스 중일 때만 돈다(오픈필드는 직접 추적).
+    // flow-field는 성곽 근처이거나 무한성 관문 세트피스 중일 때만 돈다(오픈필드는 직접 추적).
     this.flowActive = this.hulaoActive || this.castleFlow;
     if (!this.flowActive) return;
     this.flowTimer -= dt;
@@ -307,7 +307,7 @@ export class BattlefieldMap {
     this.rebuild(); // 오픈필드 + 정적 성곽으로 초기화
   }
 
-  // 호로관 세트피스 시작: 플레이어 북쪽에 성문 벽을 세운다(제한 시간 또는 파성 시 소멸).
+  // 무한성 관문 세트피스 시작: 플레이어 북쪽에 성문 벽을 세운다(제한 시간 또는 파성 시 소멸).
   triggerHulao(px: number, pz: number, durationSec = 45): void {
     this.hulaoActive = true;
     // 정적 성곽과 겹치지 않는 가장 가까운 배치를 고른다.
@@ -330,7 +330,7 @@ export class BattlefieldMap {
     this.rebuildFlow();
   }
 
-  // 호로관 가로 성벽(중심 x, z / 폭 ±20)이 성곽 외성 영역과 겹치는지(AABB, 여유 3m).
+  // 무한성 관문 가로 성벽(중심 x, z / 폭 ±20)이 성곽 외성 영역과 겹치는지(AABB, 여유 3m).
   private hulaoOverlapsCastle(x: number, z: number): boolean {
     const m = 3;
     const halfSpan = 20;
@@ -582,7 +582,7 @@ export class BattlefieldMap {
     castleRenderData.bannerVersion++;
   }
 
-  // 호로관 성문: 가로 성벽 한 줄 + 중앙 게이트(파성 전까지 콜라이더). 세트피스 전용.
+  // 무한성 관문: 가로 성벽 한 줄 + 중앙 게이트(파성 전까지 콜라이더). 세트피스 전용.
   private buildHulao(): void {
     const gx = this.hulaoX;
     const gz = this.hulaoZ;
@@ -671,7 +671,7 @@ export class BattlefieldMap {
     if (visible) this.walls.push({ x, z, hx: width * 0.5, hz: depth * 0.5, horizontal, visible });
   }
 
-  // 무한성 관문 봉쇄 콜라이더(파성 전까지). 호로관 게이트 콜라이더와 동일 규격 —
+  // 외성 관문 봉쇄 콜라이더(파성 전까지). 무한성 관문 세트피스 게이트 콜라이더와 동일 규격 —
   // 파성되면 rebuild가 이 콜라이더를 생략하고, flow-field가 통행로를 반영한다.
   private addCastleGateCollider(key: string, x: number, z: number, gateWidth: number, horizontal: boolean): void {
     if (this.breached.has(key)) return;
@@ -855,7 +855,7 @@ export class BattlefieldMap {
     return this.damageGate(key, GATE_KILL_DMG);
   }
 
-  // QA: 호로관 게이트를 다음 1회 기여로 파성 직전까지 몰아준다.
+  // QA: 무한성 관문 게이트를 다음 1회 기여로 파성 직전까지 몰아준다.
   primeGate(): void {
     if (!this.breached.has('hulao')) this.gateHp['hulao'] = GATE_KILL_DMG;
   }

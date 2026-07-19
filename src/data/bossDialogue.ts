@@ -1,10 +1,7 @@
 // 보스 등장/처치 1줄 대사 (한/영). 배너 옆 짧은 위압 대사 — 40자 이내.
-// 원천: three-kingdoms-mud gunungjeon q4 메인 퀘스트 스레드 + 인물 카드(cards/<id>.json voices)의
-//   서사 톤을 보스별 전역에 매칭해 발췌·번안. 정사/연의의 대표 일화를 압축.
-//   전역 매칭: 관도=원소 · 동탁의 난=동탁/여포/하후돈 · 강동=손책 · 적벽=주유 · 완성=전위 ·
-//   하비 함진영=고순 · 한중 정군산=하후연 · 형주=여몽 · 이릉=육손 · 북벌=사마의.
-// 순수 데이터. phase2 보스 로스터(#35)가 소비.
-// #49 보강: 등장/처치 풀을 2줄로 넓혀 반복 노출 시 다양성 확보(노출 빈도는 불변 — 각 이벤트 1줄).
+// 귀멸의 칼날 십이귀월/혈귀 각자의 성격·서사에 맞춘 대사. 원작 톤을 압축.
+// 순수 데이터. run.ts 보스 등장/처치 이벤트가 소비.
+// 등장/처치 풀을 2줄로 넓혀 재대면 시 반복감을 줄인다(이벤트당 1줄 노출).
 import { getLang } from '../core/i18n';
 
 export interface BossLine {
@@ -13,130 +10,141 @@ export interface BossLine {
 }
 
 export const BOSS_LINES: Record<string, BossLine> = {
-  yuanshao: {
+  // 상현 2 · 도마 — 만세극락교 교주, 감정 없는 위선
+  doma: {
     appear: [
-      { ko: '하북의 대군이다. 관도의 둑을 넘을 성싶으냐.', en: 'The host of Hebei. Think you to cross the Guandu dike?' },
-      { ko: '사세삼공의 이름 앞이다. 무릎이 먼저 꺾일 것이다.', en: 'Four generations of ministers stand here — your knees break first.' },
+      { ko: '슬픔도 아픔도 없는 극락으로 인도해 줄게.', en: 'Let me guide you to a paradise with no sorrow, no pain.' },
+      { ko: '화내면 못써~ 웃으면서 죽는 게 최고란다.', en: 'Now now, no anger — smiling as you die is best.' },
     ],
     death: [
-      { ko: '군세는 컸으나… 내 결단이 늦었구나.', en: 'My armies were vast… my resolve came too late.' },
-      { ko: '옳은 쪽을 고를 하루가… 이제는 없구나.', en: 'The day left to choose the right side… is gone.' },
+      { ko: '어라, 지는 건가. 뭐, 아무 느낌도 없지만.', en: 'Oh, am I losing? Well, I feel nothing anyway.' },
+      { ko: '시노부 양… 내 안에서 함께 있어줄 거지?', en: 'Shinobu dear… you\'ll stay inside me, won\'t you?' },
     ],
   },
-  dongzhuo: {
+  // 하현 1 · 엔무 — 꿈을 지배하는 무한열차의 혈귀
+  enmu: {
     appear: [
-      { ko: '낙양을 불사른 이 몸이 두렵지 않으냐!', en: 'I burned Luoyang to ash. Do you not fear me?' },
-      { ko: '폐립도 내 뜻이었다. 네 목숨도 그러하리라.', en: 'I unmade emperors at will — your life is no different.' },
+      { ko: '행복한 꿈을 꾸게 해줄게. 영원히 깨지 않는…', en: 'I\'ll give you a happy dream. One you never wake from…' },
+      { ko: '잠들어라… 강제 혼도 수면 최면!', en: 'Sleep now… Forced Unconsciousness Hypnosis!' },
     ],
     death: [
-      { ko: '재로 세운 권세가… 재로 돌아가는가.', en: 'Power raised from ash… returns to ash.' },
-      { ko: '미오의 곳간이… 나보다 오래 남겠구나.', en: 'The granaries of Mei… will outlast me.' },
+      { ko: '무잔 님… 저는 아직 쓸모가 있는데…', en: 'Lord Muzan… I am still of use to you…' },
+      { ko: '이 달콤한 꿈도… 끝이란 말인가.', en: 'Even this sweet dream… must end.' },
     ],
   },
-  lvbu: {
+  // 최종보스 · 키부츠지 무잔 — 천 년을 산 혈귀의 시조
+  muzan: {
     appear: [
-      { ko: '천하의 여포다. 나를 당할 자 있거든 나오라!', en: 'I am Lü Bu. Let any who can match me step forth!' },
-      { ko: '방천극의 무게를 재려는 눈이 또 하나 늘었군.', en: 'Another pair of eyes come to weigh my halberd.' },
+      { ko: '천 년을 산 나를, 하루살이가 막겠다는 것이냐.', en: 'A mayfly dares to stop me, who has lived a thousand years?' },
+      { ko: '나는 완전한 생물이다. 무릎을 꿇어라.', en: 'I am the perfect being. Kneel before me.' },
     ],
     death: [
-      { ko: '적토마여… 나를 두고 어디로 가느냐.', en: 'Red Hare… where do you go, leaving me behind?' },
-      { ko: '가까이 둔 칼이… 끝내 나를 겨눴는가.', en: 'The blade I kept close… turned on me at last.' },
+      { ko: '이럴 리 없다… 태양만, 태양만 아니었다면!', en: 'Impossible… if only, if only not for the sun!' },
+      { ko: '누군가… 태양을 극복해 다오…', en: 'Someone… overcome the sun for me…' },
     ],
   },
-  xiahoudun: {
+  // 상현 3 · 아카자 — 강함만을 추앙하는 격투가
+  akaza: {
     appear: [
-      { ko: '부모의 눈을 화살째 삼킨 하후돈이다!', en: 'Xiahou Dun — I swallowed my own eye, arrow and all!' },
-      { ko: '내 한 발은 주공 막사 앞에 박혔다. 물러서지 않는다.', en: 'My foot is planted before my lord’s tent — I do not retreat.' },
+      { ko: '술식 전개. 파괴살 — 나침(羅針)!', en: 'Technique deployed. Destructive Death: Compass Needle!' },
+      { ko: '더 강해져라! 너도 혈귀가 되면 되잖아!', en: 'Grow stronger! Just become a demon like me!' },
     ],
     death: [
-      { ko: '남은 한 눈에… 주공의 깃발이 흐려진다.', en: 'In my one eye… my lord’s banner grows dim.' },
-      { ko: '막사 앞… 첫 한 발을 이제야 뒤로 떼는가.', en: 'Before the tent… now at last my foot steps back.' },
+      { ko: '코유키… 나는 이제 싸우지 않아.', en: 'Koyuki… I won\'t fight anymore.' },
+      { ko: '결국… 아무것도 지키지 못했군.', en: 'In the end… I protected nothing.' },
     ],
   },
-  sunce: {
+  // 상현 1 · 코쿠시보 — 달의 호흡, 요리이치의 형
+  kokushibo: {
     appear: [
-      { ko: '강동은 내가 세웠다. 소패왕의 창을 받아라!', en: 'I forged Jiangdong. Take the Little Conqueror’s spear!' },
-      { ko: '낡은 부곡이 노를 잡았다. 새 깃발이 그 뒤를 친다!', en: 'Old retainers man the oars — the new banner strikes behind!' },
+      { ko: '달의 호흡… 눈을 떠라, 일륜의 검이여.', en: 'Moon Breathing… awaken, blade of the sun.' },
+      { ko: '오백 년을 갈고닦은 참격을 받아라.', en: 'Receive the slash I honed for five centuries.' },
     ],
     death: [
-      { ko: '강동을 아우에게… 손권, 뒤를 맡긴다.', en: 'Jiangdong to my brother… Sun Quan, hold it.' },
-      { ko: '너무 빨리 열린 문이… 나를 삼키는구나.', en: 'The gate that opened too fast… swallows me now.' },
+      { ko: '요리이치… 나는 대체 무엇을 위해…', en: 'Yoriichi… what was it all for…' },
+      { ko: '그저 형이 되고 싶었을 뿐인데…', en: 'I only wished to be a good elder brother…' },
     ],
   },
-  simayi: {
+  // 하현 5 · 루이 — 거미줄로 가족을 엮는 혈귀
+  rui: {
     appear: [
-      { ko: '죽은 공명도 산 중달을 이기지 못했다.', en: 'Even dead Kongming never bested the living Zhongda.' },
-      { ko: '낙엽은 담 밑까지 몰아 한 번에 거둔다.', en: 'I sweep the leaves to the wall, then take them all at once.' },
+      { ko: '내 가족의 인연을 방해하지 마라.', en: 'Do not interfere with my family\'s bonds.' },
+      { ko: '각혈선혈… 붉은 실로 영원히 묶어주마.', en: 'Cutting Thread Cage… bound in red thread forever.' },
     ],
     death: [
-      { ko: '때를 기다린 내가… 그 때에 잡히는구나.', en: 'I who waited for the hour… am seized by it.' },
-      { ko: '아껴 둔 북소리를… 끝내 울리지 못했다.', en: 'The war-drum I hoarded… I never got to sound.' },
+      { ko: '진짜 가족의 인연은… 이런 게 아니었나.', en: 'A true family bond… was not this, was it.' },
+      { ko: '아버지… 어머니… 미안해요…', en: 'Father… Mother… I\'m sorry…' },
     ],
   },
-  zhouyu: {
+  // 상현 5 · 교코 — 도자기 항아리에 깃든 예술광
+  gyokko: {
     appear: [
-      { ko: '적벽에 동남풍이 분다. 불바다를 보아라!', en: 'The southeast wind rises at Chibi. Behold the inferno!' },
-      { ko: '묶인 배는 한 덩이 장작이다. 불씨 하나면 된다.', en: 'Chained ships are one great pyre — a single spark will do.' },
+      { ko: '내 예술을 감상할 영광을 주지.', en: 'I grant you the honor of viewing my art.' },
+      { ko: '물속에서 도망칠 수 있을 것 같으냐?', en: 'Do you think you can flee within the water?' },
     ],
     death: [
-      { ko: '하늘이 주유를 내고 어찌 공명을 냈는가…', en: 'Heaven bore Yu — why then did it bear Liang?' },
-      { ko: '음이 틀렸다… 이 한 줄이 불길의 길을 바꾸는가.', en: 'A false note… does this one string turn the fire’s path?' },
+      { ko: '이 몸은 완벽한 예술인데… 어째서…', en: 'I am perfect art… so why…' },
+      { ko: '무잔 님… 상현의 자리를 지키지 못해…', en: 'Lord Muzan… I could not keep my Upper Rank…' },
     ],
   },
-  dianwei: {
+  // 상현 6 · 규타로 — 남매 혈귀의 오빠
+  gyutaro: {
     appear: [
-      { ko: '주공께는 손대지 못한다. 이 문은 전위가 막는다!', en: 'None shall touch my lord. Dian Wei bars this gate!' },
-      { ko: '문은 좁아야 좋다. 한 사람만 들면 한 사람만 막는다.', en: 'A narrow gate is best — one enters, one is stopped.' },
+      { ko: '우리 남매를 이길 수 있을 것 같아?', en: 'You think you can beat us siblings?' },
+      { ko: '혈귀술… 비혈경(飛血鏡) 원환(圓環)!', en: 'Blood Demon Art: Flying Blood Sickle Circle!' },
     ],
     death: [
-      { ko: '이 문만은… 내 주검으로 막으리라.', en: 'This gate alone… I hold with my corpse.' },
-      { ko: '떨리는 팔로도… 다섯 걸음은 지켰다.', en: 'Even with trembling arms… I held the five paces.' },
+      { ko: '다키… 오빠가 미안하다…', en: 'Ume… your brother is sorry…' },
+      { ko: '지옥이라도… 남매는 함께다.', en: 'Even in hell… we go together.' },
     ],
   },
-  gaoshun: {
+  // 상현 6 · 다키 — 규타로의 여동생
+  daki: {
     appear: [
-      { ko: '함진영이 나선다. 무너지되 물러서지 않는다.', en: 'The Trap-Breaker Camp advances. We fall, never retreat.' },
-      { ko: '일곱 줄이다. 한 줄이 비면 그 자리부터 진다.', en: 'Seven ranks. Where one empties, there we lose.' },
+      { ko: '감히 이 다키 님한테 대드는 거야?', en: 'You dare defy me, the great Daki?' },
+      { ko: '팔중 오비로 갈기갈기 찢어주지!', en: 'My eight sashes will tear you to shreds!' },
     ],
     death: [
-      { ko: '여포공을 따라… 하비에서 스러지는가.', en: 'Following Lord Lü… I fade at Xiapi.' },
-      { ko: '끊긴 줄 하나… 그게 나였구나.', en: 'One broken rank… and it was mine.' },
+      { ko: '오빠… 나 무서워… 어디 있어…', en: 'Big brother… I\'m scared… where are you…' },
+      { ko: '혼자 두지 마… 오빠…', en: 'Don\'t leave me alone… brother…' },
     ],
   },
-  xiahouyuan: {
+  // 상현 4 · 한텐구 — 감정마다 분열하는 겁쟁이 혈귀
+  hantengu: {
     appear: [
-      { ko: '사흘에 오백 리, 질풍의 하후연이다!', en: 'Five hundred li in three days — Xiahou Yuan the gale!' },
-      { ko: '성을 보면 늦는다. 나는 성 밖 길목을 친다!', en: 'Eye the walls and you’re late — I strike the road beyond!' },
+      { ko: '무섭다, 무서워! …아니, 이건 분노다!', en: 'Scary, so scary! …No — this is rage!' },
+      { ko: '나는 약하다… 그러니 넷으로 나뉘어 친다!', en: 'I am weak… so I split into four and strike!' },
     ],
     death: [
-      { ko: '정군산 안개 속에… 목이 가벼워졌다.', en: 'In the mist of Dingjun… my head has gone light.' },
-      { ko: '한 번 보고 친 길이… 내 뒤를 비웠구나.', en: 'The road I struck on sight… left my own rear bare.' },
+      { ko: '용서를… 나는 아무 잘못도 없다!', en: 'Mercy… I have done nothing wrong!' },
+      { ko: '가짜였나… 진짜 몸은 어디에…', en: 'A decoy again… where is the true body…' },
     ],
   },
-  lumeng: {
+  // 상현 6(후임) · 카이가쿠 — 번개의 호흡, 젠이츠의 형제자
+  kaigaku: {
     appear: [
-      { ko: '흰 옷으로 강을 건넜다. 형주는 이미 오의 것.', en: 'In white robes I crossed the river. Jing is Wu’s now.' },
-      { ko: '병이라 적은 문서가 먼저 강을 건넜다.', en: 'A letter feigning illness crossed the river first.' },
+      { ko: '번개의 호흡… 나는 젠이츠 따위와 다르다.', en: 'Thunder Breathing… I am nothing like Zenitsu.' },
+      { ko: '칠형까지 익힌 나야말로 최강이다!', en: 'I mastered all seven forms — I am the strongest!' },
     ],
     death: [
-      { ko: '관공의 원혼이… 나를 부르는구나.', en: 'The wronged spirit of Lord Guan… calls me.' },
-      { ko: '늦게 잡은 책도… 여기서 덮이는가.', en: 'The book I took up late… closes here.' },
+      { ko: '스승님… 나는 왜 항상 이 모양인가…', en: 'Master… why am I always like this…' },
+      { ko: '젠이츠… 네가… 나보다…', en: 'Zenitsu… you… surpassed me…' },
     ],
   },
-  luxun: {
+  // 최초의 시련 · 손 혈귀(手鬼) — 우로코다키의 제자들을 삼킨 원한
+  handemon: {
     appear: [
-      { ko: '서생이라 얕보았느냐. 이릉의 불줄을 받아라!', en: 'You scorned a scholar? Take the fire-line of Yiling!' },
-      { ko: '더운 바람이 먼저 일하게 두었다. 긴 영채가 탄다.', en: 'I let the hot wind work first — the long camp burns.' },
+      { ko: '우로코다키의 냄새가 난다… 미워, 미워!', en: 'I smell Urokodaki… I hate it, I hate it!' },
+      { ko: '손이다… 너도 내 손아귀에 잡아주마!', en: 'Hands… I\'ll grab you in my hands too!' },
     ],
     death: [
-      { ko: '촉을 삼킨 불도… 끝내 재만 남기는구나.', en: 'Even the fire that ate Shu… leaves only ash.' },
-      { ko: '얇은 종이로 눌렀으나… 나도 눌리는구나.', en: 'I pressed with thin paper… now I too am pressed.' },
+      { ko: '형아… 무서워… 손 잡아줘…', en: 'Big brother… I\'m scared… hold my hand…' },
+      { ko: '잘못했어요… 이제 안 그럴게요…', en: 'I\'m sorry… I won\'t do it again…' },
     ],
   },
 };
 
 // 현재 언어로 보스 대사 조회(풀에서 1줄 랜덤). 없으면 빈 문자열.
-// 등장/처치 이벤트당 1줄 노출은 그대로 — 풀만 넓혀 재대면 시 반복감을 줄인다.
 export function bossLine(id: string, kind: 'appear' | 'death'): string {
   const b = BOSS_LINES[id];
   if (!b) return '';
