@@ -144,7 +144,7 @@ export class Player {
   constructor(atlas: Atlas, hero: HeroDef, light: LightUniforms) {
     this.atlas = atlas;
     this.hero = hero;
-    this.quad = new SpriteQuad(atlas.sgrade, light);
+    this.quad = new SpriteQuad(atlas[hero.sheet || 'sgrade'], light);
     this.quad.setPlayer(true); // 군중 속 가독성용 림 글로우 활성
     this.quad.setFootDepth(true); // #52 발 기준 깊이 통일 — 기운 빌보드 머리가 벽 박스에 파묻혀 가려지지 않게
     this.baseSpeed = hero.baseSpeed;
@@ -465,7 +465,7 @@ export class Player {
     this.sqSY += (tsy - this.sqSY) * sk;
     this.quad.setSquash(this.sqSX, this.sqSY);
 
-    cellUvOffset(this.atlas.sgrade, this.blockPx, 0, this.dir, this.frame, this.uv);
+    cellUvOffset(this.atlas[this.hero.sheet || 'sgrade'], this.blockPx, 0, this.dir, this.frame, this.uv);
     this.quad.setUv(this.uv.u, this.uv.v);
     this.quad.setFlash(this.flash);
     this.quad.setPosition(this.x, 0, this.z);
