@@ -272,13 +272,19 @@ export class Screens {
   private musouText(id: string): string {
     if (getLang() === 'en') return HERO_MUSOU_EN[id] ?? 'Musou';
     const map: Record<string, string> = {
-      zhaoyun: '무쌍 히노카미 카구라 — 8방향 무적 태양 돌진',
+      zhaoyun: '무쌍 히노카미 카구라 — 조종 가능 무적 불꽃 돌격',
       guanyu: '무쌍 나기(凪) — 거대 물 소용돌이 참격',
       zhangfei: '무쌍 폭혈 — 전화면 혈폭 충격파',
-      zhugeliang: '무쌍 혈술 환각 — 환각 혈술 폭풍',
-      huangzhong: '무쌍 벌레의 춤 — 전방위 독침',
+      zhugeliang: '무쌍 사랑의 호흡 — 주변 적 매혹 장막',
+      huangzhong: '무쌍 백화요란 — 전방위 맹독 침 폭풍',
       sunshangxiang: '무쌍 파괴살 나침 — 충격파 난무',
-      lvbu: '무쌍 화염의 호랑이 — 조작 가능 무적 화염 돌진',
+      lvbu: '무쌍 염호 — 조종 가능 무적 화염 돌격',
+      zenitsu: '무쌍 벽력일섬 — 8방향 무적 전광 돌격',
+      inosuke: '무쌍 저돌맹진 — 8방향 무적 이도류 돌진',
+      tokito: '무쌍 안개의 호흡 — 거대 물안개 소용돌이 참격',
+      uzui: '무쌍 향응폭명 — 전화면 화약 폭발 충격파',
+      sanemi: '무쌍 바람의 호흡 — 거대 칼바람 소용돌이 참격',
+      himejima: '무쌍 암석의 호흡 — 전화면 대지 파쇄 충격파',
     };
     return map[id] ?? '무쌍난무';
   }
