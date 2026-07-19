@@ -30,6 +30,8 @@ export interface WeaponContext {
   particles: ParticleSystem;
   stats: PlayerStats;
   rng: Rng;
+  musouActive?: boolean;
+  musouKey?: string;
   // 적 처치 시 호출(파티클/젬/킬 카운트는 run이 처리)
   onKill: (index: number) => void;
   onAttack: (weaponId: string, dirX: number, dirZ: number) => void;

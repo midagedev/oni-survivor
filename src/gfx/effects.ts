@@ -23,6 +23,23 @@ import {
 } from './attackSprites';
 import { TelegraphBatch } from './telegraph';
 import { KOStarBatch } from './koStar';
+import {
+  GlowMeshBatch,
+  makeWaterStreamGeometry,
+  makeClawGeometry,
+  makeNeedleGeometry,
+  makeCompassGeometry,
+  makeThornGeometry,
+  makeDualBladeGeometry,
+  makeFlameDragonGeometry,
+  makeSunDiscGeometry,
+  makeLightningBoltGeometry,
+  makeRibbonSwordGeometry,
+  makeButterflyGeometry,
+  makeMoonCrescentGeometry,
+  makeBloodLotusGeometry,
+} from './meshProjectiles';
+import type { LightUniforms } from './lightField';
 
 interface Slot {
   mesh: Mesh;
@@ -107,6 +124,71 @@ export class EffectsSystem {
   spawnDecal: ((x: number, z: number, radius: number, r: number, g: number, b: number) => void) | null = null;
   // 무쌍 우선순위 광원 (run이 LightField.spawn(prio=true)로 주입). 전투 광원에 밀리지 않음.
   spawnMusouLight: ((x: number, z: number, r: number, g: number, b: number, radius: number, life: number) => void) | null = null;
+
+  // 귀멸의 칼날 3D 호흡 기술 전용 발광 메시 배치
+  private glowWater: GlowMeshBatch | null = null;
+  private glowFlame: GlowMeshBatch | null = null;
+  private glowSun: GlowMeshBatch | null = null;
+  private glowThunder: GlowMeshBatch | null = null;
+  private glowRibbon: GlowMeshBatch | null = null;
+  private glowButterfly: GlowMeshBatch | null = null;
+  private glowClaw: GlowMeshBatch | null = null;
+  private glowMoon: GlowMeshBatch | null = null;
+  private glowBlood: GlowMeshBatch | null = null;
+  private glowCompass: GlowMeshBatch | null = null;
+
+  initGlowBatches(light: LightUniforms): void {
+    this.glowWater = new GlowMeshBatch(this.scene, makeWaterStreamGeometry(), 64, light);
+    this.glowFlame = new GlowMeshBatch(this.scene, makeFlameDragonGeometry(), 64, light);
+    this.glowSun = new GlowMeshBatch(this.scene, makeSunDiscGeometry(), 64, light);
+    this.glowThunder = new GlowMeshBatch(this.scene, makeLightningBoltGeometry(), 64, light);
+    this.glowRibbon = new GlowMeshBatch(this.scene, makeRibbonSwordGeometry(), 64, light);
+    this.glowButterfly = new GlowMeshBatch(this.scene, makeButterflyGeometry(), 64, light);
+    this.glowClaw = new GlowMeshBatch(this.scene, makeClawGeometry(), 64, light);
+    this.glowMoon = new GlowMeshBatch(this.scene, makeMoonCrescentGeometry(), 64, light);
+    this.glowBlood = new GlowMeshBatch(this.scene, makeBloodLotusGeometry(), 64, light);
+    this.glowCompass = new GlowMeshBatch(this.scene, makeCompassGeometry(), 64, light);
+  }
+
+  spawnTechniqueMesh(
+    theme: 'water' | 'flame' | 'sun' | 'thunder' | 'ribbon' | 'butterfly' | 'claw' | 'moon' | 'blood' | 'compass',
+    x: number, y: number, z: number, theta: number,
+    sx: number, sy: number, sz: number,
+    r: number, g: number, b: number, fade = 1.0,
+  ): void {
+    switch (theme) {
+      case 'water':
+        this.glowWater?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
+        break;
+      case 'flame':
+        this.glowFlame?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
+        break;
+      case 'sun':
+        this.glowSun?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
+        break;
+      case 'thunder':
+        this.glowThunder?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
+        break;
+      case 'ribbon':
+        this.glowRibbon?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
+        break;
+      case 'butterfly':
+        this.glowButterfly?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
+        break;
+      case 'claw':
+        this.glowClaw?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
+        break;
+      case 'moon':
+        this.glowMoon?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
+        break;
+      case 'blood':
+        this.glowBlood?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
+        break;
+      case 'compass':
+        this.glowCompass?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
+        break;
+    }
+  }
 
   constructor(scene: Scene) {
     this.scene = scene;
@@ -260,7 +342,8 @@ export class EffectsSystem {
     s.mesh.scale.set(length, 1, width);
     (s.mat.uniforms.uColor.value as Color).setRGB(r, g, b);
     s.mat.uniforms.uAlpha.value = 1;
-    if (showArt) this.attackSprites.spawn(ATTACK_SPEAR, px, pz, dirX, dirZ, length, width * 0.82, dur * 1.22);
+    // 3D 메시 전용: 2D 도트 스프라이트 오버레이 주석 처리
+    // if (showArt) this.attackSprites.spawn(ATTACK_SPEAR, px, pz, dirX, dirZ, length, width * 0.82, dur * 1.22);
   }
 
   spawnDoubleThrust(
@@ -277,7 +360,7 @@ export class EffectsSystem {
   ): void {
     this.spawnThrust(px, pz, dirX, dirZ, length, width, r, g, b, dur, false);
     this.spawnThrust(px, pz, -dirX, -dirZ, length, width, r, g, b, dur, false);
-    this.attackSprites.spawn(ATTACK_ZHANGBA, px, pz, dirX, dirZ, length * 2.15, width * 0.9, dur * 1.2);
+    // this.attackSprites.spawn(ATTACK_ZHANGBA, px, pz, dirX, dirZ, length * 2.15, width * 0.9, dur * 1.2);
   }
 
   // 부채꼴 슬래시 아크 (언월도/방천화극/참마검). halfAngle=반각(라디안).
@@ -306,11 +389,27 @@ export class EffectsSystem {
     (s.mat.uniforms.uColor.value as Color).setRGB(r, g, b);
     s.mat.uniforms.uHalf.value = halfAngle;
     s.mat.uniforms.uT.value = 0;
-    const artScale = artKind === ATTACK_HALBERD ? 2.05 : 1.45;
-    this.attackSprites.spawn(
-      artKind === ATTACK_HALBERD ? ATTACK_HALBERD : ATTACK_GUANDAO,
-      px, pz, dirX, dirZ, radius * artScale, radius * artScale, dur * 1.1,
-    );
+
+    const theta = Math.atan2(-dirZ, dirX);
+    if (r > 2.0 && g < 1.0) {
+      this.spawnTechniqueMesh('flame', px, 0.4, pz, theta, radius * 0.9, 0.8, radius * 0.9, r, g, b, 0.95);
+    } else if (b > 1.8 && r < 1.0) {
+      this.spawnTechniqueMesh('water', px, 0.4, pz, theta, radius * 0.9, 0.8, radius * 0.9, r, g, b, 0.95);
+    } else if (r > 2.0 && g > 1.8) {
+      this.spawnTechniqueMesh('sun', px, 0.4, pz, theta, radius, 1.0, radius, r, g, b, 0.95);
+    } else if (r > 1.0 && b > 1.5) {
+      this.spawnTechniqueMesh('butterfly', px, 0.4, pz, theta, radius * 0.85, 0.8, radius * 0.85, r, g, b, 0.95);
+    } else if (r > 1.5 && g < 0.8 && b > 1.0) {
+      this.spawnTechniqueMesh('ribbon', px, 0.4, pz, theta, radius * 0.9, 0.8, radius * 0.9, r, g, b, 0.95);
+    } else {
+      this.spawnTechniqueMesh('moon', px, 0.4, pz, theta, radius * 0.85, 0.8, radius * 0.85, r, g, b, 0.95);
+    }
+    // 3D 메시 전용: 2D 도트 스프라이트 오버레이 주석 처리
+    // const artScale = artKind === ATTACK_HALBERD ? 2.05 : 1.45;
+    // this.attackSprites.spawn(
+    //   artKind === ATTACK_HALBERD ? ATTACK_HALBERD : ATTACK_GUANDAO,
+    //   px, pz, dirX, dirZ, radius * artScale, radius * artScale, dur * 1.1,
+    // );
   }
 
   // 확장 충격파 링.
@@ -432,7 +531,7 @@ export class EffectsSystem {
     s.mesh.visible = true;
   }
 
-  // 시차 3중 충격파(장비 포효 등). 0 / 0.11 / 0.22s 간격.
+  // 시차 3중 충격파(네즈코 포효 등). 0 / 0.11 / 0.22s 간격.
   spawnTripleShock(x: number, z: number, maxRadius: number, r = 1.6, g = 1.0, b = 0.4): void {
     this.spawnRing(x, z, maxRadius, r, g, b, 0.55);
     for (let k = 1; k <= 2; k++) {
@@ -481,13 +580,24 @@ export class EffectsSystem {
     s.mesh.visible = true;
   }
 
-  // 청록 화염 트레일 퍼프(관우 청룡). 경로를 따라 반복 호출.
+  // 청록 화염 트레일 퍼프(기유 수격). 경로를 따라 반복 호출.
   spawnFlameTrail(x: number, z: number, r = 0.4, g = 1.9, b = 1.1): void {
     this.spawnFlash(x, z, r, g, b, 1.5);
   }
 
   update(dt: number): void {
     this.flashThisFrame = 0; // #40: 프레임당 flash 스폰 카운터 리셋(대량 처치 킬플래시 누적 상한)
+    this.glowWater?.begin();
+    this.glowFlame?.begin();
+    this.glowSun?.begin();
+    this.glowThunder?.begin();
+    this.glowRibbon?.begin();
+    this.glowButterfly?.begin();
+    this.glowClaw?.begin();
+    this.glowMoon?.begin();
+    this.glowBlood?.begin();
+    this.glowCompass?.begin();
+
     this.attackSprites.update(dt);
     this.telegraph.update(dt);
     this.koStar.update(dt);
@@ -501,6 +611,17 @@ export class EffectsSystem {
     this.tickRingQueue(dt);
     this.tickSimple(this.bolts, dt);
     this.tickSimple(this.chains, dt);
+
+    this.glowWater?.end();
+    this.glowFlame?.end();
+    this.glowSun?.end();
+    this.glowThunder?.end();
+    this.glowRibbon?.end();
+    this.glowButterfly?.end();
+    this.glowClaw?.end();
+    this.glowMoon?.end();
+    this.glowBlood?.end();
+    this.glowCompass?.end();
   }
 
   private tickDecals(dt: number): void {

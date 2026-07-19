@@ -179,7 +179,7 @@ export class ParticleSystem {
     );
   }
 
-  // 만두 수레 김 (상시). 흰 김이 천천히 위로 피어오른다.
+  // 등나무꽃 약탕 김 (상시). 흰 김이 천천히 위로 피어오른다.
   steam(x: number, z: number): void {
     const ang = Math.random() * Math.PI * 2;
     const rr = Math.random() * 0.5;
@@ -221,7 +221,7 @@ export class ParticleSystem {
     );
   }
 
-  // 군신 사당 향 연기 (상시). 은은한 금빛 연기가 완만히 오른다.
+  // 등나무꽃 사당 향 연기 (상시). 은은한 금빛 연기가 완만히 오른다.
   incense(x: number, z: number): void {
     const ang = Math.random() * Math.PI * 2;
     const rr = Math.random() * 0.7;
@@ -327,6 +327,95 @@ export class ParticleSystem {
         0.18 + Math.random() * 0.18,
         4.2,
         0.9,
+      );
+    }
+  }
+
+  wisteriaPetal(x: number, z: number, radius: number): void {
+    const ang = Math.random() * Math.PI * 2;
+    const rr = Math.sqrt(Math.random()) * radius;
+    this.emit(
+      x + Math.cos(ang) * rr,
+      8.0 + Math.random() * 4.0,
+      z + Math.sin(ang) * rr,
+      -0.8 + (Math.random() - 0.5) * 1.5,
+      -1.5 - Math.random() * 1.2,
+      -0.8 + (Math.random() - 0.5) * 1.5,
+      0.54 + Math.random() * 0.16,
+      0.22 + Math.random() * 0.1,
+      0.72 + Math.random() * 0.22,
+      0.35 + Math.random() * 0.2,
+      3.0 + Math.random() * 2.0,
+      0.8,
+      0.96,
+    );
+  }
+
+  // 물의 호흡 물보라 파티클
+  waterSplash(x: number, z: number, count = 12): void {
+    for (let k = 0; k < count; k++) {
+      const ang = Math.random() * Math.PI * 2;
+      const sp = 2.0 + Math.random() * 3.5;
+      this.emit(
+        x + (Math.random() - 0.5) * 0.8,
+        0.3 + Math.random() * 0.6,
+        z + (Math.random() - 0.5) * 0.8,
+        Math.cos(ang) * sp,
+        2.0 + Math.random() * 3.0,
+        Math.sin(ang) * sp,
+        0.2 + Math.random() * 0.2,
+        0.7 + Math.random() * 0.3,
+        1.8 + Math.random() * 0.6,
+        0.8 + Math.random() * 0.6,
+        0.35 + Math.random() * 0.25,
+        7.0,
+        0.91,
+      );
+    }
+  }
+
+  // 번개의 호흡 벽력일섬 전격 스파크 파티클
+  lightningSpark(x: number, z: number, count = 15): void {
+    for (let k = 0; k < count; k++) {
+      const ang = Math.random() * Math.PI * 2;
+      const sp = 4.0 + Math.random() * 6.0;
+      this.emit(
+        x,
+        0.5 + Math.random() * 0.8,
+        z,
+        Math.cos(ang) * sp,
+        1.0 + Math.random() * 4.0,
+        Math.sin(ang) * sp,
+        2.5 + Math.random() * 0.5,
+        2.0 + Math.random() * 0.4,
+        0.3 + Math.random() * 0.3,
+        0.6 + Math.random() * 0.5,
+        0.2 + Math.random() * 0.2,
+        4.0,
+        0.88,
+      );
+    }
+  }
+
+  // 벌레의 호흡 나비 독가루 파티클
+  butterflyPoison(x: number, z: number, count = 8): void {
+    for (let k = 0; k < count; k++) {
+      const ang = Math.random() * Math.PI * 2;
+      const sp = 1.0 + Math.random() * 2.0;
+      this.emit(
+        x + (Math.random() - 0.5) * 0.5,
+        0.6 + Math.random() * 0.8,
+        z + (Math.random() - 0.5) * 0.5,
+        Math.cos(ang) * sp,
+        0.8 + Math.random() * 1.5,
+        Math.sin(ang) * sp,
+        1.4 + Math.random() * 0.4,
+        0.3 + Math.random() * 0.2,
+        2.2 + Math.random() * 0.6,
+        0.7 + Math.random() * 0.4,
+        0.5 + Math.random() * 0.3,
+        -0.5,
+        0.93,
       );
     }
   }

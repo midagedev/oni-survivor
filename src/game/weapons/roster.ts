@@ -165,24 +165,29 @@ abstract class TimedWeapon implements Weapon {
   protected abstract fire(ctx: WeaponContext): void;
 }
 
-// 1. 용담창 — 전방 관통 찌르기
+// 1. 물의 호흡 (수격) — 전방 관통 찌르기
 export class SpearWeapon extends TimedWeapon {
   readonly id = 'spear';
   protected baseCooldown = 1.1;
   protected fire(ctx: WeaponContext): void {
     const length = (5.0 + (this.level - 1) * 0.6) * ctx.stats.rangeMul;
     const width = 0.72;
-    const d = dmg(ctx, 8, this.level, 0.15);
+    const isHinokami = ctx.musouActive && ctx.musouKey === 'zhaoyun';
+    const d = dmg(ctx, isHinokami ? 15 : 8, this.level, 0.15);
     const bx = ctx.px + ctx.aimX * length;
     const bz = ctx.pz + ctx.aimZ * length;
     capsuleHit(ctx, ctx.px, ctx.pz, bx, bz, width, d, 3);
-    ctx.effects.spawnThrust(ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, length, width * 2.2, 0.4, 0.9, 2.2);
-    ctx.effects.spawnRing(ctx.px + ctx.aimX * length * 0.4, ctx.pz + ctx.aimZ * length * 0.4, length * 0.5, 0.4, 0.9, 2.2, 0.35);
-    ctx.effects.spawnFlash(ctx.px + ctx.aimX * length * 0.5, ctx.pz + ctx.aimZ * length * 0.5, 0.4, 0.9, 2.2, 3.0);
+    if (isHinokami) {
+      ctx.effects.spawnThrust(ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, length, width * 2.2, 2.4, 0.6, 0.2); // 히노카미 카구라
+      ctx.particles.burst(bx, bz, 2.4, 0.6, 0.2, 10, 4);
+    } else {
+      ctx.effects.spawnThrust(ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, length, width * 2.2, 0.7, 0.95, 1.9); // 물의 호흡
+      ctx.particles.waterSplash(bx, bz, 14);
+    }
   }
 }
 
-// 2. 청룡언월도 — 전방 120° 부채꼴 슬래시
+// 2. 잔잔한 물결 (유동참) — 전방 120° 부채꼴 슬래시
 export class GuandaoWeapon extends TimedWeapon {
   readonly id = 'guandao';
   protected baseCooldown = 1.45;
@@ -191,13 +196,13 @@ export class GuandaoWeapon extends TimedWeapon {
     const half = 1.05 + (this.level - 1) * 0.02; // ~120°
     const d = dmg(ctx, 15, this.level, 0.18);
     arcHit(ctx, ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, half, d, 5);
-    ctx.effects.spawnSlashArc(ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, half, 0.3, 0.7, 2.4);
-    ctx.effects.spawnRing(ctx.px, ctx.pz, radius * 0.9, 0.3, 0.8, 2.2, 0.35);
-    ctx.effects.spawnFlash(ctx.px + ctx.aimX * radius * 0.5, ctx.pz + ctx.aimZ * radius * 0.5, 0.3, 0.7, 2.4, 2.5);
+    ctx.effects.spawnSlashArc(ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, half, 0.3, 0.7, 2.2); // 기유 물그림자 청색
+    ctx.particles.waterSplash(ctx.px + ctx.aimX * radius * 0.7, ctx.pz + ctx.aimZ * radius * 0.7, 16);
+    ctx.effects.spawnRing(ctx.px, ctx.pz, radius * 0.9, 0.3, 0.8, 2.2, 0.35); // 물결 파문 링
   }
 }
 
-// 3. 장팔사모 — 전+후 동시 찌르기, 강한 넉백
+// 3. 짐승의 호흡 (쌍 엄니) — 전+후 동시 찌르기, 강한 넉백
 export class ZhangbaWeapon extends TimedWeapon {
   readonly id = 'zhangba';
   protected baseCooldown = 1.15;
@@ -209,14 +214,11 @@ export class ZhangbaWeapon extends TimedWeapon {
     const fz = ctx.aimZ;
     capsuleHit(ctx, ctx.px, ctx.pz, ctx.px + fx * length, ctx.pz + fz * length, width, d, 9);
     capsuleHit(ctx, ctx.px, ctx.pz, ctx.px - fx * length, ctx.pz - fz * length, width, d, 9);
-    ctx.effects.spawnDoubleThrust(ctx.px, ctx.pz, fx, fz, length, width * 2.2, 0.6, 0.8, 0.5);
-    ctx.effects.spawnTripleShock(ctx.px, ctx.pz, length * 0.5, 0.6, 0.8, 0.5);
-    ctx.effects.spawnFlash(ctx.px + fx * length * 0.5, ctx.pz + fz * length * 0.5, 0.6, 0.8, 0.5, 2.5);
-    ctx.effects.spawnFlash(ctx.px - fx * length * 0.5, ctx.pz - fz * length * 0.5, 0.6, 0.8, 0.5, 2.5);
+    ctx.effects.spawnDoubleThrust(ctx.px, ctx.pz, fx, fz, length, width * 2.2, 0.7, 1.3, 1.5); // 이노스케 칼날 회회색
   }
 }
 
-// 4. 백우선 — 호밍 부적
+// 4. 매혹의 연기 (꽃망울) — 호밍 부적
 export class BaiyuWeapon extends TimedWeapon {
   readonly id = 'baiyu';
   protected baseCooldown = 1.6;
@@ -230,13 +232,13 @@ export class BaiyuWeapon extends TimedWeapon {
       const a = base + (k - (count - 1) * 0.5) * 0.24;
       ctx.projectiles.spawn(
         ctx.px, ctx.pz, Math.cos(a), Math.sin(a), speed, d, 0.5, pierce, 2.6,
-        PK_TALISMAN, 1.7, 1.7, 2.1, 1.1, 0.9, true, 7,
+        PK_TALISMAN, 1.8, 0.5, 0.8, 1.5, 0.7, true, 7,
       );
     }
   }
 }
 
-// 5. 제갈연노 — 최근접 적 자동 연사 화살
+// 5. 벌레의 호흡 (나비 춤) — 최근접 적 자동 연사 독침
 export class CrossbowWeapon extends TimedWeapon {
   readonly id = 'crossbow';
   protected baseCooldown = 0.55;
@@ -248,20 +250,19 @@ export class CrossbowWeapon extends TimedWeapon {
     const d = dmg(ctx, 7, this.level, 0.12);
     const speed = 15 * ctx.stats.rangeMul;
     const pierce = Math.floor((this.level - 1) / 2);
+    ctx.particles.butterflyPoison(ctx.px, ctx.pz, 6);
     for (let k = 0; k < shots; k++) {
       const spread = (k - (shots - 1) / 2) * 0.12;
       const a = Math.atan2(dirZ, dirX) + spread;
       ctx.projectiles.spawn(
         ctx.px, ctx.pz, Math.cos(a), Math.sin(a), speed, d, 0.45, pierce, 1.6,
-        PK_ARROW, 2.0, 1.5, 0.7, 1.5, 0.55,
+        PK_ARROW, 0.7, 0.3, 0.9, 1.5, 0.55, // 시노부 보랏빛 침
       );
     }
-    ctx.effects.spawnFlash(ctx.px, ctx.pz, 1.4, 0.4, 2.0, 2.0);
-    ctx.effects.spawnRing(ctx.px, ctx.pz, 2.0, 1.4, 0.4, 2.0, 0.3);
   }
 }
 
-// 6. 화계 — 발밑 화염 장판
+// 6. 혈귀술 폭혈 — 발밑 화염 장판 형성 및 3D 핏빛 연꽃 결정
 export class FireWeapon extends TimedWeapon {
   readonly id = 'fire';
   protected baseCooldown = 3.0;
@@ -269,36 +270,66 @@ export class FireWeapon extends TimedWeapon {
     const radius = (2.2 + (this.level - 1) * 0.28) * ctx.stats.areaMul;
     const life = 3 + (this.level - 1) * 0.3;
     const dps = 10 * ctx.stats.damageMul * (1 + (this.level - 1) * 0.15);
-    ctx.zones.spawn(ctx.px, ctx.pz, radius, life, dps, 2.4, 0.9, 0.25);
-    ctx.effects.spawnFlash(ctx.px, ctx.pz, 2.4, 0.4, 1.5, 3.5);
+    ctx.zones.spawn(ctx.px, ctx.pz, radius, life, dps, 2.5, 0.3, 1.2); // 네즈코 혈귀술 분홍 화염
+    ctx.effects.spawnTechniqueMesh('blood', ctx.px, 0.15, ctx.pz, 0, radius * 1.2, 1.0, radius * 1.2, 2.4, 0.4, 1.5, 0.95);
+    ctx.effects.spawnTripleShock(ctx.px, ctx.pz, radius * 1.3, 2.4, 0.4, 1.5);
   }
 }
 
-// 7. 천뢰 — 랜덤 적 머리 위 낙뢰
+// 7. 번개의 호흡 · 벽력일섬 (Thunderclap and Flash) — 초고속 순보 참격
 export class ThunderWeapon extends TimedWeapon {
   readonly id = 'thunder';
-  protected baseCooldown = 2.6;
+  protected baseCooldown = 2.4;
   protected cooldownPerLevel = 0.03;
   protected fire(ctx: WeaponContext): void {
-    const count = 2 + this.level + ctx.stats.projectileBonus;
-    const d = dmg(ctx, 20, this.level, 0.15);
-    for (let k = 0; k < count; k++) {
-      const t = ctx.enemies.randomAlive();
-      if (t < 0) break;
-      const x = ctx.enemies.x[t];
-      const z = ctx.enemies.z[t];
-      ctx.effects.spawnLightning(x, z);
-      ctx.effects.spawnFlash(x, z, 2.8, 2.2, 0.3, 4.0);
-      forEachInRadius(ctx, x, z, 2.0, (j) => {
-        const died = ctx.enemies.damageAt(j, d);
-        ctx.damageText.spawn(d, ctx.enemies.x[j], ctx.enemies.scale[j] * 0.7, ctx.enemies.z[j], true);
-        if (died) ctx.onKill(j);
-      });
+    const dashes = 2 + Math.floor(this.level / 2) + ctx.stats.projectileBonus;
+    const d = dmg(ctx, 22, this.level, 0.16);
+    let curX = ctx.px;
+    let curZ = ctx.pz;
+    const hitEnemies = new Set<number>();
+
+    for (let k = 0; k < dashes; k++) {
+      let target = -1;
+      let minD2 = 18 * 18;
+      const n = ctx.hash.query(curX, curZ, 18, ctx.scratch);
+      for (let c = 0; c < n; c++) {
+        const j = ctx.scratch[c];
+        if (ctx.enemies.alive[j] === 0 || hitEnemies.has(j)) continue;
+        const dx = ctx.enemies.x[j] - curX;
+        const dz = ctx.enemies.z[j] - curZ;
+        const d2 = dx * dx + dz * dz;
+        if (d2 < minD2) {
+          minD2 = d2;
+          target = j;
+        }
+      }
+      if (target < 0) {
+        target = ctx.enemies.randomAlive();
+        if (target < 0) break;
+      }
+      hitEnemies.add(target);
+
+      const nextX = ctx.enemies.x[target];
+      const nextZ = ctx.enemies.z[target];
+
+      // 고속 이동 잔상 (황금빛 연쇄 번개 아치 + 3D 번개 기동 메시 + 스파크)
+      ctx.effects.spawnChainArc(curX, curZ, nextX, nextZ, 2.8, 2.3, 0.3);
+      ctx.effects.spawnLightning(nextX, nextZ, 2.8, 2.2, 0.3, 4);
+      const ang = Math.atan2(-(nextZ - curZ), nextX - curX);
+      ctx.effects.spawnTechniqueMesh('thunder', curX, 0.4, curZ, ang, 3.5, 1.0, 1.2, 2.8, 2.2, 0.3, 0.95);
+      ctx.particles.lightningSpark(nextX, nextZ, 12);
+      ctx.effects.spawnFlash(nextX, nextZ, 2.6, 2.1, 0.4, 2.5);
+
+      // 관통 참격 피해
+      capsuleHit(ctx, curX, curZ, nextX, nextZ, 1.2, d, 4);
+
+      curX = nextX;
+      curZ = nextZ;
     }
   }
 }
 
-// 8. 팔진도 — 주위 회전 태극 오브
+// 8. 등나무꽃 부적 — 주위 회전 등꽃 수호구
 export class OrbitWeapon implements Weapon {
   readonly id = 'orbit';
   level = 1;
@@ -317,30 +348,48 @@ export class OrbitWeapon implements Weapon {
       ctx.projectiles.clearOrbits();
       for (let k = 0; k < want; k++) {
         const a = (k / want) * Math.PI * 2;
-        ctx.projectiles.spawnOrbit(a, radius, angVel, d, 1.6, 1.8, 2.3, 1.0);
+        ctx.projectiles.spawnOrbit(a, radius, angVel, d, 1.2, 0.4, 1.8, 0.9); // 등꽃 보라 오브
       }
       this.built = want;
     }
     ctx.projectiles.refreshOrbits(d, radius, angVel);
+    ctx.effects.spawnTechniqueMesh('ribbon', ctx.px, 0.3, ctx.pz, Date.now() * 0.002, radius * 0.8, 0.8, radius * 0.8, 1.8, 0.6, 1.6, 0.8);
   }
 }
 
-// 9. 방천화극 — 360° 회전 휩쓸기
+// 9. 파괴살 (나침 / 난식) — 360° 나침 충격파 + 8방향 3D 공격 발사 (Air Punch Shockwaves)
 export class HalberdWeapon extends TimedWeapon {
   readonly id = 'halberd';
   protected baseCooldown = 1.5;
   protected fire(ctx: WeaponContext): void {
-    const radius = (3.4 + (this.level - 1) * 0.3) * ctx.stats.areaMul;
-    const d = dmg(ctx, 12, this.level, 0.16);
+    const radius = (3.6 + (this.level - 1) * 0.35) * ctx.stats.areaMul;
+    const d = dmg(ctx, 14, this.level, 0.16);
+
+    // 1) 360° 근접 히트 판정
     arcHit(ctx, ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, Math.PI, d, 6);
-    ctx.effects.spawnSlashArc(
-      ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, Math.PI, 2.2, 0.7, 0.5, 0.28, ATTACK_HALBERD,
-    );
-    ctx.effects.spawnFlash(ctx.px, ctx.pz, 0.8, 0.4, 2.2, 4.0);
+
+    // 2) 3D 파괴살 나침 눈꽃 스테이지 지면 문양 컷인
+    ctx.effects.spawnTechniqueMesh('compass', ctx.px, 0.1, ctx.pz, 0, radius * 1.6, 0.8, radius * 1.6, 0.8, 0.4, 2.2, 0.95);
+
+    // 3) 이중 방사형 3D 충격파 링
+    ctx.effects.spawnRing(ctx.px, ctx.pz, radius * 1.4, 0.8, 0.4, 2.2, 0.45);
+    ctx.effects.spawnRing(ctx.px, ctx.pz, radius * 0.8, 1.4, 0.6, 2.5, 0.3);
+
+    // 4) 8방향 파괴살 난식 3D 공권 투사체 충격파 방사
+    const count = 8 + ctx.stats.projectileBonus;
+    for (let k = 0; k < count; k++) {
+      const ang = (k / count) * Math.PI * 2;
+      const dx = Math.cos(ang);
+      const dz = Math.sin(ang);
+      ctx.projectiles.spawn(
+        ctx.px, ctx.pz, dx, dz, 13, d * 0.7, 1.2, 3, 0.6,
+        PK_SLASHWAVE, 0.8, 0.4, 2.2, radius * 0.7, radius * 0.5, false, 0, true,
+      );
+    }
   }
 }
 
-// 10. 서량철기 — 화면 가로지르는 기마 돌격
+// 10. 화염의 호흡 — 화면 가로지르는 불호랑이 돌격
 export class CavalryWeapon extends TimedWeapon {
   readonly id = 'cavalry';
   protected baseCooldown = 4.0;
@@ -357,10 +406,8 @@ export class CavalryWeapon extends TimedWeapon {
       const sz = ctx.pz - dirZ * 22;
       ctx.projectiles.spawn(
         sx, sz, dirX, dirZ, speed, d, 1.3, 9999, 3.0,
-        PK_CAVALRY, 2.0, 1.4, 0.9, 4.5, 1.7, false, 0, true,
+        PK_CAVALRY, 2.8, 0.6, 0.15, 4.5, 1.7, false, 0, true, // 쿄쥬로 불호랑이 질주
       );
-      ctx.effects.spawnTripleShock(sx, sz, 3.0, 2.8, 0.6, 0.15);
-      ctx.effects.spawnFlash(ctx.px, ctx.pz, 2.8, 0.6, 0.15, 3.5);
     }
   }
 }
@@ -694,7 +741,7 @@ export class TwinringWeapon extends TimedWeapon {
 
 // 진화 무기 -----------------------------------------------------------------
 
-// 참마검 (언월도 진화) — 회전 참격파 발사 + 강화 부채꼴
+// 수류참 (잔잔한 물결 진화) — 회전 참격파 발사 + 강화 부채꼴
 export class ZhanmaWeapon extends TimedWeapon {
   readonly id = 'zhanma';
   level = 8;
@@ -716,7 +763,7 @@ export class ZhanmaWeapon extends TimedWeapon {
   }
 }
 
-// 팔문금쇄진 (백우선 진화) — 관통 부적 폭풍
+// 등꽃 결계 (매혹의 연기 진화) — 관통 부적 폭풍
 export class BamenWeapon extends TimedWeapon {
   readonly id = 'bamen';
   level = 8;
@@ -736,7 +783,7 @@ export class BamenWeapon extends TimedWeapon {
   }
 }
 
-// 적벽업화 (화계 진화) — 전진하는 화염 해일
+// 폭혈 업화 (혈귀술 폭혈 진화) — 전진하는 화염 해일
 export class ChibiWeapon extends TimedWeapon {
   readonly id = 'chibi';
   level = 8;
@@ -757,7 +804,7 @@ export class ChibiWeapon extends TimedWeapon {
   }
 }
 
-// 천벌뇌정 (천뢰 진화) — 적간 연쇄 번개
+// 벽력일섬 신속 (번개의 호흡 진화) — 적간 연쇄 번개
 export class TianfaWeapon extends TimedWeapon {
   readonly id = 'tianfa';
   level = 8;
@@ -801,6 +848,7 @@ export class TianfaWeapon extends TimedWeapon {
         }
         if (next < 0) break;
         ctx.effects.spawnChainArc(px, pz, ctx.enemies.x[next], ctx.enemies.z[next]);
+        ctx.particles.lightningSpark(ctx.enemies.x[next], ctx.enemies.z[next], 8);
         px = ctx.enemies.x[next];
         pz = ctx.enemies.z[next];
         t = next;
@@ -810,7 +858,7 @@ export class TianfaWeapon extends TimedWeapon {
   }
 }
 
-// 원융노 (제갈연노 진화) — 전방위 연사
+// 독침 폭풍 (벌레의 호흡 진화) — 전방위 연사
 export class YuanrongWeapon extends TimedWeapon {
   readonly id = 'yuanrong';
   level = 8;
