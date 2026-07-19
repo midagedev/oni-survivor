@@ -211,6 +211,7 @@ export class Run {
   private shrineCompleted = false;
   private discoveredTrainWreck = false;
   private discoveredWisteriaHouse = false;
+  private musouFreezeT = 0;
   private attractTime = 0;
   private bossFlags = { b3: false, b6: false, b9: false };
   private minibossIdx = 0; // 무한 모드 미니보스 순환 인덱스
@@ -323,6 +324,7 @@ export class Run {
       () => this.hud.punchCombo(),
     );
     this.musou = new Musou(this.hero.musou, () => {
+      this.musouFreezeT = 1.2; // 1.2초 동안 일러스트 컷인을 위한 시간정지 연출 활성화
       this.hud.banner('奧義 · 全集中', '#ffe9a8', 96, 1200, 3);
       this.hud.musouCutin(this.hero);
       this.sayHero(2600);
@@ -806,6 +808,12 @@ export class Run {
 
   update(dt: number): void {
     this.renderTime += dt;
+
+    if (this.musouFreezeT > 0) {
+      this.musouFreezeT -= dt;
+      this.updateMusouFreeze(dt);
+      return;
+    }
 
     // 어트랙트(메뉴 배경): 지면/반딧불/파티클 + 느린 카메라 드리프트만.
     if (this.state === 'attract') {
@@ -2382,5 +2390,47 @@ export class Run {
       },
       state: this.state,
     };
+  }
+
+  private updateMusouFreeze(dt: number): void {
+    // 렌더 타임 갱신
+    this.renderTime += dt;
+
+    // 비주얼 연출 및 환경 효과 갱신 (게임플레이 물리 및 조작은 멈춤)
+    this.combo.update(dt);
+    this.effects.update(dt);
+    this.arrowRain.update(dt);
+    this.starAura.update(
+      dt, this.player.x, this.player.z, this.player.shrineBuffActive,
+      this.atlas.sgrade, this.player.frameUv.u, this.player.frameUv.v
+    );
+    this.lightField.update(dt);
+    this.decals.update(dt);
+    this.particles.update(dt);
+    this.sakuraPetals.update(dt, this.player.x, this.player.z);
+    this.damageText.update(dt);
+    this.gateBreachFx.update(dt);
+    this.ground.update(dt, this.player.x, this.player.z);
+    this.mountains.group.position.set(this.player.x, 0, this.player.z);
+    this.map.update(this.player.x, this.player.z, dt);
+    this.world.update();
+
+    this.rig.update(dt, this.player.x, this.player.z);
+    this.banner.update(dt, this.rig.camera);
+
+    const cam = this.rig.camera.position;
+    updateFortressCutaway(
+      cam.x, cam.y, cam.z,
+      this.player.x, 1.2, this.player.z,
+      this.map.activeColliderCount > 0
+    );
+
+    // 무쌍 연출 포스트 프로세싱 세기 조정
+    this.musouStrength += (0.9 - this.musouStrength) * Math.min(1, dt * 6);
+
+    // 렌더링 프레임 제출
+    this.renderSprites();
+    this.updateLabels();
+    this.updateMarkers(dt);
   }
 }
