@@ -94,7 +94,7 @@ export interface RunResult {
   masterworks: string[]; // 이번 런에서 획득한 명기 id (도감 이력 누적용)
   endless: boolean; // 무한 모드 진입 여부(10분 승리 후 계속 전투)
   canContinue: boolean; // 결과 화면에서 "계속 싸운다"(무한 진입) 가능 여부
-  luoyang: 'none' | 'captured' | 'held' | 'fallen'; // 낙양 공방전 도달 결과(칭호 판정). siegeEvents 파생.
+  luoyang: 'none' | 'captured' | 'held' | 'fallen'; // 무한성 결전 도달 결과(칭호 판정). siegeEvents 파생.
 }
 
 // App이 주입하는 씬 전환 콜백.
@@ -340,7 +340,7 @@ export class Run {
       },
     });
 
-    // 전장 오브젝트 (화약통/만두/사당)
+    // 전장 오브젝트 (화약통/등나무꽃 약탕/사당)
     this.objects = new BattlefieldObjects(this.scene, {
       effects: this.effects,
       particles: this.particles,
@@ -405,7 +405,7 @@ export class Run {
       scratch: this.scratch,
     };
 
-    // 낙양 공방전(DESIGN 20). 참조는 생성자 주입, 이벤트는 콜백 필드(spawner.onWave 패턴).
+    // 무한성 결전(DESIGN 20). 참조는 생성자 주입, 이벤트는 콜백 필드(spawner.onWave 패턴).
     this.siege = new SiegeSystem({
       map: this.map,
       spawner: this.spawner,
@@ -459,7 +459,7 @@ export class Run {
         this.hero.name,
         getLang() === 'en'
           ? 'Luoyang is ours. Stay in the keep, resupply — the reclaimers will come.'
-          : '낙양은 우리 것이다. 성에 머물며 보급을 받고, 탈환군을 기다려라.',
+          : '무한성을 함락시켰다. 결계를 사수하고 무잔을 소멸시켜라.',
         4200,
       );
     };
@@ -889,7 +889,7 @@ export class Run {
     this.spawner.setBossActive(this.boss.active);
     this.spawner.update(edt, this.gameTime, this.player.x, this.player.z);
     this.siege.update(edt, this.gameTime, this.player.x, this.player.z);
-    // 낙양 거점화·수성 중 성 안 방어 구역 바닥 표시(#51 가독성).
+    // 무한성 결계·수성 중 성 안 방어 구역 바닥 표시(#51 가독성).
     this.castleZone.setActive(this.siege.keepAuraActive);
     this.castleZone.update(gdt);
     this.landmarks.update(edt);
@@ -1001,7 +1001,7 @@ export class Run {
     );
     this.zones.update(gdt, this.enemies, this.hash, this.damageText, this.ctx.onKill, this.particles, this.scratch);
 
-    // 전장 오브젝트: 접촉(만두/사당) + 화약통은 플레이어 근접 시 무기 판정으로 유폭
+    // 전장 오브젝트: 접촉(등나무꽃 약탕/사당) + 화약통은 플레이어 근접 시 무기 판정으로 유폭
     this.objects.update(gdt, this.gameTime);
     // 15.3 군영 軍營 취사장 오라 — 반경 5m 초당 2.5% 회복 + 취사 연기 + 온색 광원
     for (const lm of this.map.landmarks) {
@@ -1014,7 +1014,7 @@ export class Run {
         this.lightField.spawn(lm.x, 0.6, lm.z, 1.3, 0.9, 0.5, 6, 0.2);
       }
     }
-    // 낙양 거점화 회복 오라 — 내성 중심 반경 6m, 군영과 동일률(0.025/s). (DESIGN 20)
+    // 무한성 결계 회복 오라 — 내성 중심 반경 6m, 군영과 동일률(0.025/s). (DESIGN 20)
     if (this.siege.keepAuraActive) {
       const kx = this.siege.keepCenterX;
       const kz = this.siege.keepCenterZ;
@@ -1295,18 +1295,18 @@ export class Run {
       if (lm.glow > 0) this.markers.glowAt(lm.x, lm.z, lm.glow, lm.gr, lm.gg, lm.gb);
       if (dsq < 30 * 30) this.markers.name(lm.name, lm.x, lm.height * 0.5 + 1.0, lm.z);
       if (dsq < 46 * 46) this.emitLandmarkAmbient(lm, dt);
-      // 랜드마크 상호작용 어포던스 링(#50 21.3): 봉화(점화 가능=활성), 군영·전고(상시 기능).
+      // 랜드마크 상호작용 어포던스 링(#50 21.3): 봉화(점화 가능=활성), 군영·전집중 북(상시 기능).
       if (lm.kind === 11) {
         this.markers.interactRing(lm.x, lm.z, 1.6, 0.9, 0.35, this.landmarks.beaconStateNear(lm.x, lm.z) === 0);
       } else if (lm.kind === 5) {
         this.markers.interactRing(lm.x, lm.z, 0.5, 1.3, 0.7, true); // 군영 회복(청록)
       } else if (lm.kind === 6) {
-        this.markers.interactRing(lm.x, lm.z, 1.4, 0.85, 0.4, true); // 전고 스턴(주황)
+        this.markers.interactRing(lm.x, lm.z, 1.4, 0.85, 0.4, true); // 전집중 북 스턴(주황)
       } else if (lm.kind === 2) {
         this.markers.interactRing(lm.x, lm.z, 0.6, 0.85, 1.2, this.landmarks.watchtowerActive(lm.x, lm.z)); // 망루 사거리(청)
       }
     }
-    // 전장 오브젝트(화약통/만두/사당/동라/목책) — 위치·어포던스 링 포함(#50 오너 Q: 위치 표기)
+    // 전장 오브젝트(화약통/등나무꽃 약탕/사당/경보 종/목책) — 위치·어포던스 링 포함(#50 오너 Q: 위치 표기)
     this.objects.emitMarkers(this.markers, px, pz);
     // 성문 HP 바(#50 21.2): 봉쇄 외성 3문 위에 게이지. 파성/HP없음이면 -1 → 미표시.
     for (const g of CASTLE.outerGates) {
@@ -1371,7 +1371,7 @@ export class Run {
     if (s === 'enemy_held' || s === 'breached') {
       const done = this.map.castleOuterBreachCount();
       this.hud.setObjective({
-        title: en ? 'Breach the Luoyang gates' : '낙양 성문을 부숴라',
+        title: en ? 'Breach the Mugen Castle gates' : '무한성 관문을 부숴라',
         sub: en ? `Attack the gate · breached ${done}/3 · reward 名器` : `성문을 공격하라 · 파성 ${done}/3 · 보상 名器`,
         progress01: done / 3,
       });
@@ -1380,7 +1380,7 @@ export class Run {
     } else if (s === 'captured') {
       const cr = this.siege.captureRemainSec;
       this.hud.setObjective({
-        title: en ? 'Luoyang taken — resupply' : '낙양 점령 — 보급·정비',
+        title: en ? 'Mugen Castle breached' : '무한성 침투 — 정비',
         sub: en ? 'Stay in the keep. Reclaimers incoming' : '성에 머물러 대비 · 탈환군 내습 임박',
         countdownSec: cr >= 0 ? cr : undefined,
         color: '#9affc0',
@@ -1388,7 +1388,7 @@ export class Run {
     } else if (s === 'counterattack') {
       const rem = this.siege.counterRemainSec;
       this.hud.setObjective({
-        title: en ? 'Hold Luoyang — survive!' : '낙양 사수 — 버텨라!',
+        title: en ? 'Hold Mugen Castle — survive!' : '무한성 결전 — 버텨라!',
         sub: en ? 'Survive in the castle until time runs out' : '성 안에서 시간이 다할 때까지 버텨라',
         countdownSec: rem >= 0 ? rem : undefined,
         color: '#e85c4a',
@@ -1489,7 +1489,7 @@ export class Run {
       return;
     }
     if (en.boss[i] === 1) {
-      // 낙양 성주(화웅): 일반 보스 보상 경로 우회 → 공방전 점령으로 처리. (DESIGN 20)
+      // 무한성 수호자(화웅): 일반 보스 보상 경로 우회 → 공방전 점령으로 처리. (DESIGN 20)
       if (this.boss.typeId === 'huaxiong') {
         this.captureCastle(i);
         return;
@@ -1562,7 +1562,7 @@ export class Run {
     en.kill(i);
   }
 
-  // 낙양 성주 처단: 처단 연출 + 점령 전환(보상은 siege.onCapture). 일반 보스 討伐/보물/도감 경로 우회.
+  // 무한성 수호자 처단: 처단 연출 + 점령 전환(보상은 siege.onCapture). 일반 보스 討伐/보물/도감 경로 우회.
   private captureCastle(i: number): void {
     const en = this.enemies;
     const x = en.x[i];
@@ -1597,7 +1597,7 @@ export class Run {
     this.rig.punchFov(3);
     this.flashScreen(0.16);
     audio.sfx('explosion');
-    // 낙양 외성문 파성: 공방전 통지 + 전용 배너(호로관 배너·게이트러시 우회). (DESIGN 20)
+    // 무한성 외성문 파성: 공방전 통지 + 전용 배너(호로관 배너·게이트러시 우회). (DESIGN 20)
     if (gate.key.startsWith('castle-')) {
       this.siege.notifyGateBreach(gate.key);
       this.hud.banner(`${getLang() === 'en' ? 'Gate Breached' : '성문 돌파'} 城門突破`, '#ffb05a', 52, 1600, 1);
@@ -2098,7 +2098,7 @@ export class Run {
   testTriggerHulao(): void {
     this.map.triggerHulao(this.player.x, this.player.z);
   }
-  // 낙양 공방전 GFX 검증용 훅: 깃발 소유 전환 웨이브 / 불화살 볼리 강제.
+  // 무한성 결전 GFX 검증용 훅: 깃발 소유 전환 웨이브 / 불화살 볼리 강제.
   testFlipBanners(allied: boolean): void {
     castleRenderData.allied = allied;
     castleRenderData.flipX = CASTLE.cx;
@@ -2127,7 +2127,7 @@ export class Run {
     const breached = this.map.recordKillAt(gate.x, gate.z);
     if (breached) this.onGateBreached(breached);
   }
-  // 낙양 공방전(DESIGN 20) QA
+  // 무한성 결전(DESIGN 20) QA
   testSiegeBreach(key = 'castle-s'): void {
     const g = this.map.gates.find((c) => c.key === key);
     if (!g) return;

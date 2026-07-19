@@ -74,10 +74,10 @@ export function renderShareCard(data: ShareData, atlas?: Atlas): HTMLCanvasEleme
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#f0e4c0';
   ctx.font = `bold 46px ${serif}`;
-  ctx.fillText(getLang() === 'en' ? 'ILGIDANGCHEON' : '일기당천', 60, 96);
+  ctx.fillText(getLang() === 'en' ? 'MELGWIMUSOU' : '멸귀무쌍', 60, 96);
   ctx.fillStyle = '#e8c667';
   ctx.font = `30px ${serif}`;
-  ctx.fillText('一騎當千', 270, 94);
+  ctx.fillText('滅鬼無雙', 270, 94);
 
   // 장수 도트 초상 (좌측)
   const px0 = 70;
@@ -254,13 +254,13 @@ function canvasToBlob(cv: HTMLCanvasElement): Promise<Blob> {
 export function shareText(data: ShareData): string {
   const hero = HEROES[data.heroId];
   if (getLang() === 'en') {
-    const nm = hero ? nameOf('hero', data.heroId, hero.name) : 'a general';
-    const verb = data.victory ? 'unified the realm' : `slew ${data.kills.toLocaleString()} foes`;
-    return `As ${nm} in Ilgidangcheon, I ${verb}! ⚔️ ${SHARE_URL}`;
+    const nm = hero ? nameOf('hero', data.heroId, hero.name) : 'a slayer';
+    const verb = data.victory ? 'conquered Mugen Castle' : `slew ${data.kills.toLocaleString()} demons`;
+    return `As ${nm} in Melgwimusou, I ${verb}! ⚔️ ${SHARE_URL}`;
   }
-  const name = hero ? hero.name : '장수';
-  const verb = data.victory ? '천하를 통일했다' : `${data.kills.toLocaleString()}명을 베었다`;
-  return `일기당천에서 ${name}으로 ${verb}! ⚔️ ${SHARE_URL}`;
+  const name = hero ? hero.name : '대원';
+  const verb = data.victory ? '무한성을 함락했다' : `${data.kills.toLocaleString()}마리의 혈귀를 베었다`;
+  return `멸귀무쌍에서 ${name}으로 ${verb}! ⚔️ ${SHARE_URL}`;
 }
 
 export type ShareResult = 'shared' | 'copied' | 'downloaded' | 'failed';
@@ -273,14 +273,14 @@ export async function shareCanvas(cv: HTMLCanvasElement, text: string): Promise<
   } catch {
     return 'failed';
   }
-  const file = new File([blob], 'ilgidangcheon.png', { type: 'image/png' });
+  const file = new File([blob], 'melgwimusou.png', { type: 'image/png' });
   const nav = navigator as Navigator & {
     canShare?: (d: unknown) => boolean;
     share?: (d: unknown) => Promise<void>;
   };
   if (nav.share && nav.canShare && nav.canShare({ files: [file] })) {
     try {
-      await nav.share({ files: [file], text, title: '일기당천 一騎當千' });
+      await nav.share({ files: [file], text, title: '멸귀무쌍 滅鬼無雙' });
       return 'shared';
     } catch {
       // 사용자가 취소했거나 실패 → 폴백으로

@@ -7,16 +7,16 @@ const FLOW_CELL = 1.5;
 const FLOW_SIZE = 64;
 const FLOW_INF = 0xffff;
 
-// === 정적 성곽 구역(낙양 외성) ===
+// === 정적 성곽 구역(무한성) ===
 // 오픈필드 안의 유일한 상시 지형. 스폰 원점 북쪽(-Z)에 세우는 국지 요새.
 // 외성(3성문) + 안뜰 + 내성(본성) 2겹 성벽. 나머지 맵은 오픈필드 유지.
 const CASTLE_CX = 0;
 const CASTLE_CZ = -48; // 원점에서 남성문까지 28m, 중심까지 48m (스펙 40~60m)
 const CASTLE_GATE = 9; // 외성 성문 폭(스펙 8m+)
-const CASTLE_OHX = 22; // 외성 반폭 X (44m)
-const CASTLE_OHZ = 20; // 외성 반폭 Z (40m)
-const CASTLE_IHX = 9; // 내성 반폭 X (18m)
-const CASTLE_IHZ = 8; // 내성 반폭 Z (16m)
+const CASTLE_OHX = 36; // 무한성 대형 외성 반폭 (72m) // 외성 반폭 X (44m)
+const CASTLE_OHZ = 32; // 무한성 대형 외성 반폭 (64m) // 외성 반폭 Z (40m)
+const CASTLE_IHX = 16; // 무한성 내성 반폭 (32m) // 내성 반폭 X (18m)
+const CASTLE_IHZ = 14; // 무한성 내성 반폭 (28m) // 내성 반폭 Z (16m)
 const CASTLE_KEEP_GATE = 8; // 내성 성문 폭
 const CASTLE_FLOW_ON = 34; // 이 반경 안이면 flow-field 경로탐색 활성
 const CASTLE_FLOW_OFF = 41; // 히스테리시스: 이 밖이면 비활성
@@ -53,7 +53,7 @@ export const castleRenderData = {
   banners: [] as CastleBanner[],
   bannerVersion: 0,
   title: { text: '무한성 Mugen Castle', x: CASTLE_CX, y: 6.4, z: CASTLE_CZ + CASTLE_OHZ - 8, alpha: 0 },
-  // 성 소유 상태 → markers 깃발 색 전환 웨이브 채널(낙양 공방전, DESIGN 20절).
+  // 성 소유 상태 → markers 깃발 색 전환 웨이브 채널(무한성 결전, DESIGN 20절).
   // flipVersion 증가가 전환 트리거, (flipX,flipZ) 원점에서 먼 깃발일수록 늦게 물든다.
   allied: false,
   flipVersion: 0,
@@ -61,7 +61,7 @@ export const castleRenderData = {
   flipZ: 0,
 };
 
-// 낙양 공방전(DESIGN 20)이 소비하는 성곽 지오메트리 계약. SiegeSystem이 스폰/판정 좌표 계산에 사용.
+// 무한성 결전(DESIGN 20)이 소비하는 성곽 지오메트리 계약. SiegeSystem이 스폰/판정 좌표 계산에 사용.
 // battlefieldMap이 실제 벽/성문을 세우는 상수와 단일 원천을 공유한다(중복 하드코딩 방지).
 export const CASTLE = {
   cx: CASTLE_CX,
@@ -202,7 +202,7 @@ export class BattlefieldMap {
 
   private readonly colliders: Collider[] = [];
   private readonly breached = new Set<string>();
-  // 낙양 공방전(DESIGN 20): 외성 3성문 봉쇄 상태 + 성문별 파성 킬 카운트.
+  // 무한성 결전(DESIGN 20): 외성 3성문 봉쇄 상태 + 성문별 파성 킬 카운트.
   // 내성문은 성주 출진 전까지 봉쇄(keepSealed). castleBreachable=false면 점령 후 파성 카운트 중단.
   private keepSealed = true;
   private castleBreachable = true;
@@ -281,7 +281,7 @@ export class BattlefieldMap {
     this.flowActive = false;
     this.castleTitleAlpha = 0;
     castleRenderData.title.alpha = 0;
-    // 낙양 공방전: 성 재봉쇄(ENEMY_HELD) + 소유권 적으로 되돌림.
+    // 무한성 결전: 성 재봉쇄(ENEMY_HELD) + 소유권 적으로 되돌림.
     this.keepSealed = true;
     this.castleBreachable = true;
     this.gateHp['castle-s'] = GATE_MAX_HP;
@@ -369,7 +369,7 @@ export class BattlefieldMap {
     }
   }
 
-  // 정적 성곽 구역(낙양 외성): 외성(남·동·서 3성문, 북 폐쇄) + 안뜰 + 내성(본성).
+  // 정적 성곽 구역(무한성): 외성(남·동·서 3성문, 북 폐쇄) + 안뜰 + 내성(본성).
   // 성벽 세그먼트는 addWall로 실제 충돌 콜라이더가 되고, 성문은 콜라이더 없는 통행구로 둔다.
   private buildCastle(): void {
     const T = WALL_THICKNESS;
@@ -558,7 +558,7 @@ export class BattlefieldMap {
     if (visible) this.walls.push({ x, z, hx: width * 0.5, hz: depth * 0.5, horizontal, visible });
   }
 
-  // 낙양 성문 봉쇄 콜라이더(파성 전까지). 호로관 게이트 콜라이더와 동일 규격 —
+  // 무한성 관문 봉쇄 콜라이더(파성 전까지). 호로관 게이트 콜라이더와 동일 규격 —
   // 파성되면 rebuild가 이 콜라이더를 생략하고, flow-field가 통행로를 반영한다.
   private addCastleGateCollider(key: string, x: number, z: number, gateWidth: number, horizontal: boolean): void {
     if (this.breached.has(key)) return;
@@ -862,7 +862,7 @@ export class BattlefieldMap {
     );
   }
 
-  // 내성(본성) 사각 안에 있는지 — 함락 게이지·거점화 오라 판정용(낙양 공방전).
+  // 내성(본성) 사각 안에 있는지 — 함락 게이지·거점화 오라 판정용(무한성 결전).
   insideKeepBounds(x: number, z: number, margin = 0): boolean {
     return (
       x >= CASTLE_CX - CASTLE_IHX - margin &&

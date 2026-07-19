@@ -32,7 +32,7 @@ export interface SlotView {
 
 // 공성 목표 HUD 패널(#50). 텍스트는 run이 ko/en 완성해 넘긴다(i18n 무접촉 계약).
 export interface Objective {
-  title: string; // 굵은 지시문 ("낙양 성문을 부숴라")
+  title: string; // 굵은 지시문 ("무한성 성문을 부숴라")
   sub?: string; // 보조(보상 예고 등)
   progress01?: number; // 0..1 이면 진행 바 표시(성문 HP 등). undefined/음수면 바 없음.
   countdownSec?: number; // 지정 시 MM:SS 카운트다운(run이 매 프레임 값 갱신). undefined면 없음.

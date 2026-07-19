@@ -1,4 +1,4 @@
-// 낙양 공방전(DESIGN 20) 상태머신 — 공성→점령→수성 풀 아크.
+// 무한성 결전(DESIGN 20) 상태머신 — 공성→점령→수성 풀 아크.
 // 완전 선택형 사이드 오브젝트: 성에 접근하지 않는 런에는 어떤 영향도 없다(수비대·판정은 근접 게이트 안에서만 구동).
 // 이벤트 계약(onLordSpawn/onCapture/onCounterattack/onVolley/onDefended/onLost)은 gfx 레인·리드와 공유.
 // siege는 상태·스폰 지시·판정을 소유하고, 시각화·보상·성주 스폰은 run 배선 콜백으로 위임한다.

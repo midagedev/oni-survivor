@@ -37,7 +37,7 @@ export const WORLD_ASSETS = {
   dumplingCart: 9,
   shrine: 10,
   beacon: 11,
-  gong: 12, // 동라 銅鑼 전용 (아틀라스 셀 12 = row3,col0) — #41 동라/전고 시각 구분
+  gong: 12, // 경보 종 銅鑼 전용 (아틀라스 셀 12 = row3,col0) — #41 경보 종/전집중 북 시각 구분
 } as const;
 
 export type WorldAsset = (typeof WORLD_ASSETS)[keyof typeof WORLD_ASSETS];
@@ -325,7 +325,7 @@ export class BattlefieldWorld {
       if (gate.key === 'origin-north') {
         this.landmark.place(gate.x, gate.z);
       }
-      // 낙양 성문(castle-*)도 완전 누각으로 렌더 — 문짝(봉쇄)/잔해(파성)가 보이게. 나머지 통로는 문표 기둥만.
+      // 무한성 성문(castle-*)도 완전 누각으로 렌더 — 문짝(봉쇄)/잔해(파성)가 보이게. 나머지 통로는 문표 기둥만.
       // (호로관은 자체 망루 프롭이 있어 제외 — 이중 망루 방지.)
       const monumental = gate.key === 'origin-north' || gate.key.startsWith('castle-');
       this.fortress.addGate(gate, breached, monumental);

@@ -15,7 +15,7 @@ const pick = (l: Line): string => (getLang() === 'en' ? l.en : l.ko);
 // 세력 전환 내레이션 — spawner.onWave의 faction.id 기준. 시작 세력(황건)은 배너/내레이션 없이 진입.
 const FACTION: Record<string, Line> = {
   dongzhuo: {
-    ko: '낙양 쪽 하늘이 낮에도 밤처럼 검다. 동탁군이 밀려온다.',
+    ko: '무한성 상공이 칠흑 같은 어둠에 휩싸인다. 십이귀월이 밀려온다.',
     en: 'The Luoyang sky darkens at noon — Dong Zhuo’s host presses in.',
   },
   yuanshao: {

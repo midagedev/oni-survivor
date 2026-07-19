@@ -71,7 +71,7 @@ export class Spawner {
   private eliteTimer = ELITE_INTERVAL;
   private surroundTimer = 0;
   private bossActive = false;
-  private siegeActive = false; // 낙양 수성 중: 오픈필드 일반 스폰율 0.55x(DESIGN 20)
+  private siegeActive = false; // 무한성 결전 중: 오픈필드 일반 스폰율 0.55x(DESIGN 20)
   private factionIdx = 0; // 현재 세력 단계(전환 감지용)
   onWave: ((faction: Faction) => void) | null = null; // 세력 전환 시 배너 트리거(run이 주입)
   private readonly atlas: Atlas;
@@ -126,7 +126,7 @@ export class Spawner {
     // #25 밀도 밸런스: 초반 레이트 완화(2.6→1.7/분) + 상한 25→18로 6분 스파이크 평탄화.
     let rate = Math.min(18, 2 + minute * 1.7); // 초당 스폰 수
     if (this.bossActive) rate *= 0.4; // 보스전: 잡몹 스폰 감소(#40, 0.6→0.4) — 오토에임 분산·데미지 스펀지 완화
-    else if (this.siegeActive) rate *= 0.55; // 낙양 수성: 오픈필드 스폰율 하향, 성문 웨이브에 무게(DESIGN 20)
+    else if (this.siegeActive) rate *= 0.55; // 무한성 결전: 오픈필드 스폰율 하향, 성문 웨이브에 무게(DESIGN 20)
 
     if (this.pool.aliveCount < ENEMY_SOFT_CAP) {
       this.acc += rate * dt;
@@ -183,7 +183,7 @@ export class Spawner {
     let sheetId = SHEET_SOLDIERS;
     let blockPx = this.atlas.soldierBlockPx(type.charIndex);
     let blockPy = 0;
-    // factionIdx 지정 시 시간대 무시하고 해당 세력 틴트로 고정(낙양 수비대·탈환군=동탁군).
+    // factionIdx 지정 시 시간대 무시하고 해당 세력 틴트로 고정(무한성 수비대·탈환군=동탁군).
     const faction = FACTIONS[factionIdx ?? factionForMinute(minute)];
     // 색변형 스프라이트: 세력 구간 내 무작위 → 대군에 미세한 몸체 다양성(1분 이후).
     if (minute >= 1) {
@@ -276,7 +276,7 @@ export class Spawner {
     }
   }
 
-  // === 낙양 공방전(DESIGN 20) 스폰 — 위치는 SiegeSystem이 계산, 종류/틴트/행동만 스포너가 부여 ===
+  // === 무한성 결전(DESIGN 20) 스폰 — 위치는 SiegeSystem이 계산, 종류/틴트/행동만 스포너가 부여 ===
   // 수비대/탈환군 단일 개체(동탁군 색군 고정). bow=파수꾼(궁수·BEHAVIOR_VOLLEY).
   spawnSiegeAttacker(x: number, z: number, minute: number, bow = false): number {
     const type = bow ? ENEMY_TYPES.general_bow : this.pickType(minute);

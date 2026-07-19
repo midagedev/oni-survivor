@@ -62,7 +62,7 @@ const TITLE_STYLE: TextStyle = {
 const BANNER_FOG_COLOR = new Vector3(0.00018, 0.00026, 0.0008);
 const BANNER_FOG_DENSITY = 0.019;
 
-// 낙양 공방전 점령 웨이브 색(동료 청록 림과 톤 통일). 최댓값 0.46 < 블룸 임계 0.6 → 천이 광원처럼 타지 않음.
+// 무한성 결전 점령 웨이브 색(동료 청록 림과 톤 통일). 최댓값 0.46 < 블룸 임계 0.6 → 천이 광원처럼 타지 않음.
 const ALLIED_CYAN: readonly [number, number, number] = [0.14, 0.46, 0.44];
 const FLIP_DELAY_PER_M = 0.055; // 원점에서 먼 깃발일수록 늦게 물듦(웨이브 전파 속도)
 const FLIP_LERP_SEC = 0.8; // 개별 깃발 색 전환 소요
@@ -260,7 +260,7 @@ class BannerBatch {
   private readonly cap: number;
   private version = -1;
 
-  // 점령/함락 색 전환 웨이브 상태(낙양 공방전). castleRenderData.flipVersion 변화로 무장(arm).
+  // 점령/함락 색 전환 웨이브 상태(무한성 결전). castleRenderData.flipVersion 변화로 무장(arm).
   private flipVersion = -1;
   private lastTime = -1;
   private count = 0;

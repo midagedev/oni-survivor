@@ -17,9 +17,9 @@ export interface RelicDef {
 export const RELIC_DEFS: RelicDef[] = [
   {
     id: 'seven_star',
-    name: '칠성검',
-    nameEn: 'Seven Stars Sword',
-    hanja: '七星劍',
+    name: '독낫',
+    nameEn: "Gyutaro's Sickle",
+    hanja: '毒鎌',
     desc: '공격력 +40%, 최대 체력 -30%',
     descEn: 'Attack +40%, Max HP -30%',
     apply: (s) => {
@@ -29,9 +29,9 @@ export const RELIC_DEFS: RelicDef[] = [
   },
   {
     id: 'bronze_decree',
-    name: '동작대 금령',
-    nameEn: 'Bronze Sparrow Decree',
-    hanja: '銅雀臺金令',
+    name: '무한성 비와 열쇠',
+    nameEn: 'Mugen Castle Key',
+    hanja: '無限城琵琶鍵',
     desc: '골드 획득 +100%, 이동속도 -15%',
     descEn: 'Gold gain +100%, Move speed -15%',
     apply: (s) => {
@@ -41,9 +41,9 @@ export const RELIC_DEFS: RelicDef[] = [
   },
   {
     id: 'ox_fan',
-    name: '우선',
-    nameEn: 'Ox Fan',
-    hanja: '牛扇',
+    name: '금강엽 부채',
+    nameEn: "Doma's Golden Fan",
+    hanja: '鐵扇',
     desc: '쿨다운 -25%, 픽업 반경 -50%',
     descEn: 'Cooldown -25%, Pickup radius -50%',
     apply: (s) => {
@@ -53,9 +53,9 @@ export const RELIC_DEFS: RelicDef[] = [
   },
   {
     id: 'poison_pill',
-    name: '오석산',
-    nameEn: 'Five-Mineral Powder',
-    hanja: '五石散',
+    name: '푸른 피안화 가루',
+    nameEn: 'Blue Spider Lily Powder',
+    hanja: '彼岸花',
     desc: '공격력 +30%, 받는 피해 +25%',
     descEn: 'Attack +30%, Damage taken +25%',
     apply: (s) => {
@@ -65,9 +65,9 @@ export const RELIC_DEFS: RelicDef[] = [
   },
   {
     id: 'blood_banner',
-    name: '피의 군기',
-    nameEn: 'Blood War-Banner',
-    hanja: '血軍旗',
+    name: '희귀혈 주머니',
+    nameEn: 'Marechi Blood Pouch',
+    hanja: '稀血',
     desc: '투사체 +2, 체력 재생 정지, 최대 체력 -15%',
     descEn: 'Projectiles +2, HP regen off, Max HP -15%',
     apply: (s) => {
@@ -78,9 +78,9 @@ export const RELIC_DEFS: RelicDef[] = [
   },
   {
     id: 'greedy_seal',
-    name: '탐랑의 인',
-    nameEn: 'Seal of Greed',
-    hanja: '貪狼印',
+    name: '상현의 인장',
+    nameEn: 'Upper Rank Crest',
+    hanja: '上弦印',
     desc: '경험치 +50%, 광역 -25%',
     descEn: 'XP +50%, Area -25%',
     apply: (s) => {
@@ -89,7 +89,6 @@ export const RELIC_DEFS: RelicDef[] = [
     },
   },
 ];
-
 export const RELIC_BY_ID: Record<string, RelicDef> = {};
 for (const r of RELIC_DEFS) RELIC_BY_ID[r.id] = r;
 
@@ -128,13 +127,13 @@ export interface MasterworkDef {
 export const MASTERWORK_DEFS: MasterworkDef[] = [
   {
     id: 'zhangba_mao',
-    name: '장팔사모',
-    nameEn: 'Serpent Spear',
-    hanja: '丈八蛇矛',
+    name: '이노스케의 이도',
+    nameEn: "Inosuke's Serrated Blades",
+    hanja: '雙刀',
     desc: '공격력 +20%, 광역 +15%',
     descEn: 'Attack +20%, Area +15%',
-    lore: '한 길 여덟 자, 뱀처럼 굽이친 긴 모. 길이가 곧 거리이고 무게가 곧 기세라, 닿을 자리를 먼저 정하는 쪽은 늘 이 모를 쥔 손이다.',
-    loreEn: 'A serpentine spear a fathom and eight feet long. Reach is distance and weight is momentum — the hand that holds it always decides where the blow lands first.',
+    lore: '이노스케가 멧돼지 탈을 쓰고 난전에서 거칠게 휘두르는 톱니 모양의 이도. 거친 성정만큼이나 무자비하게 살을 뜯어낸다.',
+    loreEn: "A pair of serrated Nichirin blades Inosuke swings wildly. True to his beastly nature, they tear flesh apart mercilessly.",
     apply: (s) => {
       s.damageMul *= 1.2;
       s.areaMul *= 1.15;
@@ -142,13 +141,13 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'qinggang_jian',
-    name: '청홍검',
-    nameEn: 'Qinggang Blade',
-    hanja: '靑釭劍',
+    name: '탄지로의 일륜도',
+    nameEn: "Tanjiro's Black Nichirin Sword",
+    hanja: '日輪刀',
     desc: '공격력 +18%, 사거리·투사체 속도 +15%',
     descEn: 'Attack +18%, Range & projectile speed +15%',
-    lore: '칼등이 푸르게 식어 빛나는 양날 보검. 쇠를 진흙처럼 갈라, 벤 줄도 모른 채 늦게야 피가 흐른다.',
-    loreEn: 'A double-edged sword glowing blue-cold along its spine. It parts iron like clay — the cut is felt only when the blood comes late.',
+    lore: '탄지로가 쥐는 검은색 일륜도. 물의 호흡과 해의 호흡을 오가며 혈귀를 베어 가를 때 검신이 칠흑의 빛을 발한다.',
+    loreEn: "A jet-black Nichirin sword held by Tanjiro. It glows with an abyssal sheen when channeling water or sun breathing forms.",
     apply: (s) => {
       s.damageMul *= 1.18;
       s.rangeMul *= 1.15;
@@ -156,39 +155,39 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'wanshi_gong',
-    name: '만석궁',
-    nameEn: 'Myriad-Stone Bow',
-    hanja: '萬石弓',
+    name: '젠이츠의 일륜도',
+    nameEn: "Zenitsu's Nichirin Sword",
+    hanja: '雷刀',
     desc: '사거리·투사체 속도 +30%',
     descEn: 'Range & projectile speed +30%',
-    lore: '만 석을 당긴다는 초강궁. 살이 닿은 갑주와 방패는 종이처럼 뚫려 살촉 자국만 남는다.',
-    loreEn: 'A superbow said to draw ten thousand stones. Armor and shields it strikes tear like paper, leaving only the arrowhead’s mark.',
+    lore: '젠이츠의 황금빛 일륜도. 벽력일섬의 번개 기운이 실려 순식간에 시공간을 가로지르는 신속의 참격을 퍼붓는다.',
+    loreEn: "A golden Nichirin sword representing Thunder Breathing. Infused with lightning speed, it flashes through the battlefield.",
     apply: (s) => {
       s.rangeMul *= 1.3;
     },
   },
   {
     id: 'bao_dao',
-    name: '보도',
-    nameEn: 'Treasured Saber',
-    hanja: '寶刀',
+    name: '렌고쿠의 코등이',
+    nameEn: "Kyojuro's Flame Tsuba",
+    hanja: '炎鍔',
     desc: '공격력 +28%',
     descEn: 'Attack +28%',
-    lore: '외날을 곧게 세운 환수도 계열의 명품. 잘 벼린 칼이라 손에 익을수록 난전에서 빠르고 매섭게 빛난다.',
-    loreEn: 'A masterwork ring-pommel saber with a true single edge. The better it fits the hand, the faster and fiercer it shines in the melee.',
+    lore: '염주 렌고쿠 쿄쥬로가 쓰던 불꽃 모양 코등이. 타오르는 마음가짐과 호흡을 고조시켜 공격의 파괴력을 끌어올린다.',
+    loreEn: "The flame-shaped sword guard left by Kyojuro. It fuels the slayers heart, heavily amplifying breathing power.",
     apply: (s) => {
       s.damageMul *= 1.28;
     },
   },
   {
     id: 'tietai_gong',
-    name: '철태궁',
-    nameEn: 'Iron-Core Bow',
-    hanja: '鐵胎弓',
+    name: '기유의 일륜도',
+    nameEn: "Giyu's Nichirin Sword",
+    hanja: '水刀',
     desc: '투사체 +1, 공격력 +10%',
     descEn: 'Projectiles +1, Attack +10%',
-    lore: '활채 안쪽에 쇠심을 먹인 강궁. 시위를 끝까지 메길 줄 아는 자만이 그 굳은 채를 살린다.',
-    loreEn: 'A bow with an iron core in its limbs. Only one who can draw the string to its limit brings the stiff stave to life.',
+    lore: '수주 토미오카 기유가 쥐는 청색 일륜도. 고요하고 물러서지 않는 신념의 검격으로 잔잔한 파동을 퍼트린다.',
+    loreEn: "The blue Nichirin sword held by Giyu. It cuts with the absolute stillness of deep water, creating smooth shockwaves.",
     apply: (s) => {
       s.projectileBonus += 1;
       s.damageMul *= 1.1;
@@ -196,13 +195,13 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'shuangtie_ji',
-    name: '쌍철극',
-    nameEn: 'Twin Iron Halberds',
-    hanja: '雙鐵戟',
+    name: '텐겐의 대형 이도',
+    nameEn: "Tengen's Cleavers",
+    hanja: '音爆刀',
     desc: '투사체 +1, 광역 +12%',
     descEn: 'Projectiles +1, Area +12%',
-    lore: '철로 무겁게 벼린 쌍극. 두 날이 서로 다른 높이에서 파고들어, 막는 자는 어느 쪽을 버릴지 늦게야 깨닫는다.',
-    loreEn: 'A pair of heavy iron halberds. The two blades bite in at different heights — the defender learns too late which one to abandon.',
+    lore: '음주 우즈이 텐겐의 체인으로 연결된 대형 이도. 소리의 호흡과 폭발성 참격을 흩날려 넓은 범위를 날려버린다.',
+    loreEn: "Massive dual cleavers connected by a chain. Used by Tengen to trigger roaring explosions across a wide sweep.",
     apply: (s) => {
       s.projectileBonus += 1;
       s.areaMul *= 1.12;
@@ -210,39 +209,39 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'lian_nu',
-    name: '연노',
-    nameEn: 'Repeating Crossbow',
-    hanja: '連弩',
+    name: '사네미의 일륜도',
+    nameEn: "Sanemi's Nichirin Sword",
+    hanja: '風刀',
     desc: '쿨다운 -20%',
     descEn: 'Cooldown -20%',
-    lore: '짧은 살을 잇달아 먹이는 연발 쇠뇌. 한 발의 깊이는 덜해도 쉼 없이 쏟아져 적이 고개를 들지 못하게 한다.',
-    loreEn: 'A repeating crossbow that feeds short bolts in sequence. Each bites less deep, but the endless volley keeps the enemy’s head down.',
+    lore: '풍주 시나즈가와 사네미의 녹색 일륜도. 거친 폭풍 같은 궤적으로 몰아치는 난무가 쉴 새 없이 휘몰아친다.',
+    loreEn: "A green Nichirin sword representing Wind Breathing. Its tempestuous attacks slice in rapid, non-stop successions.",
     apply: (s) => {
       s.cooldownMul *= 0.8;
     },
   },
   {
     id: 'mingguang_kai',
-    name: '명광개',
-    nameEn: 'Radiant Cuirass',
-    hanja: '明光鎧',
+    name: '귀살대 대원복',
+    nameEn: 'Demon Slayer Uniform',
+    hanja: '隊服',
     desc: '받는 피해 -22%',
     descEn: 'Damage taken -22%',
-    lore: '가슴의 둥근 호심경이 빛을 되쏘는 중갑. 창끝이 미끄러질 만큼 단단해, 무겁되 그 무게가 곧 살길이다.',
-    loreEn: 'Heavy armor whose round breast-mirror throws light back. Hard enough to turn a spear-point — its weight is the very road to survival.',
+    lore: '귀살대원들이 착용하는 칠흑의 대원복. 특수한 가공을 거쳐 혈귀의 엄니로부터 대원을 보호하며 가볍고 튼튼하다.',
+    loreEn: "Special pitch-black uniform worn by members of the Demon Slayer Corps, offering protection against demonic fangs.",
     apply: (s) => {
       s.dmgTakenMul *= 0.78;
     },
   },
   {
     id: 'sunzi_bingfa',
-    name: '손자병법',
-    nameEn: 'The Art of War',
-    hanja: '孫子兵法',
+    name: '호흡의 비기',
+    nameEn: 'Breathing Secrets',
+    hanja: '呼吸秘卷',
     desc: '쿨다운 -15%, 광역 +10%',
     descEn: 'Cooldown -15%, Area +10%',
-    lore: '허와 실, 속임과 형세를 가른 십삼 편. 끝까지 익힌 자는 싸우기 전에 이미 셈을 마치고 적의 빈 곳을 짚어 낸다.',
-    loreEn: 'Thirteen chapters dividing the empty and the solid, deception and form. One who masters it finishes the reckoning before the battle and finds the enemy’s gaps.',
+    lore: '역대 주들의 호흡 비결과 전투 비기가 적힌 두루마리. 읽은 자는 싸우기 전에 칼끝이 닿을 궤적의 틈을 포착한다.',
+    loreEn: "Scrolls detailing ancient breathing mastery. Studying it sharpens focus and reveals the thread of interval.",
     apply: (s) => {
       s.cooldownMul *= 0.85;
       s.areaMul *= 1.1;
@@ -250,26 +249,26 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'taigong_bingfa',
-    name: '태공병법',
-    nameEn: 'Taigong’s Art',
-    hanja: '太公兵法',
+    name: '전집중 호흡법',
+    nameEn: 'Total Concentration Guide',
+    hanja: '全集中法',
     desc: '경험치 +35%',
     descEn: 'XP +35%',
-    lore: '강태공의 이름을 빌린 오래된 비전. 천하를 한 판으로 보는 큰 계책이라, 익힌 자의 셈은 형세 전부에 가닿는다.',
-    loreEn: 'An ancient secret text under Jiang Taigong’s name. Its grand design reads all-under-heaven as one board — its reckoning reaches the whole field.',
+    lore: '하루 종일 가슴에 산소를 가득 채우는 전집중 호흡의 해설서. 체내 에너지를 한계까지 끌어올려 성장 속도를 가속한다.',
+    loreEn: "A master handbook on maintaining oxygen intake 24/7. It boosts cellular metabolism, hastening experience gain.",
     apply: (s) => {
       s.xpMul *= 1.35;
     },
   },
   {
     id: 'heshi_bi',
-    name: '화씨벽',
-    nameEn: 'He’s Jade Disc',
-    hanja: '和氏璧',
+    name: '등나무꽃 주머니',
+    nameEn: 'Wisteria Sachet',
+    hanja: '藤香囊',
     desc: '골드 +60%, 픽업 반경 +20%',
     descEn: 'Gold +60%, Pickup radius +20%',
-    lore: '천하에 둘 없다는 보옥. 진시황이 깎아 옥새로 삼았다는 그 돌이라, 지닌 자를 두고 격이 아니라 천명을 가늠한다.',
-    loreEn: 'A jade beyond compare. The very stone Qin Shi Huang cut into an imperial seal — men measure its bearer not by rank but by the mandate of heaven.',
+    lore: '혈귀들이 기피하는 등나무꽃 진액이 가득 든 향나무 주머니. 정신을 맑게 다스리고 장내를 정화하는 가호가 내린다.',
+    loreEn: "A wooden sachet filled with wisteria essence. Its aroma cleanses the air, drawing gold and items closer.",
     apply: (s) => {
       s.goldMul *= 1.6;
       s.pickupMul *= 1.2;
@@ -277,29 +276,27 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'yu_jue',
-    name: '옥결',
-    nameEn: 'Jade Jue',
-    hanja: '玉玦',
+    name: '오니의 곡옥',
+    nameEn: 'Demonic Magatama',
+    hanja: '鬼勾玉',
     desc: '체력 재생 +1.5/s, 최대 체력 +12%',
     descEn: 'HP regen +1.5/s, Max HP +12%',
-    lore: '한쪽이 트인 고리 옥. 그 트임은 결단의 표식이라, 지닌 것만으로 망설이지 않는 사람으로 읽힌다.',
-    loreEn: 'A ring of jade broken on one side. That gap is the mark of resolve — to wear it is to be read as one who does not hesitate.',
+    lore: '오니의 왕의 세포가 깃든 차가운 푸른색 곡옥. 등골이 서늘해지는 저주가 흐르지만 육체 치유 능력을 경이롭게 돕는다.',
+    loreEn: "A freezing blue magatama containing Muzan's cells. It runs cold but acts as a powerful regenerative catalyst.",
     apply: (s) => {
       s.hpRegen += 1.5;
       s.maxHpMul *= 1.12;
     },
   },
-  // ── 확장 12종 (콘텐츠 팩 named.json 미사용 네임드 번안). 무기 편중 회피: 인장·병법서·갑주·궁·패옥 위주.
-  //    새 축 speedMul·dmgReduction 도입, 나머지는 기존 조합과 중복되지 않는 짝으로 서로 다른 빌드 시너지.
   {
     id: 'shuo',
-    name: '삭',
-    nameEn: 'Cavalry Lance',
-    hanja: '矟',
+    name: '귀살대 보급마',
+    nameEn: 'Slayer Steed',
+    hanja: '軍馬',
     desc: '공격력 +15%, 이동속도 +10%',
     descEn: 'Attack +15%, Move speed +10%',
-    lore: '한 길이 넘는 기병의 긴 모. 자루가 굵고 무거워 손목이 아니라 말의 기세로 휘두르니, 내리꽂으면 방패째 꿰뚫려 좀체 빠지지 않는다.',
-    loreEn: 'A cavalryman’s lance longer than a fathom. Too thick and heavy for the wrist, it is swung by the horse’s momentum — driven down, it pierces shield and all and will not easily pull free.',
+    lore: '기병이 타던 사나운 명마. 렌고쿠 가문 등에서 애용하던 말로 전장의 흙바닥을 힘차게 달리며 돌진력을 더한다.',
+    loreEn: "A warhorse bred for rapid responses. It speeds up exploration and gives extra strength to charges.",
     apply: (s) => {
       s.damageMul *= 1.15;
       s.speedMul *= 1.1;
@@ -307,13 +304,13 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'huanshou_dao',
-    name: '환수도',
-    nameEn: 'Ring-Pommel Saber',
-    hanja: '環首刀',
+    name: '시노부의 하오리',
+    nameEn: "Shinobu's Haori",
+    hanja: '羽織',
     desc: '쿨다운 -10%, 공격력 +10%',
     descEn: 'Cooldown -10%, Attack +10%',
-    lore: '자루 끝에 둥근 고리를 단 외날 곧은 칼. 화려할 것 없이 곧게 베고 곧게 찌르는 칼이라, 다룰 줄 아는 손에 쥐여 주면 군말 없이 제 몫을 한다.',
-    loreEn: 'A straight single-edged saber with a ring at the pommel. Nothing ornate — it cuts straight and thrusts straight, and in a capable hand it does its share without a word.',
+    lore: '나비 날개 문양이 새겨진 가벼운 하오리. 바람을 가를 때마다 독침이 더 날카롭고 유연하게 사방으로 퍼진다.',
+    loreEn: "A lightweight haori adorned with butterfly wing designs. It helps poison darts slip through the air much faster.",
     apply: (s) => {
       s.cooldownMul *= 0.9;
       s.damageMul *= 1.1;
@@ -321,13 +318,13 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'jiao_gong',
-    name: '각궁',
-    nameEn: 'Horn Composite Bow',
-    hanja: '角弓',
+    name: '교메이의 염주',
+    nameEn: "Gyomei's Beads",
+    hanja: '數珠',
     desc: '사거리·투사체 속도 +20%, 쿨다운 -8%',
     descEn: 'Range & projectile speed +20%, Cooldown -8%',
-    lore: '물소뿔과 나무, 힘줄을 부레풀로 겹쳐 붙인 복합궁. 작은 몸피로도 세게 멀리 쏘아, 활을 다스릴 줄 아는 자의 사거리를 말없이 넓혀 준다.',
-    loreEn: 'A composite bow of horn, wood, and sinew laminated with fish glue. Small in the hand yet it shoots hard and far, quietly widening the reach of one who can master a bow.',
+    lore: '암주 히메지마 교메이의 무겁고 거대한 염주. 눈먼 자의 직감을 벼려내어 보이지 않는 장막 너머까지 거리를 넓힌다.',
+    loreEn: "Heavy iron prayer beads belonging to Gyomei. They enhance focus, extending range beyond visual limits.",
     apply: (s) => {
       s.rangeMul *= 1.2;
       s.cooldownMul *= 0.92;
@@ -335,13 +332,13 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'liangdang_kai',
-    name: '양당개',
-    nameEn: 'Two-Panel Cuirass',
-    hanja: '裲襠鎧',
+    name: '귀살대 나무나막신',
+    nameEn: 'Wooden Geta',
+    hanja: '木屐',
     desc: '받는 피해 -10%, 이동속도 +8%',
     descEn: 'Damage taken -10%, Move speed +8%',
-    lore: '가슴과 등을 앞뒤 두 판으로 덮고 어깨끈으로 멘 갑. 옆구리가 가벼워 오래 걸어도 숨이 덜 차고, 빗겨 든 판이 화살을 곧잘 튕겨 흘려보낸다.',
-    loreEn: 'Armor of two plates over chest and back, slung from the shoulders. Light at the sides so the breath holds through a long march, its slanted plates readily glance arrows aside.',
+    lore: '대원들이 즐겨 신는 튼튼한 오동나무 나막신. 디딤발이 가벼워져 지면의 습격과 칼날을 사뿐하게 회피한다.',
+    loreEn: "Sturdy wooden geta that lighten the slayers steps, making evasion and movement agile.",
     apply: (s) => {
       s.dmgReduction = Math.min(0.8, s.dmgReduction + 0.1);
       s.speedMul *= 1.08;
@@ -349,13 +346,13 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'zha_jia',
-    name: '찰갑',
-    nameEn: 'Lamellar Armor',
-    hanja: '札甲',
+    name: '오니의 강갑',
+    nameEn: 'Demon Hide',
+    hanja: '鬼皮',
     desc: '받는 피해 -12%, 최대 체력 +8%',
     descEn: 'Damage taken -12%, Max HP +8%',
-    lore: '작은 미늘판 수천 장을 끈과 가죽으로 촘촘히 엮은 몸통 갑. 미늘이 서로 미끄러져 몸을 따라 움직이니, 잘 짜인 한 벌은 창끝을 틈으로 흘려보내 입은 자를 오래 살린다.',
-    loreEn: 'A cuirass of thousands of small scales laced tight with cord and leather. The scales slide over one another to follow the body — a well-made suit slips a spear-point through the gaps and keeps its wearer alive.',
+    lore: '강력한 오니를 사냥한 후 얻은 질긴 가죽들을 겹쳐 덧댄 갑옷 조각. 오니의 살점처럼 단단히 달라붙어 방호를 제공한다.',
+    loreEn: "Armor fragments pieced together from tough demon hide. It acts like a secondary, resilient skin.",
     apply: (s) => {
       s.dmgReduction = Math.min(0.8, s.dmgReduction + 0.12);
       s.maxHpMul *= 1.08;
@@ -363,13 +360,13 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'zishou_jinyin',
-    name: '자수금인',
-    nameEn: 'Purple-Cord Gold Seal',
-    hanja: '紫綬金印',
+    name: '등나무꽃 신사가마',
+    nameEn: 'Shrine Palanquin',
+    hanja: '神輿',
     desc: '골드 +35%, 경험치 +15%',
     descEn: 'Gold +35%, XP +15%',
-    lore: '금 인장에 자줏빛 인끈을 꿰었다. 조정 상층의 격을 말없이 증언하는 물건으로, 끈의 빛깔 하나가 곧 명령이 되어 사람을 부린다.',
-    loreEn: 'A gold seal strung with a purple cord. It testifies in silence to the highest rank at court — the color of the cord alone becomes a command that moves men.',
+    lore: '등나무꽃 신사를 모시는 영험한 의례용 가마. 축제의 북소리가 전장의 마장을 물리치고 대원들에게 자비와 수련의 축복을 싣는다.',
+    loreEn: "A sacred shrine palanquin used in ceremonies. Its music dispels evil, granting coins and wisdom to slayers.",
     apply: (s) => {
       s.goldMul *= 1.35;
       s.xpMul *= 1.15;
@@ -377,13 +374,13 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'yin_yin',
-    name: '은인',
-    nameEn: 'Silver Seal',
-    hanja: '銀印',
+    name: '우부야시키의 은인',
+    nameEn: 'Ubuyashiki Crest',
+    hanja: '産屋敷印',
     desc: '골드 +25%, 최대 체력 +8%',
     descEn: 'Gold +25%, Max HP +8%',
-    lore: '희게 닦인 은 인장에 푸른 인끈이 드리웠다. 군현을 다스리는 자의 표식이라, 이를 허리에 찬 자 앞에서는 아랫것의 말이 절로 낮아진다.',
-    loreEn: 'A polished silver seal hung with a blue cord. It is the token of one who governs a commandery — before its bearer, lesser tongues lower of their own accord.',
+    lore: '등나무꽃 문양이 음각으로 조각된 은빛 결속의 인장. 가문의 가호와 영애가 대원들의 가슴속에 끝없는 생명력을 메운다.',
+    loreEn: "A silver crest engraved with the wisteria mark. It instills honor and resilience in those who carry it.",
     apply: (s) => {
       s.goldMul *= 1.25;
       s.maxHpMul *= 1.08;
@@ -391,13 +388,13 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'jiuzhang_suanshu',
-    name: '구장산술',
-    nameEn: 'Nine Chapters',
-    hanja: '九章算術',
+    name: '무잔의 피병',
+    nameEn: 'Blood of Muzan',
+    hanja: '無惨血',
     desc: '픽업 반경 +30%, 경험치 +15%',
     descEn: 'Pickup radius +30%, XP +15%',
-    lore: '토지 측량과 곡물 환산, 세역과 운송의 셈법을 아홉 장에 묶은 산학의 경전. 펼쳐 읽은 자에게는 시세와 됫박의 속임수가 어디서 새는지 환히 드러난다.',
-    loreEn: 'The mathematical classic binding land survey, grain conversion, tax and transport into nine chapters. To one who has read it, wherever a false price or short measure leaks is laid bare.',
+    lore: '키부츠지 무잔의 저주받은 피가 극미량 든 시약병. 육체의 모든 감각과 오감을 폭발적으로 열어 자력과 흡수력을 넓힌다.',
+    loreEn: "A vial holding a drop of Muzan's blood. It expands the senses, dramatically increasing magnet and XP intake.",
     apply: (s) => {
       s.pickupMul *= 1.3;
       s.xpMul *= 1.15;
@@ -405,13 +402,13 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'sima_fa',
-    name: '사마법',
-    nameEn: 'Methods of the Sima',
-    hanja: '司馬法',
+    name: '수련용 목도',
+    nameEn: 'Training Bokken',
+    hanja: '木刀',
     desc: '광역 +12%, 최대 체력 +10%',
     descEn: 'Area +12%, Max HP +10%',
-    lore: '군법과 진형을 다룬 옛 병서로, 글이 메말라 명령처럼 짧다. 읽으면 군을 부리는 법도가 차곡차곡 쟁여져, 어지러운 판에서도 무엇을 먼저 끊을지 셈하게 된다.',
-    loreEn: 'An old treatise on military law and formation, its prose dry and terse as an order. Read it, and the discipline of commanding troops stacks up within — even in chaos one reckons what to cut down first.',
+    lore: '사콘지의 폭포 수련장 등에서 끊임없이 휘두르던 무거운 참나무 목도. 몸에 각인된 단련의 궤적이 칼날을 한층 두껍게 뿜어낸다.',
+    loreEn: "A heavy oak sword used in rigorous training. The callused hands it leaves produce massive strike arcs.",
     apply: (s) => {
       s.areaMul *= 1.12;
       s.maxHpMul *= 1.1;
@@ -419,13 +416,13 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'bingfa_chaolu',
-    name: '병법 초록',
-    nameEn: 'Tactics Miscellany',
-    hanja: '兵法抄錄',
+    name: '귀살대 임무일지',
+    nameEn: 'Slayer Chronicles',
+    hanja: '任務日誌',
     desc: '경험치 +20%, 광역 +10%',
     descEn: 'XP +20%, Area +10%',
-    lore: '여러 손에서 베껴 모은 잡록이라 글씨체가 장마다 다르다. 그래도 행간을 더듬다 보면 남의 패전이 제 머릿속에서 한 수의 분별로 굳는다.',
-    loreEn: 'A miscellany copied by many hands, its script changing page to page. Yet feel along between the lines, and another’s defeat hardens in your mind into a single stroke of discernment.',
+    lore: '임무를 거쳐 간 수많은 대원들의 전투 경험과 혈귀의 기믹이 기록된 책자. 선배들의 피맺힌 조언은 실전을 거칠 때 큰 격을 가르친다.',
+    loreEn: "Chronicles logging combat details against various demons. The notes left by fallen elders teach valuable combat insight.",
     apply: (s) => {
       s.xpMul *= 1.2;
       s.areaMul *= 1.1;
@@ -433,13 +430,13 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'baiyu_pei',
-    name: '백옥패',
-    nameEn: 'White Jade Pendant',
-    hanja: '白玉佩',
+    name: '액막이 가면',
+    nameEn: 'Ward Mask',
+    hanja: '厄除面',
     desc: '체력 재생 +1/s, 이동속도 +8%',
     descEn: 'HP regen +1/s, Move speed +8%',
-    lore: '서리빛 도는 흰 옥편을 끈으로 꿰어 허리 양옆에 드리운 묶음. 걸을 때마다 맑게 부딪쳐 그 소리가 사람보다 먼저 당도하니, 차림이 거칠어도 발걸음이 격을 발설한다.',
-    loreEn: 'Frost-pale jade tablets strung and hung at either side of the waist. They chime clear with each step so the sound arrives before the man — coarse dress and all, the gait betrays his rank.',
+    lore: '사콘지가 제자들의 액운을 막기 위해 깎아 만든 여우 모양 목가면. 재앙을 비껴가고 착용자의 상처를 부드럽게 감싸 치료한다.',
+    loreEn: "A hand-carved fox mask given by Sakonji to ward off misfortune. It heals wounds and lightens the steps.",
     apply: (s) => {
       s.hpRegen += 1.0;
       s.speedMul *= 1.08;
@@ -447,20 +444,19 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'shuanghuan_pei',
-    name: '쌍환패',
-    nameEn: 'Twin-Ring Pendant',
-    hanja: '雙環佩',
+    name: '네즈코의 재갈',
+    nameEn: "Nezuko's Bamboo Gag",
+    hanja: '竹筒',
     desc: '쿨다운 -12%, 사거리·투사체 속도 +10%',
     descEn: 'Cooldown -12%, Range & projectile speed +10%',
-    lore: '두 고리를 위아래로 이어 늘어뜨린 옥. 한 고리가 울면 다른 고리가 받아 부딪는 소리가 겹으로 길게 끌리니, 마주한 자가 함부로 값을 깎지 못한다.',
-    loreEn: 'A jade of two rings hung one below the other. When one rings the other answers, the chime doubling and drawing long — so none who faces it dares haggle down its worth.',
+    lore: '네즈코가 입에 물고 있는 곧은 대나무 재갈. 인간을 공격하지 않고 이성을 유지하겠다는 강력한 절제와 다짐의 물건.',
+    loreEn: "The bamboo gag Nezuko wears in her mouth. It stands as a symbol of restraint, calming thoughts and cooling skills.",
     apply: (s) => {
       s.cooldownMul *= 0.88;
       s.rangeMul *= 1.1;
     },
   },
 ];
-
 export const MASTERWORK_BY_ID: Record<string, MasterworkDef> = {};
 for (const m of MASTERWORK_DEFS) MASTERWORK_BY_ID[m.id] = m;
 

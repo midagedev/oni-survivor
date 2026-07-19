@@ -1,12 +1,12 @@
 // 칭호(訓章) — 이번 전투의 결과에 붙는 한 줄 칭호. 결과 화면 1줄 노출(업적 title과 별개).
 // 원천: three-kingdoms-mud gunungjeon q4 스레드 accolade.epithet(칭호)을 게임 조건에 매칭해 번안.
-//   낙양 공방전 결과(점령/사수/함락)·처치 보스·콤보·명기·킬 수·무한 도달 등 RunResult+save 필드로 판정.
+//   무한성 공방전 결과(점령/사수/함락)·처치 보스·콤보·명기·킬 수·무한 도달 등 RunResult+save 필드로 판정.
 // 순수 데이터/함수. i18n.ts 무접촉(getLang만 참조). screens.ts가 pickEpithet+epithetText 소비,
 //   save 누적은 main.ts 배선(스니펫). 노출은 결과 화면 1줄뿐 — 신규 UI/토스트 없음(절제).
 import { getLang } from '../core/i18n';
 import type { SaveData } from '../core/save';
 
-// 낙양 공방전 도달 결과. run이 siegeEvents에서 파생해 RunResult에 채운다(배선 스니펫).
+// 무한성 공방전 도달 결과. run이 siegeEvents에서 파생해 RunResult에 채운다(배선 스니펫).
 export type LuoyangOutcome = 'none' | 'captured' | 'held' | 'fallen';
 
 // pickEpithet이 읽는 런 결과의 최소 형태. RunResult가 구조적으로 대입 가능해야 하며,
@@ -35,7 +35,7 @@ export interface Epithet {
 export const EPITHETS: Epithet[] = [
   // ── 희귀(3) ──
   {
-    id: 'luoyang_held', ko: '낙양을 지킨 자', en: 'Keeper of Luoyang', rarity: 3,
+    id: 'mugen_conquered', ko: '무한성을 정복한 자', en: 'Conqueror of Mugen Castle', rarity: 3,
     cond: (r) => r.luoyang === 'held',
   },
   {

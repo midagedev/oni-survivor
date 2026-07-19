@@ -11,7 +11,7 @@ import { SPRITE_TILT, SPRITE_WORLD_H } from './sprites';
 import { CELL_W, CELL_H } from '../data/spriteManifest';
 import type { SheetInfo } from './atlas';
 
-// 군신 사당 버프 오라 — "캐릭터 실루엣을 따라 흐르는 네온"(오너 재피드백: 네모 프레임 폐기).
+// 등나무꽃 사당 버프 오라 — "캐릭터 실루엣을 따라 흐르는 네온"(오너 재피드백: 네모 프레임 폐기).
 // 플레이어 현재 스프라이트 프레임의 알파를 팽창(dilate)시킨 마스크에서 원본을 빼 얻은 외곽 밴드에만
 // 네온을 발광시킨다 → 캐릭터 모양 그대로의 아웃라인. 몸통(알파>0.5)은 투명 유지, 배경(알파 없음)엔 네온 없음.
 //  · 플레이어 스프라이트와 동일 지오메트리(QUAD_W_RATIO·SPRITE_TILT·발 정렬·worldH)로 오버레이 → 정확히 실루엣에 정렬.

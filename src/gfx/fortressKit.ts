@@ -269,8 +269,8 @@ class PartBatch {
 }
 
 const stoneMaterial = fortressMaterial({
-  base: 0xa28a70,
-  dark: 0x473a34,
+  base: 0x3d3536,
+  dark: 0x1f191b,
   surface: 'stone',
   textureScale: 0.46,
 });
@@ -281,14 +281,14 @@ const darkStoneMaterial = fortressMaterial({
   textureScale: 0.52,
 });
 const roofMaterial = fortressMaterial({
-  base: 0x52777d,
-  dark: 0x223d47,
+  base: 0x354045,
+  dark: 0x171e22,
   surface: 'roof',
   textureScale: 0.62,
 });
 const woodMaterial = fortressMaterial({
-  base: 0xd96848,
-  dark: 0x6a2523,
+  base: 0x9b1b1b,
+  dark: 0x4a0a0a,
   surface: 'wood',
   textureScale: 0.72,
 });

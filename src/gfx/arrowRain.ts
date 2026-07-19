@@ -12,7 +12,7 @@ import {
 import type { EffectsSystem } from './effects';
 import { TG_CIRCLE } from './telegraph';
 
-// 낙양 공방전 불화살 낙하(공성 볼리). 상공에서 비스듬히 떨어지는 InstancedMesh 스트릭 +
+// 무한성 결전 불화살 낙하(공성 볼리). 상공에서 비스듬히 떨어지는 InstancedMesh 스트릭 +
 // 착탄 예고는 telegraph 원(EffectsSystem 소유)을 재사용해 t초 동안 채운다.
 // 착탄 순간: 작은 흙먼지 링 + 잔불 스코치 데칼(둘 다 기존 EffectsSystem API 재사용). 광원 추가 없음.
 // 절제 원칙: 살대는 어둡게, 촉만 블룸 임계에 살짝 걸리는 온색 — 화이트아웃 회피 우선.
