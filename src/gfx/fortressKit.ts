@@ -338,12 +338,12 @@ export class FortressGeometryKit {
   private readonly shadows: PartBatch;
 
   constructor(scene: Scene) {
-    this.stone = new PartBatch(scene, bottomPivotBox(), stoneMaterial, 1400);
-    this.darkStone = new PartBatch(scene, bottomPivotBox(), darkStoneMaterial, 720);
-    this.roof = new PartBatch(scene, new BoxGeometry(1, 1, 1), roofMaterial, 160);
-    this.wood = new PartBatch(scene, bottomPivotBox(), woodMaterial, 320);
-    this.goldTrim = new PartBatch(scene, bottomPivotBox(), goldMaterial, 160);
-    this.gold = new PartBatch(scene, new SphereGeometry(1, 6, 4), goldMaterial, 320);
+    this.stone = new PartBatch(scene, bottomPivotBox(), stoneMaterial, 4000);
+    this.darkStone = new PartBatch(scene, bottomPivotBox(), darkStoneMaterial, 3000);
+    this.roof = new PartBatch(scene, new BoxGeometry(1, 1, 1), roofMaterial, 2000);
+    this.wood = new PartBatch(scene, bottomPivotBox(), woodMaterial, 3000);
+    this.goldTrim = new PartBatch(scene, bottomPivotBox(), goldMaterial, 1200);
+    this.gold = new PartBatch(scene, new SphereGeometry(1, 6, 4), goldMaterial, 1200);
     const shadowGeo = new PlaneGeometry(1, 1);
     shadowGeo.rotateX(-Math.PI * 0.5);
     const shadowMat = new MeshBasicMaterial({
@@ -355,7 +355,7 @@ export class FortressGeometryKit {
       depthTest: true,
       toneMapped: false,
     });
-    this.shadows = new PartBatch(scene, shadowGeo, shadowMat, 192);
+    this.shadows = new PartBatch(scene, shadowGeo, shadowMat, 600);
     this.shadows.mesh.renderOrder = 0;
   }
 
@@ -367,6 +367,90 @@ export class FortressGeometryKit {
     this.goldTrim.begin();
     this.gold.begin();
     this.shadows.begin();
+  }
+
+  // 절차적 동양식/무한성 전각 (Japanese Lacquered House)
+  addHouse(x: number, z: number, w: number, d: number, h: number, ry = 0): void {
+    // 그림자
+    this.shadows.push(x, 0.035, z, w + 1.8, 1, d + 1.8);
+
+    // 1. 석재 기단 Base
+    this.darkStone.push(x, 0, z, w + 0.4, 0.45, d + 0.4, ry);
+    this.stone.push(x, 0.32, z, w, 0.35, d, ry);
+
+    // 2. 붉은 칠기 목조 벽체 (Red lacquered main hall)
+    const wallH = h - 0.8;
+    this.wood.push(x, 0.65, z, w - 0.2, wallH, d - 0.2, ry);
+
+    // 기둥 Corner Pillars
+    const cosR = Math.cos(ry);
+    const sinR = Math.sin(ry);
+    for (const sx of [-0.46, 0.46]) {
+      for (const sz of [-0.46, 0.46]) {
+        const px = x + (sx * w * cosR - sz * d * sinR);
+        const pz = z + (sx * w * sinR + sz * d * cosR);
+        this.darkStone.push(px, 0.65, pz, 0.38, wallH + 0.1, 0.38, ry);
+      }
+    }
+
+    // 3. 기와 지붕 (Japanese Kawara Roof)
+    const roofY = 0.65 + wallH;
+    const overhangW = w + 1.4;
+    const overhangD = d + 1.4;
+    this.roof.push(x, roofY + 0.35, z, overhangW, 0.55, overhangD, ry);
+    this.wood.push(x, roofY, z, overhangW - 0.3, 0.18, overhangD - 0.3, ry);
+
+    // 4. 지붕 마루 금빛 장식 (Kinsoku ridge trim)
+    this.goldTrim.push(x, roofY + 0.75, z, w * 0.7, 0.18, 0.2, ry);
+    this.gold.push(x - (w * 0.35) * cosR, roofY + 0.85, z - (w * 0.35) * sinR, 0.22, 0.3, 0.22);
+    this.gold.push(x + (w * 0.35) * cosR, roofY + 0.85, z + (w * 0.35) * sinR, 0.22, 0.3, 0.22);
+  }
+
+  // 절차적 무한성 거대 다층 누각/대전 (Mugen Castle Multi-Tiered Pavilion/Pagoda)
+  addPavilion(x: number, z: number, w: number, d: number, tiers = 2, ry = 0): void {
+    let curY = 0;
+    let curW = w;
+    let curD = d;
+
+    // 기단 그림자
+    this.shadows.push(x, 0.038, z, w + 2.5, 1, d + 2.5);
+
+    for (let t = 0; t < tiers; t++) {
+      const tierH = 2.4 - t * 0.25;
+
+      // 석단 Base for tier
+      this.darkStone.push(x, curY, z, curW + 0.5, 0.4, curD + 0.5, ry);
+      this.stone.push(x, curY + 0.3, z, curW, 0.3, curD, ry);
+
+      // 목조 전각 본체
+      this.wood.push(x, curY + 0.6, z, curW - 0.3, tierH, curD - 0.3, ry);
+
+      // 모서리 기둥 & 붉은 난간
+      const cosR = Math.cos(ry);
+      const sinR = Math.sin(ry);
+      for (const sx of [-0.45, 0.45]) {
+        for (const sz of [-0.45, 0.45]) {
+          const px = x + (sx * curW * cosR - sz * curD * sinR);
+          const pz = z + (sx * curW * sinR + sz * curD * cosR);
+          this.darkStone.push(px, curY + 0.6, pz, 0.42, tierH + 0.12, 0.42, ry);
+        }
+      }
+
+      // 층별 처마 지붕 (Tier Roof Eaves)
+      const roofY = curY + 0.6 + tierH;
+      const eavesW = curW + 1.6 - t * 0.2;
+      const eavesD = curD + 1.6 - t * 0.2;
+      this.roof.push(x, roofY + 0.32, z, eavesW, 0.5, eavesD, ry);
+      this.wood.push(x, roofY, z, eavesW - 0.3, 0.16, eavesD - 0.3, ry);
+      this.goldTrim.push(x, roofY + 0.65, z, curW * 0.75, 0.14, 0.18, ry);
+
+      curY = roofY + 0.7;
+      curW *= 0.72;
+      curD *= 0.72;
+    }
+
+    // 최상층 핀탑 상륜부 (Top Golden Finial)
+    this.gold.push(x, curY + 0.4, z, 0.35, 0.8, 0.35);
   }
 
   addWall(wall: MapWall): void {

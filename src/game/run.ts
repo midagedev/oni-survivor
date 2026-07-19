@@ -4,6 +4,7 @@ import type { CameraRig } from '../gfx/camera';
 import { Cinematics } from '../gfx/cinematics';
 import type { Input } from '../core/input';
 import { Ground } from '../gfx/ground';
+import { Mountains } from '../gfx/mountains';
 import { BattlefieldWorld } from '../gfx/worldKit';
 import { updateFortressCutaway } from '../gfx/fortressKit';
 import { GateBreachFx } from '../gfx/gateBreachFx';
@@ -12,6 +13,7 @@ import { EffectsSystem } from '../gfx/effects';
 import { ArrowRain } from '../gfx/arrowRain';
 import { StarAura } from '../gfx/starAura';
 import { ParticleSystem } from '../gfx/particles';
+import { SakuraPetalsSystem } from '../gfx/sakuraPetals';
 import { DamageText } from '../gfx/damageText';
 import { Labels } from '../gfx/labels';
 import { MarkerLayer } from '../gfx/markers';
@@ -67,7 +69,7 @@ import type { MetaMods } from '../data/upgrades';
 import { rng } from '../core/rng';
 import { audio } from '../core/audio';
 import { Companion } from './companion';
-import { pickSecondCompanion, SECOND_JOIN_TIME } from '../data/companions';
+import { pickSecondCompanion, SECOND_JOIN_TIME, companionLine } from '../data/companions';
 import { pickLine } from '../data/dialogue';
 import { BattlefieldMap, castleRenderData, CASTLE } from './battlefieldMap';
 import type { GateBarrier, MapLandmark } from './battlefieldMap';
@@ -138,6 +140,7 @@ export class Run {
   private readonly atlas: Atlas;
 
   private readonly ground: Ground;
+  private readonly mountains: Mountains;
   private readonly map = new BattlefieldMap();
   private readonly world: BattlefieldWorld;
   private readonly soldiersR: InstancedSpriteRenderer;
@@ -150,6 +153,7 @@ export class Run {
   private readonly banner: WaveBanner;
   private readonly decals: DecalPool;
   private readonly particles: ParticleSystem;
+  private readonly sakuraPetals: SakuraPetalsSystem;
   private readonly damageText: DamageText;
   private readonly labels: Labels;
   private readonly markers: MarkerLayer;
@@ -202,6 +206,11 @@ export class Run {
   private reviveAvailable = false;
   private reviveUsed = false;
   private ended = false; // onEnd 중복 방지
+  private boulderTime = 0;
+  private boulderCompleted = false;
+  private shrineCompleted = false;
+  private discoveredTrainWreck = false;
+  private discoveredWisteriaHouse = false;
   private attractTime = 0;
   private bossFlags = { b3: false, b6: false, b9: false };
   private minibossIdx = 0; // 무한 모드 미니보스 순환 인덱스
@@ -255,6 +264,9 @@ export class Run {
     this.lightField = new LightField(touch);
     const lu = this.lightField.uniforms();
     this.ground = new Ground(this.scene, lu);
+    this.mountains = new Mountains();
+    this.scene.add(this.mountains.group);
+    this.mountains.setPalette(0x0c0f1d, 0x05060a, 0x05060a, 0.85);
     this.map.update(0, 0, 0);
     this.world = new BattlefieldWorld(this.scene, this.map);
     this.soldiersR = new InstancedSpriteRenderer(atlas.soldiers, ENEMY_CAP, lu);
@@ -271,10 +283,12 @@ export class Run {
     );
 
     this.effects = new EffectsSystem(this.scene);
+    this.effects.initGlowBatches(lu);
     this.arrowRain = new ArrowRain(this.scene, this.effects);
     this.starAura = new StarAura(this.scene);
     this.decals = new DecalPool(this.scene);
     this.particles = new ParticleSystem(this.scene);
+    this.sakuraPetals = new SakuraPetalsSystem(this.scene);
     this.damageText = new DamageText(this.scene);
     this.labels = new Labels(this.scene);
     this.markers = new MarkerLayer(this.scene);
@@ -309,14 +323,33 @@ export class Run {
       () => this.hud.punchCombo(),
     );
     this.musou = new Musou(this.hero.musou, () => {
-      this.hud.banner('無雙', '#ffe9a8', 120, 1200, 3);
+      this.hud.banner('奧義 · 全集中', '#ffe9a8', 96, 1200, 3);
+      this.hud.musouCutin(this.hero);
       this.sayHero(2600);
       audio.sfx('musou');
     });
-    this.boss = new Boss(atlas, (name, hanja) => {
+    const BOSS_PORTRAITS: Record<string, string> = {
+      yuanshao: 'doma',
+      dongzhuo: 'enmu',
+      lvbu: 'muzan',
+      xiahoudun: 'akaza',
+      sunce: 'kokushibo',
+      simayi: 'rui',
+      zhouyu: 'gyokko',
+      huaxiong: 'nakime',
+      dianwei: 'gyutaro',
+      gaoshun: 'daki',
+      xiahouyuan: 'hantengu',
+      lumeng: 'sanemi',
+      luxun: 'hand_demon',
+    };
+    this.boss = new Boss(atlas, (name, hanja, typeId) => {
       this.hud.banner(`${name} ${t('bannerAppear')} ${hanja}`, '#e85c4a', 44, 1800, 2);
-      this.sayHero();
-      // 보스 방향 팬은 checkBossSpawn → cinematics.onBossSpawn에서 처리
+      const portraitKey = BOSS_PORTRAITS[typeId] ?? 'akaza';
+      this.hud.bossCutin(name, hanja, portraitKey);
+      const line = bossLine(typeId, 'appear');
+      if (line) this.hud.quote(name, line, 3600);
+      else this.sayHero();
       audio.sfx('bossHorn');
       audio.playBgm('boss');
     });
@@ -671,6 +704,11 @@ export class Run {
     this.starAura.reset();
     this.cinematics.reset();
     this.gateRushTimer = 0;
+    this.boulderTime = 0;
+    this.boulderCompleted = false;
+    this.shrineCompleted = false;
+    this.discoveredTrainWreck = false;
+    this.discoveredWisteriaHouse = false;
     this.hulaoAt = 420 + rng.range(0, 120); // 7~9분 사이 호로관 세트피스 1회
     this.playerWallHits = 0;
     this.lastAttackWeapon = '';
@@ -775,6 +813,11 @@ export class Run {
       const tx = Math.sin(this.attractTime * 0.06) * 5;
       const tz = Math.cos(this.attractTime * 0.05) * 5;
       this.ground.update(dt, tx, tz);
+      this.mountains.group.position.set(tx, 0, tz);
+      const count = Math.floor(4 * dt + Math.random());
+      for (let k = 0; k < count; k++) {
+        this.particles.wisteriaPetal(tx, tz, 20);
+      }
       this.map.update(tx, tz, dt);
       this.world.update();
       this.particles.update(dt);
@@ -945,7 +988,7 @@ export class Run {
 
     // 보스 패턴 (적 dt)
     this.ctx.dt = edt;
-    this.boss.update(edt, this.ctx, this.enemyProj, this.player.x, this.player.z);
+    this.boss.update(edt, this.ctx, this.enemyProj, this.player);
     // 전장 이벤트(보급 마차/황건 러시/유성우) — 적 dt로 진행
     this.events.update(edt, this.gameTime);
     this.ctx.dt = gdt;
@@ -958,7 +1001,8 @@ export class Run {
     const onJoin = (c: Companion): void => {
       const ally = c.definition;
       this.hud.banner(`${t('bannerAlly')} ${ally.name} ${ally.hanja}`, '#7ec8ff', 46, 1600);
-      this.hud.quote(ally.name, pickLine(ally.id, 0));
+      this.hud.companionCutin(ally);
+      this.hud.quote(ally.name, pickLine(ally.id, 0) || companionLine(ally));
       audio.sfx('buff');
       this.cinematics.onAllyJoin(c.joinDirX, c.joinDirZ);
       this.hitstop(250, 0.32); // 소프트 슬로모
@@ -1048,11 +1092,20 @@ export class Run {
     const preMusouX = this.player.x;
     const preMusouZ = this.player.z;
     if (this.musou.update(dt, this.ctx, this.player)) this.cinematics.onMusouEnd();
+    // 기유의 잔잔한 물결(凪): 무쌍 중 9.5m 반경 내 모든 적 투사체 소멸 및 푸른 시각 표식 생성
+    if (this.musou.active && this.hero.musou === 'guanyu') {
+      this.enemyProj.clearInCircle(this.player.x, this.player.z, 9.5, this.particles);
+      if (Math.random() < 3.5 * dt) {
+        this.effects.spawnTelegraph(0, this.player.x, this.player.z, 0, 19, 19, 0, 0.45); // 0 = TG_CIRCLE
+      }
+    }
     this.map.resolveMovement(
       preMusouX, preMusouZ, this.player.x, this.player.z, this.player.radius, this.moveOut,
     );
     this.player.setPosition(this.moveOut.x, this.moveOut.z);
     this.ctx.dt = gdt;
+    this.ctx.musouActive = this.musou.active;
+    this.ctx.musouKey = this.musou.heroMusou;
 
     // 적 투사체 (적 dt)
     this.enemyProj.update(
@@ -1103,9 +1156,15 @@ export class Run {
     this.decals.update(dt);
     this.updateLowHp(dt);
     this.particles.update(dt);
+    this.sakuraPetals.update(dt, this.player.x, this.player.z);
     this.damageText.update(dt);
     this.gateBreachFx.update(dt);
     this.ground.update(dt, this.player.x, this.player.z);
+    this.mountains.group.position.set(this.player.x, 0, this.player.z);
+    const petalsCount = Math.floor(5 * dt + Math.random());
+    for (let k = 0; k < petalsCount; k++) {
+      this.particles.wisteriaPetal(this.player.x, this.player.z, 28);
+    }
     this.map.update(this.player.x, this.player.z, dt);
     this.world.update();
     // 동적 카메라: 주변 위협 밀도 줌아웃 + 진행방향 룩어헤드
@@ -1145,7 +1204,106 @@ export class Run {
     this.renderSprites();
     this.updateLabels();
     this.updateMarkers(dt);
-    this.updateSiegeObjective();
+    // === 귀멸의 칼칼 오픈월드 커스텀 퀘스트 ===
+    const en = getLang() === 'en';
+    let activeQuest: { title: string; sub?: string; progress01?: number; color?: string } | null = null;
+
+    // 1. 바위 베기 수련 (Training Boulder at (-40, -10))
+    if (!this.boulderCompleted) {
+      const dx = this.player.x - (-40);
+      const dz = this.player.z - (-10);
+      const dist = Math.hypot(dx, dz);
+      if (dist <= 4.5) {
+        this.boulderTime += dt;
+        if (this.boulderTime >= 5.0) {
+          this.boulderCompleted = true;
+          this.boulderTime = 5.0;
+          audio.sfx('achievement');
+          this.gold += 300;
+          this.goldEarned += 300;
+          for (let k = 0; k < 15; k++) {
+            const a = Math.random() * Math.PI * 2;
+            this.gems.spawn(-40 + Math.cos(a) * 3, -10 + Math.sin(a) * 3, 5);
+          }
+          this.effects.spawnRing(-40, -10, 3.5, 2.0, 1.2, 0.4, 0.4);
+          this.particles.burst(-40, -10, 0.8, 0.8, 0.8, 20, 5);
+          this.hud.quote(en ? 'Sakonji' : '우로코다키 사콘지', en ? 'You have sliced the boulder. Well done!' : '바위를 벴구나. 잘 했다.', 3500);
+        } else {
+          activeQuest = {
+            title: en ? 'Quest: Slicing the Boulder' : '임무: 바위 베기 수련',
+            sub: en ? `Stay near the training boulder (${(5.0 - this.boulderTime).toFixed(1)}s left)` : `수련 바위 근처에 머물러라 (${(5.0 - this.boulderTime).toFixed(1)}초 남음)`,
+            progress01: this.boulderTime / 5.0,
+            color: '#a8a8a8',
+          };
+        }
+      } else if (dist <= 15) {
+        activeQuest = {
+          title: en ? 'Quest: Slicing the Boulder' : '임무: 바위 베기 수련',
+          sub: en ? 'Approach the boulder to begin slicing training' : '수련 바위 근처로 가서 수련을 시작하라',
+          color: '#a8a8a8',
+        };
+      }
+    }
+
+    // 2. 등나무꽃 신사 참배 (Wisteria Shrine at (0, 80))
+    if (!this.shrineCompleted && !activeQuest) {
+      const dx = this.player.x - 0;
+      const dz = this.player.z - 80;
+      const dist = Math.hypot(dx, dz);
+      if (dist <= 6.0) {
+        this.shrineCompleted = true;
+        audio.sfx('revive');
+        this.player.heal(this.player.maxHp);
+        this.player.invuln = Math.max(this.player.invuln, 12);
+        this.effects.spawnRing(0, 80, 5.5, 1.2, 0.4, 1.2, 0.4);
+        this.particles.burst(0, 80, 0.7, 0.3, 0.9, 30, 4);
+        this.hud.quote(en ? 'Kagaya' : '우부야시키 카가야', en ? 'May fortune and victory bless the Demon Slayers.' : '오늘도 귀살대 대원에게 무운이 깃들기를.', 3800);
+      } else if (dist <= 25) {
+        activeQuest = {
+          title: en ? 'Quest: Wisteria Shrine Blessing' : '임무: 신사의 가호',
+          sub: en ? 'Visit the Wisteria Shrine ahead to receive a divine blessing' : '앞에 보이는 등나무꽃 신사를 참배하여 가호를 받아라',
+          color: '#9b30b0',
+        };
+      }
+    }
+
+    // 3. 무한열차 잔해 발견 (Mugen Train Wreckage proximity trigger)
+    if (!this.discoveredTrainWreck) {
+      for (const lm of this.map.landmarks) {
+        if (lm.name.includes('열차') || lm.name.includes('列車')) {
+          const dx = this.player.x - lm.x;
+          const dz = this.player.z - lm.z;
+          if (dx * dx + dz * dz <= 100) { // 10m 이내
+            this.discoveredTrainWreck = true;
+            this.hud.quote(en ? 'Kyojuro' : '렌고쿠 쿄쥬로', en ? 'The Mugen Train... I will protect everyone to the very end!' : '무한열차인가... 단 한 사람도 죽게 두지 않는다!', 4500);
+            audio.sfx('achievement');
+            break;
+          }
+        }
+      }
+    }
+
+    // 4. 등나무꽃 가문의 집 발견 (Wisteria House proximity trigger)
+    if (!this.discoveredWisteriaHouse) {
+      for (const lm of this.map.landmarks) {
+        if (lm.name.includes('후지꽃') || lm.name.includes('藤의 집') || lm.name.includes('藤の家')) {
+          const dx = this.player.x - lm.x;
+          const dz = this.player.z - lm.z;
+          if (dx * dx + dz * dz <= 100) { // 10m 이내
+            this.discoveredWisteriaHouse = true;
+            this.hud.quote(en ? 'Tanjiro' : '카마도 탄지로', en ? 'The scent of wisteria! A crest of the Wisteria family is here.' : '등나무꽃의 향기야! 후지꽃 가문의 문양집이구나.', 4000);
+            audio.sfx('achievement');
+            break;
+          }
+        }
+      }
+    }
+
+    if (activeQuest) {
+      this.hud.setObjective(activeQuest);
+    } else {
+      this.updateSiegeObjective();
+    }
 
     // 레벨업 대기
     if (this.pendingLevels > 0 && this.state === 'play') this.showNextLevelUp();
@@ -1534,6 +1692,11 @@ export class Run {
       return;
     }
     // 일반: 사망 파티클 버스트(적 틴트) + 젬
+    // 시노부(황충) 패시브 고유 스킬: 처치 시 등나무꽃 독성 나비 영역(Zones) 생성 + 연쇄 폭발
+    if (this.hero.id === 'huangzhong') {
+      this.zones.spawn(x, z, 2.4, 1.8, 42 * this.player.stats.damageMul, 0.7, 0.3, 0.9);
+      this.particles.burst(x, z, 0.7, 0.3, 0.9, 8, 3.2);
+    }
     this.particles.burst(x, z, 2.2 * en.tr[i], 1.3 * en.tg[i], 0.5 * en.tb[i], 14, 4.5);
     this.gems.spawn(x, z, en.gemValue[i]);
     // #45 19.2 KO 홈런 별 — 무쌍 킬만(난무 aoe는 weapon-layer 밖). 근접 차등(60/100%)은 roster가 네이티브 처리.
@@ -1805,9 +1968,9 @@ export class Run {
       const d = MASTERWORK_BY_ID[c.id];
       return {
         title: masterworkName(d), hanja: d.hanja, desc: masterworkDesc(d),
-        tag: en ? 'Masterwork 名器' : '명기 名器',
+        tag: en ? 'Slayer Treasure 寶物' : '대원 보물 寶物',
         accent: '#f5c542', symbol: d.hanja[0],
-        badge: en ? 'RARE' : '名器', rare: true,
+        badge: en ? 'TREASURE' : '보물', rare: true,
       };
     }
     // reward — 심볼(治/金/書)은 한자 공통

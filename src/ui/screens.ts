@@ -1,4 +1,4 @@
-import { HEROES } from '../data/heroes';
+import { HEROES, type HeroDef } from '../data/heroes';
 import { WEAPON_DEFS, EVOLUTIONS } from '../data/weapons';
 import { PASSIVE_BY_ID } from '../data/passives';
 import { UPGRADE_DEFS, upgradeCost, LVBU_UNLOCK_COST } from '../data/upgrades';
@@ -24,7 +24,11 @@ export interface ShareInfo {
 }
 
 // 장수 선택 순서.
-const HERO_ORDER = ['zhaoyun', 'guanyu', 'sunshangxiang', 'zhangfei', 'zhugeliang', 'huangzhong', 'lvbu'];
+const HERO_ORDER = [
+  'zhaoyun', 'zhugeliang', 'huangzhong', // 기본 해금 3인 (탄지로, 미츠리, 시노부)
+  'guanyu', 'zhangfei', 'sunshangxiang', 'lvbu',
+  'zenitsu', 'inosuke', 'tokito', 'uzui', 'sanemi', 'himejima',
+];
 // 도감 보스 순서.
 const BOSS_ORDER = ['yuanshao', 'dongzhuo', 'lvbu'];
 
@@ -56,20 +60,37 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, h
   return e;
 }
 
-// sgrade 시트에서 캐릭터 초상(정면 idle)을 CSS 스프라이트로 잘라 확대 표시.
-function heroPortrait(charIndex: number, scale: number): HTMLDivElement {
-  const base = import.meta.env.BASE_URL + 'assets/sprites/sgrade.png';
-  const cellW = 48;
-  const cellH = 64;
-  const sheetW = 84 * cellW; // 4032 — sgrade 시트 열 수(manifest cols)와 일치해야 함
-  const sheetH = 4 * cellH; // 256
-  const x = charIndex * 4 * cellW; // 블록 원점(정면 idle = 열0, 행0)
+// 고해상도 원화 일러스트(portrait) 또는 캐릭터 초상 표시.
+function heroPortrait(hero: HeroDef, scale: number): HTMLDivElement {
   const d = el('div', 'hero-portrait');
-  d.style.width = `${cellW * scale}px`;
-  d.style.height = `${cellH * scale}px`;
-  d.style.backgroundImage = `url(${base})`;
-  d.style.backgroundSize = `${sheetW * scale}px ${sheetH * scale}px`;
-  d.style.backgroundPosition = `-${x * scale}px 0px`;
+  const w = Math.round(48 * scale);
+  const h = Math.round(64 * scale);
+  d.style.width = `${w}px`;
+  d.style.height = `${h}px`;
+  d.style.borderRadius = '10px';
+  d.style.overflow = 'hidden';
+
+  if (hero.portrait) {
+    const imgUrl = import.meta.env.BASE_URL + `assets/portraits/${hero.portrait}.webp`;
+    const img = document.createElement('img');
+    img.src = imgUrl;
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.objectFit = 'cover';
+    img.style.objectPosition = 'center top';
+    d.appendChild(img);
+  } else {
+    const sheetName = hero.sheet ?? 'sgrade';
+    const base = import.meta.env.BASE_URL + `assets/sprites/${sheetName}.png`;
+    const cellW = 48;
+    const cellH = 64;
+    const sheetW = 36 * cellW;
+    const sheetH = 4 * cellH;
+    const x = hero.charIndex * 4 * cellW;
+    d.style.backgroundImage = `url(${base})`;
+    d.style.backgroundSize = `${sheetW * scale}px ${sheetH * scale}px`;
+    d.style.backgroundPosition = `-${x * scale}px 0px`;
+  }
   return d;
 }
 
@@ -171,7 +192,7 @@ export class Screens {
     const build = (): void => {
       const s = el('div', 'screen');
       const mark = el('div', 'title-mark');
-      mark.appendChild(el('div', 'title-hanja', '一騎當千')); // 한자 로고 — 양 언어 공통
+      mark.appendChild(el('div', 'title-hanja', '滅鬼無雙')); // 한자 로고 — 양 언어 공통
       mark.appendChild(el('div', 'title-kor', t('titleKor')));
       mark.appendChild(el('div', 'title-tag', t('titleTag')));
       s.appendChild(mark);
@@ -215,7 +236,7 @@ export class Screens {
         const locked = !isHeroUnlocked(id, save);
         const card = el('div', locked ? 'hero-card locked' : 'hero-card');
         if (locked && id === 'lvbu') card.classList.add('shop-lock');
-        const port = heroPortrait(h.charIndex, 2.4);
+        const port = heroPortrait(h, 2.4);
         card.appendChild(port);
         if (locked) {
           const lock = el('div', 'hero-lock');
@@ -251,13 +272,13 @@ export class Screens {
   private musouText(id: string): string {
     if (getLang() === 'en') return HERO_MUSOU_EN[id] ?? 'Musou';
     const map: Record<string, string> = {
-      zhaoyun: '무쌍 창격돌진 — 8방향 무적 돌진',
-      guanyu: '무쌍 청룡회천참 — 거대 회전 참격',
-      zhangfei: '무쌍 장판교 포효 — 전화면 스턴',
-      zhugeliang: '무쌍 천뢰소환 — 낙뢰 폭풍',
-      huangzhong: '무쌍 백보천양 — 전방위 화살',
-      sunshangxiang: '무쌍 홍련난무 — 붉은 화살 폭풍',
-      lvbu: '무쌍 적토무쌍 — 조작 가능 무적 돌진',
+      zhaoyun: '무쌍 히노카미 카구라 — 8방향 무적 태양 돌진',
+      guanyu: '무쌍 나기(凪) — 거대 물 소용돌이 참격',
+      zhangfei: '무쌍 폭혈 — 전화면 혈폭 충격파',
+      zhugeliang: '무쌍 혈술 환각 — 환각 혈술 폭풍',
+      huangzhong: '무쌍 벌레의 춤 — 전방위 독침',
+      sunshangxiang: '무쌍 파괴살 나침 — 충격파 난무',
+      lvbu: '무쌍 화염의 호랑이 — 조작 가능 무적 화염 돌진',
     };
     return map[id] ?? '무쌍난무';
   }
@@ -273,7 +294,7 @@ export class Screens {
     const build = (): void => {
       const s = el('div', 'screen');
       const win = result.victory;
-      s.appendChild(el('div', `result-title ${win ? 'win' : 'lose'}`, win ? '天下統一' : '戰死')); // 한자 공통
+      s.appendChild(el('div', `result-title ${win ? 'win' : 'lose'}`, win ? '滅鬼無雙' : '戰死')); // 한자 공통
       s.appendChild(el('div', 'result-sub', win ? t('resultWin') : t('resultLose')));
       const quote = dialogueSelect(result.heroId);
       if (quote) s.appendChild(el('div', 'result-quote', `“${quote}”`));
@@ -560,9 +581,9 @@ export class Screens {
     }
     wrap.appendChild(evoGrid);
 
-    // 명기(名器) 도감 — 보스 드랍 양성 아이템 (DESIGN 14.2). 획득분은 효과+감정문, 미획득은 실루엣+이름/한자.
+    // 대원 보물 도감 — 보스 드랍 양성 아이템 (DESIGN 14.2). 획득분은 효과+감정문, 미획득은 실루엣+이름/한자.
     const mwOwned = ownedMasterworks(save).length;
-    wrap.appendChild(el('div', 'controls-hint', `${en ? 'Masterworks' : '명기 도감'} 名器 (${mwOwned}/${MASTERWORK_DEFS.length})`));
+    wrap.appendChild(el('div', 'controls-hint', `${en ? 'Slayer Treasures' : '대원 보물 도감'} 寶物 (${mwOwned}/${MASTERWORK_DEFS.length})`));
     const mwGrid = el('div', 'mw-grid');
     for (const d of MASTERWORK_DEFS) {
       const owned = isMasterworkOwned(d.id, save);

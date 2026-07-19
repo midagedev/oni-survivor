@@ -327,6 +327,12 @@ export class SpriteQuad {
     this.mesh.renderOrder = 2;
   }
 
+  setSheet(sheet: SheetInfo): void {
+    this.mat.uniforms.uMap.value = sheet.texture;
+    (this.mat.uniforms.uCellUv.value as Vector2).set(sheet.cellUvW, sheet.cellUvH);
+    (this.mat.uniforms.uTexel.value as Vector2).set(1 / sheet.texW, 1 / sheet.texH);
+  }
+
   // 플레이어 강조: 셰이더 내 금색 림 아웃라인 + 미세 밝기 강화(군중 속 구분).
   setPlayer(on: boolean): void {
     this.mat.uniforms.uPlayer.value = on ? 1 : 0;

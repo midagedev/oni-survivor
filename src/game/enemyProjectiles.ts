@@ -455,4 +455,20 @@ export class EnemyProjectilePool {
     this.aimChargeAttr.needsUpdate = true;
     this.aimN = 0;
   }
+
+  clearInCircle(cx: number, cz: number, r: number, particles: ParticleSystem): void {
+    const r2 = r * r;
+    for (let i = 0; i < CAP; i++) {
+      if (this.alive[i] === 0) continue;
+      const dx = this.x[i] - cx;
+      const dz = this.z[i] - cz;
+      if (dx * dx + dz * dz <= r2) {
+        particles.projectileImpact(
+          this.x[i], this.z[i], this.cr[i], this.cg[i], this.cb[i], this.kind[i] === 0 ? 0 : 3,
+        );
+        this.alive[i] = 0;
+        this.free[this.freeTop++] = i;
+      }
+    }
+  }
 }

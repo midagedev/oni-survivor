@@ -320,6 +320,13 @@ export class BattlefieldWorld {
     this.landmark.mesh.visible = false;
     for (const road of this.map.roads) this.roads.push(road.x, road.z, road.width, road.depth);
     for (const wall of this.map.walls) this.fortress.addWall(wall);
+    for (const house of this.map.houses) {
+      if (house.pavilion) {
+        this.fortress.addPavilion(house.x, house.z, house.w, house.d, house.tiers ?? 2, house.ry ?? 0);
+      } else {
+        this.fortress.addHouse(house.x, house.z, house.w, house.d, house.h, house.ry ?? 0);
+      }
+    }
     for (const gate of this.map.gates) {
       const breached = this.map.isGateBreached(gate.key);
       if (gate.key === 'origin-north') {

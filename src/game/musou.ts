@@ -32,7 +32,7 @@ export class Musou {
   private dashTimer = 0;
   private initDone = false;
   private introDone = false; // #18 발동 연출(문장/광원) 1회
-  private heroMusou: string;
+  public heroMusou: string;
   private readonly onActivateFx: () => void; // 발동 연출(한자/사운드)
 
   constructor(heroMusou: string, onActivateFx: () => void) {

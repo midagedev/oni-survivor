@@ -8,9 +8,10 @@ import {
   type EnemyProjectilePool,
 } from './enemyProjectiles';
 import type { Atlas } from '../gfx/atlas';
-import { SHEET_SGRADE, SHEET_APRIORITY } from './enemies';
+import { SHEET_SOLDIERS, SHEET_SGRADE, SHEET_APRIORITY } from './enemies';
 import { TG_CIRCLE, TG_CONE, TG_RECT } from '../gfx/telegraph';
 import { ENEMY_TYPES } from '../data/enemyTypes';
+import type { Player } from './player';
 
 // 패턴: 기존 AI 파라미터 변형(신규 AI 최소화). fan=부채꼴 사격 / firezone=화염장판 /
 // dash=강화 돌진+참격 / rush=쾌속 근접 연속돌진 / delaybolt=지연 낙뢰(예고→광기둥) / lvbu=최종 복합.
@@ -34,24 +35,23 @@ interface BossDef {
 // 3분/6분/9분 슬롯 + 무한 미니보스. 전부 스프라이트 보유(sgrade/apriority manifest charIndex).
 export const BOSS_DEFS: Record<string, BossDef> = {
   // 3분 슬롯 (랜덤 1)
-  yuanshao: { name: '원소', hanja: '袁紹', charIndex: 14, sheet: SHEET_SGRADE, pattern: 'fan', hp: 6000, speed: 2.5, contact: 14, radius: 1.4, tr: 1.1, tg: 1.1, tb: 1.4 },
-  xiahoudun: { name: '하후돈', hanja: '夏侯惇', charIndex: 14, sheet: SHEET_APRIORITY, pattern: 'dash', hp: 6000, speed: 2.9, contact: 16, radius: 1.45, tr: 1.5, tg: 0.85, tb: 0.8 },
-  sunce: { name: '손책', hanja: '孫策', charIndex: 12, sheet: SHEET_SGRADE, pattern: 'rush', hp: 5800, speed: 3.3, contact: 15, radius: 1.35, tr: 1.0, tg: 1.2, tb: 1.5 },
+  yuanshao: { name: '도마', hanja: '童磨', charIndex: 1, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 6000, speed: 2.5, contact: 14, radius: 1.4, tr: 0.8, tg: 1.2, tb: 1.5 },
+  xiahoudun: { name: '아카자', hanja: '猗窩座', charIndex: 5, sheet: SHEET_SGRADE, pattern: 'dash', hp: 6000, speed: 2.9, contact: 16, radius: 1.45, tr: 1.5, tg: 0.8, tb: 1.1 },
+  sunce: { name: '코쿠시보', hanja: '黒死牟', charIndex: 6, sheet: SHEET_SGRADE, pattern: 'rush', hp: 5800, speed: 3.3, contact: 15, radius: 1.35, tr: 1.0, tg: 0.6, tb: 1.3 },
   // 6분 슬롯 (랜덤 1)
-  dongzhuo: { name: '동탁', hanja: '董卓', charIndex: 4, sheet: SHEET_SGRADE, pattern: 'firezone', hp: 3600, speed: 2.1, contact: 18, radius: 1.6, tr: 1.4, tg: 1.0, tb: 0.9 },
-  simayi: { name: '사마의', hanja: '司馬懿', charIndex: 11, sheet: SHEET_SGRADE, pattern: 'delaybolt', hp: 4000, speed: 2.3, contact: 16, radius: 1.5, tr: 0.9, tg: 1.05, tb: 1.5 },
-  zhouyu: { name: '주유', hanja: '周瑜', charIndex: 18, sheet: SHEET_SGRADE, pattern: 'firezone', hp: 3600, speed: 2.4, contact: 16, radius: 1.5, tr: 2.0, tg: 1.0, tb: 0.45 },
+  dongzhuo: { name: '엔무', hanja: '魘夢', charIndex: 2, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 3600, speed: 2.1, contact: 18, radius: 1.6, tr: 0.8, tg: 1.3, tb: 1.2 },
+  simayi: { name: '루이', hanja: '累', charIndex: 9, sheet: SHEET_SOLDIERS, pattern: 'delaybolt', hp: 4000, speed: 2.3, contact: 16, radius: 1.5, tr: 1.2, tg: 1.2, tb: 1.2 },
+  zhouyu: { name: '교코', hanja: '玉壺', charIndex: 3, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 3600, speed: 2.4, contact: 16, radius: 1.5, tr: 0.7, tg: 1.4, tb: 0.9 },
   // 9분 고정 최종
-  lvbu: { name: '여포', hanja: '呂布', charIndex: 10, sheet: SHEET_SGRADE, pattern: 'lvbu', hp: 7500, speed: 3.6, contact: 20, radius: 1.5, tr: 1.5, tg: 0.9, tb: 1.1 },
-  // 낙양 공방전 성주(DESIGN 20) — 동탁의 선봉장 화웅. 미니보스급 HP·돌격 패턴.
-  // 스프라이트는 동탁군 계열(sgrade charIndex 4)을 진홍 틴트로 재사용(전용 스프라이트는 sprite 레인 후속).
-  huaxiong: { name: '화웅', hanja: '華雄', charIndex: 4, sheet: SHEET_SGRADE, pattern: 'dash', hp: 5200, speed: 2.7, contact: 16, radius: 1.45, tr: 1.7, tg: 0.5, tb: 0.42 },
+  lvbu: { name: '무잔', hanja: '鬼舞辻 無惨', charIndex: 7, sheet: SHEET_SGRADE, pattern: 'lvbu', hp: 7500, speed: 3.6, contact: 20, radius: 1.5, tr: 1.6, tg: 0.4, tb: 0.4 },
+  // 무한성 성주 나키메
+  huaxiong: { name: '나키메', hanja: '鳴女', charIndex: 8, sheet: SHEET_SOLDIERS, pattern: 'dash', hp: 5200, speed: 2.7, contact: 16, radius: 1.45, tr: 0.7, tg: 0.4, tb: 0.8 },
   // 무한 미니보스 (12분+ 순환, 스케일링)
-  dianwei: { name: '전위', hanja: '典韋', charIndex: 6, sheet: SHEET_APRIORITY, pattern: 'dash', hp: 5000, speed: 2.8, contact: 17, radius: 1.4, tr: 1.4, tg: 1.1, tb: 0.9 },
-  gaoshun: { name: '고순', hanja: '高順', charIndex: 8, sheet: SHEET_APRIORITY, pattern: 'fan', hp: 5000, speed: 2.5, contact: 15, radius: 1.35, tr: 1.2, tg: 1.15, tb: 1.0 },
-  xiahouyuan: { name: '하후연', hanja: '夏侯淵', charIndex: 15, sheet: SHEET_APRIORITY, pattern: 'delaybolt', hp: 5000, speed: 2.6, contact: 15, radius: 1.4, tr: 1.45, tg: 0.95, tb: 0.85 },
-  lumeng: { name: '여몽', hanja: '呂蒙', charIndex: 8, sheet: SHEET_SGRADE, pattern: 'firezone', hp: 5000, speed: 2.5, contact: 16, radius: 1.45, tr: 0.95, tg: 1.3, tb: 1.05 },
-  luxun: { name: '육손', hanja: '陸遜', charIndex: 9, sheet: SHEET_SGRADE, pattern: 'fan', hp: 5000, speed: 2.5, contact: 15, radius: 1.4, tr: 2.0, tg: 1.05, tb: 0.5 },
+  dianwei: { name: '규타로', hanja: '妓夫太郎', charIndex: 4, sheet: SHEET_SOLDIERS, pattern: 'dash', hp: 5000, speed: 2.8, contact: 17, radius: 1.4, tr: 1.3, tg: 1.1, tb: 0.7 },
+  gaoshun: { name: '다키', hanja: '堕姫', charIndex: 0, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 5000, speed: 2.5, contact: 15, radius: 1.35, tr: 1.5, tg: 0.8, tb: 1.2 },
+  xiahouyuan: { name: '한텐구', hanja: '半天狗', charIndex: 6, sheet: SHEET_SOLDIERS, pattern: 'delaybolt', hp: 5000, speed: 2.6, contact: 15, radius: 1.4, tr: 1.1, tg: 0.9, tb: 0.6 },
+  lumeng: { name: '카이가쿠', hanja: '獪岳', charIndex: 7, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 5000, speed: 2.5, contact: 16, radius: 1.45, tr: 0.5, tg: 0.8, tb: 1.5 },
+  luxun: { name: '손 혈귀', hanja: '手鬼', charIndex: 5, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 5000, speed: 2.5, contact: 15, radius: 1.4, tr: 0.4, tg: 1.4, tb: 0.8 },
 };
 
 // 무한 모드 미니보스 순환 순서.
@@ -66,7 +66,7 @@ export class Boss {
   typeId = '';
   private def: BossDef | null = null;
   private readonly atlas: Atlas;
-  private readonly onWarn: (name: string, hanja: string) => void;
+  private readonly onWarn: (name: string, hanja: string, typeId: string) => void;
 
   private atk1 = 0;
   private atk2 = 0;
@@ -83,7 +83,7 @@ export class Boss {
   private groggyT = 0;
   private groggyCd = 0;
 
-  constructor(atlas: Atlas, onWarn: (name: string, hanja: string) => void) {
+  constructor(atlas: Atlas, onWarn: (name: string, hanja: string, typeId: string) => void) {
     this.atlas = atlas;
     this.onWarn = onWarn;
   }
@@ -122,6 +122,7 @@ export class Boss {
     this.typeId = typeId;
     this.def = def;
     this.active = true;
+    this.onWarn(def.name, def.hanja, typeId);
     this.atk1 = 2.0;
     // 여포의 첫 번개 창은 돌진 전에 보여 회피 방향을 읽을 시간을 준다.
     this.atk2 = def.pattern === 'lvbu' ? 1.15 : 3.5;
@@ -135,11 +136,13 @@ export class Boss {
     // 등장 순간에만 짧게 스미는 테마색 백라이트(일반 광원 → 전투광에 밀려 누적 안 됨).
     // 강도·반경을 절제해 보스 스프라이트를 하얗게 태우지 않는다.
     ctx.effects.spawnLight?.(px, pz - 16, def.tr * 0.45, def.tg * 0.45, def.tb * 0.45, 8, 0.55);
-    this.onWarn(def.name, def.hanja);
+    this.onWarn(def.name, def.hanja, typeId);
   }
 
-  update(dt: number, ctx: WeaponContext, enemyProj: EnemyProjectilePool, px: number, pz: number): void {
+  update(dt: number, ctx: WeaponContext, enemyProj: EnemyProjectilePool, player: Player): void {
     if (!this.active) return;
+    const px = player.x;
+    const pz = player.z;
     const en = ctx.enemies;
     if (en.alive[this.idx] === 0) {
       this.active = false;
@@ -168,6 +171,20 @@ export class Boss {
     dx /= dist;
     dz /= dist;
 
+    // 아카자(xiahoudun) 고유 스킬: 술식 전개 파괴살 나침 (바닥 눈결정 링 전개 및 가속)
+    if (this.typeId === 'xiahoudun') {
+      if (this.atk3 <= 0) {
+        this.atk3 = 4.0;
+        ctx.effects.spawnTelegraph(0, en.x[i], en.z[i], 0, 12, 12, 0, 0.8); // 0 = TG_CIRCLE
+        ctx.effects.spawnRing(en.x[i], en.z[i], 6, 0.4, 0.8, 2.2, 0.85);
+      }
+      if (dist <= 6.0) {
+        en.speed[i] = def.speed * 1.35; // 나침 영역 안에서 35% 가속
+      } else {
+        en.speed[i] = def.speed;
+      }
+    }
+
     // 이동: 돌진 중이 아니면 접근(원거리 패턴형은 거리 유지)
     if (this.dashState === 2) {
       en.x[i] += this.dashDx * 18 * dt;
@@ -178,8 +195,8 @@ export class Boss {
     } else {
       // 원거리형(fan)은 거리 유지, 근접형은 접근.
       const approach = def.pattern === 'fan' ? (dist > 9 ? 1 : -0.2) : 1;
-      en.x[i] += dx * def.speed * approach * dt;
-      en.z[i] += dz * def.speed * approach * dt;
+      en.x[i] += dx * en.speed[i] * approach * dt;
+      en.z[i] += dz * en.speed[i] * approach * dt;
     }
 
     this.atk1 -= dt;
@@ -190,9 +207,9 @@ export class Boss {
       case 'fan': this.updateFan(ctx, enemyProj, i, dx, dz); break;
       case 'firezone': this.updateFirezone(ctx, enemyProj, i, px, pz, dx, dz); break;
       case 'dash': this.updateDash(dt, ctx, enemyProj, i, dx, dz); break;
-      case 'rush': this.updateRush(dt, ctx, i, dx, dz); break;
+      case 'rush': this.updateRush(dt, ctx, enemyProj, i, dx, dz); break;
       case 'delaybolt': this.updateDelaybolt(dt, ctx, enemyProj, i, px, pz); break;
-      case 'lvbu': this.updateLvbu(dt, ctx, enemyProj, i, px, pz, dx, dz); break;
+      case 'lvbu': this.updateLvbu(dt, ctx, enemyProj, i, player, dx, dz); break;
     }
   }
 
@@ -314,11 +331,15 @@ export class Boss {
     }
   }
 
-  // rush: 쾌속 근접 연속 돌진 (손책). 쇼케이스 — 돌진 방향 청록 스피드 리본. 원거리 없음.
-  private updateRush(dt: number, ctx: WeaponContext, i: number, dx: number, dz: number): void {
+  // rush: 쾌속 근접 연속 돌진 (손책) -> Kokushibo Moon Breathing (달의 호흡): 돌격 중 사방으로 초승달 탄을 흩뿌림
+  private updateRush(dt: number, ctx: WeaponContext, enemyProj: EnemyProjectilePool, i: number, dx: number, dz: number): void {
     const en = ctx.enemies;
     if (this.dashState === 2) {
       this.dashT -= dt;
+      if (Math.random() < 8 * dt) {
+        const a = ctx.rng.next() * Math.PI * 2;
+        enemyProj.spawn(en.x[i], en.z[i], Math.cos(a), Math.sin(a), 8, 12, false, EK_LIGHTNING);
+      }
       if (this.dashT <= 0) {
         this.dashState = 0;
         en.damage[i] = this.def!.contact;
@@ -334,7 +355,7 @@ export class Boss {
       en.damage[i] = 30;
       // 쾌속 돌진 경로 사각 텔레그래프(짧게).
       ctx.effects.spawnTelegraph(TG_RECT, en.x[i] + dx * 4, en.z[i] + dz * 4, Math.atan2(dz, dx), 8, 3.4, 0, 0.3);
-      // 돌진 시작점에서 진행 방향으로 단일 리본 스트릭(재사용 슬롯 → 스택/블로우아웃 없음).
+      // 돌진 시작점에서 진행 방향으로 단일 리본 스트릭.
       ctx.effects.spawnThrust(en.x[i], en.z[i], dx, dz, 7, 2.4, 0.5, 1.25, 2.2, 0.34, false);
     }
   }
@@ -371,9 +392,11 @@ export class Boss {
     }
   }
 
-  // 여포: 돌진 + 참격파 + 졸개 소환
-  private updateLvbu(dt: number, ctx: WeaponContext, enemyProj: EnemyProjectilePool, i: number, px: number, pz: number, dx: number, dz: number): void {
+  // 여포 -> 무잔: 돌진 + 참격파 + 진공 인력 흡입 + 졸개 소환
+  private updateLvbu(dt: number, ctx: WeaponContext, enemyProj: EnemyProjectilePool, i: number, player: Player, dx: number, dz: number): void {
     const en = ctx.enemies;
+    const px = player.x;
+    const pz = player.z;
     // 돌진 시퀀스
     if (this.dashState === 1) {
       this.dashT -= dt;
@@ -382,7 +405,7 @@ export class Boss {
         this.dashT = 0.45;
         // dashDx/dashDz는 예고 시점에 잠금됨(#52) — 예고 사각형=실제 돌진 방향 일치.
         en.damage[i] = 40; // 돌진 중 고 대미지
-        ctx.effects.spawnThrust(en.x[i], en.z[i], this.dashDx, this.dashDz, 10, 3, 2.2, 0.8, 0.7);
+        ctx.effects.spawnThrust(en.x[i], en.z[i], this.dashDx, this.dashDz, 10, 3, 2.2, 0.4, 0.4); // 생체 채찍 붉은색
       }
     } else if (this.dashState === 2) {
       this.dashT -= dt;
@@ -399,18 +422,24 @@ export class Boss {
       this.dashT = 0.6;
       this.dashDx = dx; // #52 예고 시점에 돌진 방향 잠금(재조준 금지)
       this.dashDz = dz;
-      ctx.effects.spawnTelegraph(TG_RECT, en.x[i] + dx * 4.5, en.z[i] + dz * 4.5, Math.atan2(dz, dx), 9, 4.2, 0, 0.6); // 돌진 경로(길이=18×0.45≈8+여유)
+      ctx.effects.spawnTelegraph(TG_RECT, en.x[i] + dx * 4.5, en.z[i] + dz * 4.5, Math.atan2(dz, dx), 9, 4.2, 0, 0.6); // 돌진 경로
     }
-    // 참격파 (전방 부채꼴 마탄)
+    // 참격파 (전방 부채꼴 마탄) + 진공 인력 흡입
     if (this.atk2 <= 0) {
-      this.atk2 = 3.0;
+      this.atk2 = 3.5;
+      const dist = Math.hypot(px - en.x[i], pz - en.z[i]) || 1;
+      // 플레이어를 무잔 방향으로 강력하게 당김 (진공 인력)
+      player.nudge(-dx, -dz, 4.8);
+      ctx.effects.spawnRing(en.x[i], en.z[i], dist, 2.5, 0.3, 0.3, 0.9); // 검붉은 인력의 파동
+      ctx.particles.dust(player.x, player.z);
+
       const base = Math.atan2(dz, dx);
       ctx.effects.spawnTelegraph(TG_CONE, en.x[i], en.z[i], base, 20, 20, 0.5, 0.4); // 참격 호 예고
       for (let k = -2; k <= 2; k++) {
         const a = base + k * 0.2;
         enemyProj.spawn(en.x[i], en.z[i], Math.cos(a), Math.sin(a), 13, 14, false, EK_LIGHTNING);
       }
-      this.tryGroggy(ctx, i); // 참격 후에도 틈 — 여포 그로기 창 빈도 확보(패턴 저항 완화)
+      this.tryGroggy(ctx, i); // 참격 후에도 틈
     }
     // 졸개 소환 (#40: 5/7s→3/11s — 누적 스웜이 여포 딜 유입을 막고 플레이어를 과부하시킴)
     if (this.atk3 <= 0) {
@@ -422,7 +451,7 @@ export class Boss {
         const r = 3 + ctx.rng.range(0, 3);
         en.spawn(px + Math.cos(a) * r, pz + Math.sin(a) * r, t.hp * 2, t.speed, t.radius, t.damage, t.gemValue, t.worldScale, 0, bpx, 0);
       }
-      ctx.effects.spawnRing(en.x[i], en.z[i], 5, 2.0, 0.8, 1.4, 0.5);
+      ctx.effects.spawnRing(en.x[i], en.z[i], 5, 2.0, 0.4, 0.4, 0.5);
     }
   }
 }

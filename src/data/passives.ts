@@ -16,8 +16,8 @@ export interface PassiveDef {
 export const PASSIVE_DEFS: PassiveDef[] = [
   {
     id: 'horseshoe',
-    name: '전집중 상시',
-    hanja: '全集中·常中',
+    name: '전집중 호흡',
+    hanja: '全集中',
     maxLevel: 5,
     desc: (l) => (getLang() === 'en' ? `Move speed +${l * 8}%` : `이동속도 +${l * 8}%`),
     apply: (s, l) => {
@@ -26,8 +26,8 @@ export const PASSIVE_DEFS: PassiveDef[] = [
   },
   {
     id: 'armor',
-    name: '귀살대 대원복',
-    hanja: '鬼殺隊服',
+    name: '일륜도 단련',
+    hanja: '鍛錬',
     maxLevel: 5,
     desc: (l) => (getLang() === 'en' ? `Damage taken -${l * 8}%` : `받는 피해 -${l * 8}%`),
     apply: (s, l) => {
@@ -36,8 +36,8 @@ export const PASSIVE_DEFS: PassiveDef[] = [
   },
   {
     id: 'warbook',
-    name: '최종선별 경험',
-    hanja: '最終選別',
+    name: '호흡 비결서',
+    hanja: '呼吸秘卷',
     maxLevel: 5,
     desc: (l) => (getLang() === 'en' ? `XP +${l * 8}%` : `경험치 +${l * 8}%`),
     apply: (s, l) => {
@@ -46,8 +46,8 @@ export const PASSIVE_DEFS: PassiveDef[] = [
   },
   {
     id: 'wine',
-    name: '우코기 떡',
-    hanja: '薬草餅',
+    name: '등나무꽃 약탕',
+    hanja: '藤花湯',
     maxLevel: 5,
     desc: (l) => (getLang() === 'en' ? `Max HP +${l * 10}%, regen ${(l * 0.8).toFixed(1)}/s` : `최대체력 +${l * 10}%, 재생 ${(l * 0.8).toFixed(1)}/s`),
     apply: (s, l) => {
@@ -57,8 +57,8 @@ export const PASSIVE_DEFS: PassiveDef[] = [
   },
   {
     id: 'seal',
-    name: '주화 은행',
-    hanja: '鬼殺隊銀行',
+    name: '주의 인장',
+    hanja: '柱印',
     maxLevel: 5,
     desc: (l) => (getLang() === 'en' ? `Gold gain +${l * 10}%` : `골드 획득 +${l * 10}%`),
     apply: (s, l) => {
@@ -67,8 +67,8 @@ export const PASSIVE_DEFS: PassiveDef[] = [
   },
   {
     id: 'censer',
-    name: '까마귀 통신',
-    hanja: '鎹鴉',
+    name: '등나무꽃 향낭',
+    hanja: '藤香囊',
     maxLevel: 5,
     desc: (l) => (getLang() === 'en' ? `Pickup radius +${l * 15}%` : `픽업 반경 +${l * 15}%`),
     apply: (s, l) => {
@@ -77,8 +77,8 @@ export const PASSIVE_DEFS: PassiveDef[] = [
   },
   {
     id: 'talismanho',
-    name: '육체 강화',
-    hanja: '身體强化',
+    name: '수호 부적',
+    hanja: '護符',
     maxLevel: 5,
     desc: (l) => (getLang() === 'en' ? `Cooldown -${(100 * (1 - Math.pow(0.95, l))).toFixed(0)}%` : `쿨다운 -${(100 * (1 - Math.pow(0.95, l))).toFixed(0)}%`),
     apply: (s, l) => {
@@ -87,8 +87,8 @@ export const PASSIVE_DEFS: PassiveDef[] = [
   },
   {
     id: 'vermilion',
-    name: '사당 축복',
-    hanja: '神社の祝福',
+    name: '귀살대 군기',
+    hanja: '鬼殺旗',
     maxLevel: 3,
     rare: true,
     desc: (l) => (getLang() === 'en' ? `Projectiles +${l}` : `투사체 +${l}`),

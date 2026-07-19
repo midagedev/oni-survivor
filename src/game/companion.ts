@@ -31,7 +31,8 @@ export class Companion {
   readonly radius = 0.45;
 
   private def: CompanionDef = COMPANION_BY_HERO.zhaoyun;
-  private readonly sheet: SheetInfo;
+  private readonly atlas: Atlas;
+  private sheet: SheetInfo;
   private readonly quad: SpriteQuad;
   private blockPx = 0;
   private dir = 0;
@@ -52,7 +53,8 @@ export class Companion {
   private readonly uv = { u: 0, v: 0 };
 
   constructor(scene: Scene, atlas: Atlas, light: LightUniforms) {
-    this.sheet = atlas.sgrade;
+    this.atlas = atlas;
+    this.sheet = atlas.apriority;
     this.quad = new SpriteQuad(this.sheet, light, 2.15);
     this.quad.setTint(0.72, 1.12, 1.5); // 아군 청록 틴트
     this.quad.setAlly(true); // 청록 림 아웃라인 — 적/플레이어와 확실히 구분(오너 딸 피드백)
@@ -74,6 +76,9 @@ export class Companion {
   // opts로 2호(다른 정의/좌측 오프셋/270s 합류/위상차)를 구성. 미지정 시 1호 기본값.
   reset(heroId: string, opts?: { def?: CompanionDef; side?: 1 | -1; joinTime?: number; specialPhase?: number }): void {
     this.def = opts?.def ?? COMPANION_BY_HERO[heroId] ?? COMPANION_BY_HERO.zhaoyun;
+    const sheetName = this.def.sheet ?? 'apriority';
+    this.sheet = this.atlas[sheetName];
+    this.quad.setSheet(this.sheet);
     this.blockPx = this.def.charIndex * 4 * CELL_W;
     this.side = opts?.side ?? 1;
     this.joinTime = opts?.joinTime ?? COMPANION_JOIN_TIME;
@@ -235,7 +240,7 @@ export class Companion {
     const d = this.def;
     switch (d.special) {
       case 'rally': {
-        // 유비 격려: 광역 격려파 + 플레이어 소폭 회복
+        // 우로코다키 격려: 광역 격려파 + 플레이어 소폭 회복
         ctx.effects.spawnRing(this.x, this.z, 9, d.cr, d.cg, d.cb, 0.6);
         ctx.effects.spawnFlash(this.x, this.z, d.cr, d.cg, d.cb, 4);
         this.aoe(ctx, this.x, this.z, 9, this.dmg(70, ctx), 6);
@@ -243,7 +248,7 @@ export class Companion {
         break;
       }
       case 'triplebolt': {
-        // 조조 낙뢰 3연발
+        // 사비토 신속 찌르기 (번개 연발)
         for (let k = 0; k < 3; k++) {
           const t = this.nthEnemy(ctx, 18, k);
           if (t < 0) break;
@@ -253,7 +258,7 @@ export class Companion {
         break;
       }
       case 'pierce': {
-        // 조운 돌진 관통
+        // 탄지로 히노카미 돌진 관통
         const t = this.nearestEnemy(ctx, 18);
         const dx = t >= 0 ? ctx.enemies.x[t] - this.x : player.faceX;
         const dz = t >= 0 ? ctx.enemies.z[t] - this.z : player.faceZ;
@@ -268,7 +273,7 @@ export class Companion {
         break;
       }
       case 'firefan': {
-        // 주유 화염 부채: 광역 아크 + 화염 장판
+        // 유시로 환각 부채: 광역 아크 + 결계 장판
         const t = this.nearestEnemy(ctx, 18);
         const dx = t >= 0 ? ctx.enemies.x[t] - this.x : player.faceX;
         const dz = t >= 0 ? ctx.enemies.z[t] - this.z : player.faceZ;
@@ -281,7 +286,7 @@ export class Companion {
         break;
       }
       case 'chargesweep': {
-        // 장료 돌격 스윕: 대형 아크 + 강넉백
+        // 이노스케 저돌맹진 스윕: 대형 아크 + 강넉백
         ctx.effects.spawnRing(this.x, this.z, 9, d.cr, d.cg, d.cb, 0.5);
         ctx.effects.spawnSlashArc(this.x, this.z, this.dir === 2 ? 1 : -1, 0, 9, 1.5, d.cr, d.cg, d.cb, 0.26);
         this.aoe(ctx, this.x, this.z, 9, this.dmg(75, ctx), 9);

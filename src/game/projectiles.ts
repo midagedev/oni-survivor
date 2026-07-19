@@ -13,7 +13,7 @@ import type { DamageText } from '../gfx/damageText';
 import type { ParticleSystem } from '../gfx/particles';
 import type { EffectsSystem } from '../gfx/effects';
 import { RetroProjectileBatch } from '../gfx/projectileSprites';
-import { ArrowMeshBatch } from '../gfx/meshProjectiles';
+import { ArrowMeshBatch, GlowMeshBatch, makeSlashGeometry, makeOrbGeometry, makeCrystalGeometry, makeCavalryGeometry } from '../gfx/meshProjectiles';
 import type { LightUniforms } from '../gfx/lightField';
 
 const CAP = 384;
@@ -79,6 +79,10 @@ export class ProjectilePool {
   private readonly fadeAttr: InstancedBufferAttribute;
   private readonly spriteBatches: RetroProjectileBatch[];
   private readonly arrows: ArrowMeshBatch;
+  private readonly slashes: GlowMeshBatch;
+  private readonly orbs: GlowMeshBatch;
+  private readonly crystals: GlowMeshBatch;
+  private readonly cavalries: GlowMeshBatch;
 
   constructor(scene: Scene, light: LightUniforms) {
     for (let i = 0; i < CAP; i++) this.free[i] = CAP - 1 - i;
@@ -191,6 +195,10 @@ export class ProjectilePool {
     ];
     // 화살 계열은 스프라이트 대신 진짜 3D 메시로(부피감 + 광원 수광).
     this.arrows = new ArrowMeshBatch(scene, CAP, light);
+    this.slashes = new GlowMeshBatch(scene, makeSlashGeometry(), CAP, light);
+    this.orbs = new GlowMeshBatch(scene, makeOrbGeometry(), CAP, light);
+    this.crystals = new GlowMeshBatch(scene, makeCrystalGeometry(), CAP, light);
+    this.cavalries = new GlowMeshBatch(scene, makeCavalryGeometry(), CAP, light);
   }
 
   get object(): InstancedMesh {
@@ -456,6 +464,10 @@ export class ProjectilePool {
     (this.mesh.material as ShaderMaterial).uniforms.uTime.value = time;
     for (const batch of this.spriteBatches) batch.begin(time);
     this.arrows.begin();
+    this.slashes.begin();
+    this.orbs.begin();
+    this.crystals.begin();
+    this.cavalries.begin();
     let w = 0;
     for (let i = 0; i < CAP; i++) {
       if (this.alive[i] === 0) continue;
@@ -502,11 +514,7 @@ export class ProjectilePool {
         fade = Math.min(1, lt * 4) * Math.min(1, (1 - lt) * 6 + 0.3);
       }
       this.fadeArr[w] = fade;
-      const artScale = this.kind[i] === PK_CAVALRY
-        ? this.len[i]
-        : this.kind[i] === PK_SLASHWAVE
-          ? Math.max(this.len[i], this.wid[i])
-          : this.len[i] * 1.18;
+
       const isArrow = this.kind[i] === PK_ARROW || this.kind[i] === PK_FIRE_ARROW;
       if (isArrow) {
         // 3D 화살 메시: 스프라이트 본체를 대체(후광 쿼드는 유지).
@@ -515,7 +523,41 @@ export class ProjectilePool {
           this.len[i] * 1.05, Math.max(this.wid[i], 0.5) * 1.05,
           this.cr[i], this.cg[i], this.cb[i], fade,
         );
+      } else if (this.kind[i] === PK_SLASHWAVE) {
+        // 3D 검기 메시
+        this.slashes.push(
+          this.x[i], this.hy[i] + 0.2, this.z[i], theta,
+          this.len[i], 1.0, this.wid[i],
+          this.cr[i], this.cg[i], this.cb[i], fade,
+        );
+      } else if (this.kind[i] === PK_ORB) {
+        // 3D 구체 메시
+        this.orbs.push(
+          this.x[i], this.hy[i] + 0.2, this.z[i], theta,
+          this.len[i], this.len[i], this.wid[i],
+          this.cr[i], this.cg[i], this.cb[i], fade,
+        );
+      } else if (this.kind[i] === PK_TALISMAN) {
+        // 3D 크리스탈/부적 메시 (회전 추가)
+        this.crystals.push(
+          this.x[i], this.hy[i] + 0.2, this.z[i], theta + time * 4.0,
+          this.len[i] * 0.8, this.len[i] * 0.8, this.wid[i] * 0.8,
+          this.cr[i], this.cg[i], this.cb[i], fade,
+        );
+      } else if (this.kind[i] === PK_CAVALRY) {
+        // 3D 기마(화염 돌격) 원뿔 메시
+        this.cavalries.push(
+          this.x[i], this.hy[i] + 0.5, this.z[i], theta,
+          this.len[i] * 0.8, 1.2, this.wid[i] * 1.2,
+          this.cr[i], this.cg[i], this.cb[i], fade,
+        );
       } else {
+        // 기본 2D 스프라이트 폴백
+        const artScale = this.kind[i] === PK_CAVALRY
+          ? this.len[i]
+          : this.kind[i] === PK_SLASHWAVE
+            ? Math.max(this.len[i], this.wid[i])
+            : this.len[i] * 1.18;
         this.spriteBatches[this.kind[i]].push(
           this.x[i], this.hy[i] + 0.055, this.z[i], theta, artScale, artScale, fade,
         );
@@ -529,6 +571,10 @@ export class ProjectilePool {
     this.fadeAttr.needsUpdate = true;
     for (const batch of this.spriteBatches) batch.end();
     this.arrows.end();
+    this.slashes.end();
+    this.orbs.end();
+    this.crystals.end();
+    this.cavalries.end();
   }
 }
 

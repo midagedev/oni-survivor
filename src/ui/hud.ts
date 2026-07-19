@@ -1,4 +1,6 @@
 import { t, getLang } from '../core/i18n';
+import type { HeroDef } from '../data/heroes';
+import type { CompanionDef } from '../data/companions';
 
 // 슬롯 프레임 캡 (DESIGN 13.4). run.ts의 MAX_WEAPONS/MAX_PASSIVES와 동일.
 const WEAPON_SLOTS = 6;
@@ -727,5 +729,275 @@ export class Hud {
       { duration: durationMs, easing: 'ease-out' },
     );
     anim.onfinish = () => el.remove();
+  }
+
+  // 오의 / 무쌍난무 대형 반신 일러스트 컷인 연출 (Secret Technique Half-Screen Anime Cut-In)
+  musouCutin(hero: HeroDef): void {
+    const cutin = document.createElement('div');
+    cutin.style.cssText = [
+      'position:fixed',
+      'inset:0',
+      'z-index:45',
+      'pointer-events:none',
+      'display:flex',
+      'align-items:center',
+      'justify-content:center',
+      'overflow:hidden',
+      'animation:musouCutinAnim 2.0s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+    ].join(';');
+
+    const beam = document.createElement('div');
+    beam.style.cssText = [
+      'position:absolute',
+      'width:160%',
+      'height:260px',
+      'background:linear-gradient(90deg, transparent, rgba(255,220,130,0.85), rgba(255,100,60,0.95), transparent)',
+      'transform:rotate(-12deg) scaleY(1.4)',
+      'box-shadow:0 0 60px rgba(255,200,80,0.9), inset 0 0 40px rgba(255,255,255,0.9)',
+    ].join(';');
+    cutin.appendChild(beam);
+
+    const card = document.createElement('div');
+    const portraitUrl = import.meta.env.BASE_URL + `assets/portraits/${hero.portrait}.webp`;
+    card.style.cssText = [
+      'position:absolute',
+      'left:3vw',
+      'top:10vh',
+      'width:45vw',
+      'height:78vh',
+      'background:linear-gradient(135deg, rgba(20, 18, 12, 0.94), rgba(40, 32, 16, 0.96))',
+      'clip-path:polygon(0% 0%, 92% 0%, 100% 100%, 8% 100%)',
+      'border-right:6px solid #ffe89e',
+      'box-shadow:0 0 60px rgba(255, 215, 100, 0.85), inset 0 0 40px rgba(255, 180, 40, 0.4)',
+      'overflow:hidden',
+      'display:flex',
+      'flex-direction:column',
+      'justify-content:flex-end',
+      'padding:36px',
+    ].join(';');
+
+    const bgImg = document.createElement('div');
+    bgImg.style.cssText = [
+      'position:absolute',
+      'inset:0',
+      'background-image:url(' + portraitUrl + ')',
+      'background-size:cover',
+      'background-position:center top',
+      'filter:contrast(1.08) brightness(1.05)',
+    ].join(';');
+    card.appendChild(bgImg);
+
+    const darkGrad = document.createElement('div');
+    darkGrad.style.cssText = [
+      'position:absolute',
+      'inset:0',
+      'background:linear-gradient(to top, rgba(10,8,6,0.95) 0%, rgba(10,8,6,0.55) 45%, transparent 100%)',
+      'pointer-events:none',
+    ].join(';');
+    card.appendChild(darkGrad);
+
+    const textWrap = document.createElement('div');
+    textWrap.style.cssText = 'position:relative;z-index:2;display:flex;flex-direction:column;gap:6px;';
+
+    const titleEl = document.createElement('div');
+    titleEl.style.cssText = 'color:#ffe89e;font-size:32px;letter-spacing:6px;font-weight:bold;text-shadow:0 0 16px rgba(255,215,100,0.9);';
+    titleEl.textContent = `${hero.name} ${hero.hanja}`;
+
+    const subEl = document.createElement('div');
+    subEl.style.cssText = 'color:#ffffff;font-size:46px;letter-spacing:8px;font-weight:900;text-shadow:0 0 28px rgba(255,80,40,1);';
+    subEl.textContent = '奧義 · 全集中 奥義';
+
+    textWrap.appendChild(titleEl);
+    textWrap.appendChild(subEl);
+    card.appendChild(textWrap);
+    cutin.appendChild(card);
+
+    if (!document.getElementById('musou-cutin-style')) {
+      const style = document.createElement('style');
+      style.id = 'musou-cutin-style';
+      style.textContent = `
+        @keyframes musouCutinAnim {
+          0% { opacity:0; transform:scale(1.15) translateX(-30px); }
+          12% { opacity:1; transform:scale(1) translateX(0); }
+          80% { opacity:1; transform:scale(1) translateX(0); }
+          100% { opacity:0; transform:scale(0.95) translateX(-30px); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    document.body.appendChild(cutin);
+    setTimeout(() => cutin.remove(), 2000);
+  }
+
+  // 보스 등장 시 거대 반신 일러스트 컷인 연출 (Boss Spawn Half-Screen Anime Cut-In)
+  bossCutin(name: string, hanja: string, portraitKey: string): void {
+    const cutin = document.createElement('div');
+    cutin.style.cssText = [
+      'position:fixed',
+      'inset:0',
+      'z-index:46',
+      'pointer-events:none',
+      'display:flex',
+      'align-items:center',
+      'justify-content:center',
+      'overflow:hidden',
+      'animation:musouCutinAnim 2.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+    ].join(';');
+
+    const beam = document.createElement('div');
+    beam.style.cssText = [
+      'position:absolute',
+      'width:160%',
+      'height:260px',
+      'background:linear-gradient(90deg, transparent, rgba(230,40,40,0.9), rgba(120,10,20,0.95), transparent)',
+      'transform:rotate(12deg) scaleY(1.4)',
+      'box-shadow:0 0 60px rgba(220,30,30,0.9), inset 0 0 40px rgba(255,100,100,0.9)',
+    ].join(';');
+    cutin.appendChild(beam);
+
+    const card = document.createElement('div');
+    const portraitUrl = import.meta.env.BASE_URL + `assets/portraits/${portraitKey}.webp`;
+    card.style.cssText = [
+      'position:absolute',
+      'right:3vw',
+      'top:10vh',
+      'width:46vw',
+      'height:78vh',
+      'background:linear-gradient(135deg, rgba(24, 10, 14, 0.95), rgba(40, 12, 18, 0.97))',
+      'clip-path:polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)',
+      'border-left:6px solid #e84a4a',
+      'box-shadow:0 0 60px rgba(230, 40, 40, 0.9), inset 0 0 40px rgba(255, 60, 60, 0.4)',
+      'overflow:hidden',
+      'display:flex',
+      'flex-direction:column',
+      'justify-content:flex-end',
+      'padding:36px',
+    ].join(';');
+
+    const bgImg = document.createElement('div');
+    bgImg.style.cssText = [
+      'position:absolute',
+      'inset:0',
+      'background-image:url(' + portraitUrl + ')',
+      'background-size:cover',
+      'background-position:center top',
+      'filter:contrast(1.1) brightness(1.02)',
+    ].join(';');
+    card.appendChild(bgImg);
+
+    const darkGrad = document.createElement('div');
+    darkGrad.style.cssText = [
+      'position:absolute',
+      'inset:0',
+      'background:linear-gradient(to top, rgba(16,8,10,0.95) 0%, rgba(16,8,10,0.55) 45%, transparent 100%)',
+      'pointer-events:none',
+    ].join(';');
+    card.appendChild(darkGrad);
+
+    const textWrap = document.createElement('div');
+    textWrap.style.cssText = 'position:relative;z-index:2;display:flex;flex-direction:column;gap:6px;';
+
+    const titleEl = document.createElement('div');
+    titleEl.style.cssText = 'color:#ff9e9e;font-size:32px;letter-spacing:6px;font-weight:bold;text-shadow:0 0 16px rgba(230,50,50,0.9);';
+    titleEl.textContent = `${name} ${hanja}`;
+
+    const subEl = document.createElement('div');
+    subEl.style.cssText = 'color:#ffffff;font-size:46px;letter-spacing:8px;font-weight:900;text-shadow:0 0 32px rgba(255,30,30,1);';
+    subEl.textContent = '十二鬼月 · 襲來';
+
+    textWrap.appendChild(titleEl);
+    textWrap.appendChild(subEl);
+    card.appendChild(textWrap);
+    cutin.appendChild(card);
+
+    document.body.appendChild(cutin);
+    setTimeout(() => cutin.remove(), 2200);
+  }
+
+  // 동료/원군 참가 시 대형 반신 일러스트 컷인 연출 (Companion Join Half-Screen Cut-In)
+  companionCutin(ally: CompanionDef): void {
+    const cutin = document.createElement('div');
+    cutin.style.cssText = [
+      'position:fixed',
+      'inset:0',
+      'z-index:44',
+      'pointer-events:none',
+      'display:flex',
+      'align-items:center',
+      'justify-content:center',
+      'overflow:hidden',
+      'animation:musouCutinAnim 2.0s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+    ].join(';');
+
+    const beam = document.createElement('div');
+    beam.style.cssText = [
+      'position:absolute',
+      'width:160%',
+      'height:240px',
+      'background:linear-gradient(90deg, transparent, rgba(120,200,255,0.85), rgba(40,140,255,0.95), transparent)',
+      'transform:rotate(-10deg) scaleY(1.4)',
+      'box-shadow:0 0 50px rgba(100,180,255,0.8), inset 0 0 35px rgba(200,240,255,0.9)',
+    ].join(';');
+    cutin.appendChild(beam);
+
+    const card = document.createElement('div');
+    const portraitKey = ally.portrait ?? ally.id;
+    const portraitUrl = import.meta.env.BASE_URL + `assets/portraits/${portraitKey}.webp`;
+    card.style.cssText = [
+      'position:absolute',
+      'left:3vw',
+      'top:10vh',
+      'width:45vw',
+      'height:78vh',
+      'background:linear-gradient(135deg, rgba(10, 18, 28, 0.95), rgba(16, 28, 44, 0.97))',
+      'clip-path:polygon(0% 0%, 92% 0%, 100% 100%, 8% 100%)',
+      'border-right:6px solid #7ec8ff',
+      'box-shadow:0 0 50px rgba(100, 180, 255, 0.8), inset 0 0 35px rgba(140, 200, 255, 0.4)',
+      'overflow:hidden',
+      'display:flex',
+      'flex-direction:column',
+      'justify-content:flex-end',
+      'padding:36px',
+    ].join(';');
+
+    const bgImg = document.createElement('div');
+    bgImg.style.cssText = [
+      'position:absolute',
+      'inset:0',
+      'background-image:url(' + portraitUrl + ')',
+      'background-size:cover',
+      'background-position:center top',
+      'filter:contrast(1.08) brightness(1.05)',
+    ].join(';');
+    card.appendChild(bgImg);
+
+    const darkGrad = document.createElement('div');
+    darkGrad.style.cssText = [
+      'position:absolute',
+      'inset:0',
+      'background:linear-gradient(to top, rgba(8,14,22,0.95) 0%, rgba(8,14,22,0.55) 45%, transparent 100%)',
+      'pointer-events:none',
+    ].join(';');
+    card.appendChild(darkGrad);
+
+    const textWrap = document.createElement('div');
+    textWrap.style.cssText = 'position:relative;z-index:2;display:flex;flex-direction:column;gap:6px;';
+
+    const titleEl = document.createElement('div');
+    titleEl.style.cssText = 'color:#7ec8ff;font-size:32px;letter-spacing:6px;font-weight:bold;text-shadow:0 0 16px rgba(120,200,255,0.9);';
+    titleEl.textContent = `${ally.name} ${ally.hanja}`;
+
+    const subEl = document.createElement('div');
+    subEl.style.cssText = 'color:#ffffff;font-size:44px;letter-spacing:8px;font-weight:900;text-shadow:0 0 28px rgba(100,180,255,1);';
+    subEl.textContent = '鬼殺隊 · 救援 參戰!';
+
+    textWrap.appendChild(titleEl);
+    textWrap.appendChild(subEl);
+    card.appendChild(textWrap);
+    cutin.appendChild(card);
+
+    document.body.appendChild(cutin);
+    setTimeout(() => cutin.remove(), 2000);
   }
 }

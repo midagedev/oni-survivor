@@ -20,7 +20,7 @@ export interface EnemyType {
 export const ENEMY_TYPES: Record<string, EnemyType> = {
   worker: {
     id: 'worker',
-    charIndex: 7,
+    charIndex: 5, // hand_demon
     hp: 6,
     speed: 1.6,
     radius: 0.45,
@@ -30,7 +30,7 @@ export const ENEMY_TYPES: Record<string, EnemyType> = {
   },
   runner: {
     id: 'runner',
-    charIndex: 9,
+    charIndex: 7, // kaigaku
     hp: 4,
     speed: 3.3,
     radius: 0.4,
@@ -40,7 +40,7 @@ export const ENEMY_TYPES: Record<string, EnemyType> = {
   },
   guard: {
     id: 'guard',
-    charIndex: 8,
+    charIndex: 9, // rui
     hp: 14,
     speed: 1.9,
     radius: 0.55,
@@ -50,7 +50,7 @@ export const ENEMY_TYPES: Record<string, EnemyType> = {
   },
   general_spear: {
     id: 'general_spear',
-    charIndex: 1,
+    charIndex: 4, // gyutaro
     hp: 42,
     speed: 1.7,
     radius: 0.62,
@@ -60,7 +60,7 @@ export const ENEMY_TYPES: Record<string, EnemyType> = {
   },
   general_blade: {
     id: 'general_blade',
-    charIndex: 2,
+    charIndex: 0, // daki
     hp: 26,
     speed: 2.4,
     radius: 0.52,
@@ -70,7 +70,7 @@ export const ENEMY_TYPES: Record<string, EnemyType> = {
   },
   general_bow: {
     id: 'general_bow',
-    charIndex: 3,
+    charIndex: 3, // gyokko (ranged)
     hp: 20,
     speed: 1.7,
     radius: 0.5,
@@ -85,7 +85,7 @@ export const ENEMY_TYPES: Record<string, EnemyType> = {
   },
   strategist: {
     id: 'strategist',
-    charIndex: 4,
+    charIndex: 6, // hantengu (homing attacks)
     hp: 24,
     speed: 1.4,
     radius: 0.5,

@@ -52,7 +52,7 @@ export interface CastleBanner {
 export const castleRenderData = {
   banners: [] as CastleBanner[],
   bannerVersion: 0,
-  title: { text: '무한성 Mugen Castle', x: CASTLE_CX, y: 6.4, z: CASTLE_CZ + CASTLE_OHZ - 8, alpha: 0 },
+  title: { text: '무한성 無限城', x: CASTLE_CX, y: 6.4, z: CASTLE_CZ + CASTLE_OHZ - 8, alpha: 0 },
   // 성 소유 상태 → markers 깃발 색 전환 웨이브 채널(무한성 결전, DESIGN 20절).
   // flipVersion 증가가 전환 트리거, (flipX,flipZ) 원점에서 먼 깃발일수록 늦게 물든다.
   allied: false,
@@ -104,6 +104,17 @@ export interface MapProp {
   height: number;
 }
 
+export interface MapHouse {
+  x: number;
+  z: number;
+  w: number;
+  d: number;
+  h: number;
+  ry?: number;
+  pavilion?: boolean;
+  tiers?: number;
+}
+
 // 오픈필드에 흩어 놓는 전술 랜드마크(충돌 없음 — 미로가 아니라 시각 지표).
 export interface MapLandmark {
   x: number;
@@ -132,11 +143,11 @@ interface LandmarkType {
 // WORLD_ASSETS: tower=2, palisade=3, siegeWreck=4, camp=5, warDrum=6, beacon=11
 const LANDMARK_TYPES: LandmarkType[] = [
   // 랜드마크는 배경 — 밀집 전투에서 적을 가리지 않게 발광 반경·강도 하향(감사 #27).
-  { kind: 11, width: 3.2, height: 5.4, name: '등나무 제단 Wisteria Altar', glow: 1.6, gr: 1.2, gg: 0.4, gb: 1.8 },
-  { kind: 5, width: 5.4, height: 4.0, name: '귀살대 막사 Corps Barrack', glow: 0, gr: 0, gg: 0, gb: 0 },
-  { kind: 6, width: 3.0, height: 3.4, name: '비파 연주대 Biwa Dais', glow: 1.7, gr: 2.0, gg: 0.4, gb: 0.4 },
-  { kind: 2, width: 3.4, height: 5.6, name: '등꽃 망루 Wisteria Tower', glow: 0, gr: 0, gg: 0, gb: 0 },
-  { kind: 4, width: 4.8, height: 3.6, name: '목조 폐허 Wooden Ruin', glow: 0, gr: 0, gg: 0, gb: 0 },
+  { kind: 11, width: 3.2, height: 5.4, name: '봉화대 烽火', glow: 1.6, gr: 1.05, gg: 0.52, gb: 0.2 },
+  { kind: 5, width: 5.4, height: 4.0, name: '군영 軍營', glow: 0, gr: 0, gg: 0, gb: 0 },
+  { kind: 6, width: 3.0, height: 3.4, name: '전고 戰鼓', glow: 1.7, gr: 1.0, gg: 0.38, gb: 0.26 },
+  { kind: 2, width: 3.4, height: 5.6, name: '망루 望樓', glow: 0, gr: 0, gg: 0, gb: 0 },
+  { kind: 4, width: 4.8, height: 3.6, name: '공성 잔해 殘骸', glow: 0, gr: 0, gg: 0, gb: 0 },
 ];
 const LANDMARK_COUNT = 12;
 const GOLDEN_ANGLE = 2.399963229728653;
@@ -191,6 +202,7 @@ function edgeOpen(cx: number, cz: number, nx: number, nz: number): boolean {
 // 렌더·충돌·스폰·적 길찾기가 함께 소비하는 결정론적 청크 맵.
 export class BattlefieldMap {
   readonly walls: MapWall[] = [];
+  readonly houses: MapHouse[] = [];
   readonly roads: MapRoad[] = [];
   readonly props: MapProp[] = [];
   readonly landmarks: MapLandmark[] = [];
@@ -355,17 +367,104 @@ export class BattlefieldMap {
   // 원점 주변에 나선형으로 랜드마크를 흩어 놓는다. 충돌체를 만들지 않아
   // 포위·휩쓸기 오픈필드 감각을 해치지 않으면서 전장에 지표와 스펙터클을 준다.
   private buildLandmarks(): void {
+    const addProp = (x: number, z: number, kind: number, w: number, h: number): void => {
+      this.props.push({ x, z, kind, width: w, height: h });
+      this.colliders.push({ x, z, hx: w * 0.5, hz: h * 0.5, gateKey: null });
+    };
+
+    const addLandmark = (
+      x: number, z: number, kind: number, w: number, h: number, name: string,
+      glow: number, gr: number, gg: number, gb: number,
+    ): void => {
+      this.props.push({ x, z, kind, width: w, height: h });
+      this.landmarks.push({ x, z, kind, width: w, height: h, name, glow, gr, gg, gb });
+      this.colliders.push({ x, z, hx: w * 0.5, hz: h * 0.5, gateKey: null });
+    };
+
+    // 1. 수련용 바위 (Training Boulder) 및 수련터 울타리 배치
+    addProp(-43, -12, 3, 2.0, 2.2); // 목책 데코
+    addProp(-37, -12, 3, 2.0, 2.2);
+    addLandmark(
+      -40, -10, 6, 3.0, 3.4,
+      '수련용 바위 試練の岩', 1.7, 0.8, 0.8, 0.8,
+    );
+
+    // 2. 등나무꽃 신사 (Wisteria Shrine) 경내 및 등꽃 향로 배치
+    addProp(-5, 76, 3, 2.2, 2.2); // 신사 울타리
+    addProp(5, 76, 3, 2.2, 2.2);
+    addProp(-3, 84, 11, 2.6, 4.4); // 제단 등꽃 향로
+    addProp(3, 84, 11, 2.6, 4.4);
+    addLandmark(
+      0, 80, 5, 6.0, 4.5,
+      '등나무꽃 신사 藤の花の神社', 3.0, 0.6, 0.3, 0.9,
+    );
+
+    // 3. 절차적 마을 생성 (Procedural Villages) - 3곳에 부락 생성
+    const villages = [
+      { x: -90, z: -90, name: '남서부 등나무꽃 부락' },
+      { x: 90, z: -90, name: '남동부 등나무꽃 부락' },
+      { x: -100, z: 70, name: '북서부 등나무꽃 부락' },
+    ];
+
+    for (const vil of villages) {
+      // 본채 2동 및 주변 전각 배치
+      addProp(vil.x - 8, vil.z - 6, 5, 5.4, 4.0);
+      addProp(vil.x + 8, vil.z + 6, 5, 5.4, 4.0);
+
+      // 절차적 3D 목조 전각 (Asiahouse 스타일 전각 조립)
+      this.houses.push({ x: vil.x - 7, z: vil.z - 5, w: 6, d: 5, h: 2.8 });
+      this.houses.push({ x: vil.x + 7, z: vil.z - 5, w: 6, d: 5, h: 2.8 });
+      this.houses.push({ x: vil.x - 7, z: vil.z + 6, w: 6, d: 5, h: 2.8 });
+      this.houses.push({ x: vil.x + 7, z: vil.z + 6, w: 6, d: 5, h: 2.8 });
+
+      // 울타리 배치
+      addProp(vil.x - 12, vil.z - 6, 3, 2.0, 2.2);
+      addProp(vil.x - 4, vil.z - 6, 3, 2.0, 2.2);
+      addProp(vil.x - 8, vil.z - 9, 3, 4.0, 2.2);
+
+      addProp(vil.x + 4, vil.z + 6, 3, 2.0, 2.2);
+      addProp(vil.x + 12, vil.z + 6, 3, 2.0, 2.2);
+      addProp(vil.x + 8, vil.z + 3, 3, 4.0, 2.2);
+
+      // 마을 보초 망루
+      addProp(vil.x - 12, vil.z + 10, 2, 3.2, 5.4);
+
+      // 마을 중앙 등꽃 향로 (봉화대 및 대사 발견 트리거로 연동)
+      addLandmark(
+        vil.x, vil.z, 11, 2.6, 4.4,
+        vil.name, 1.6, 0.6, 0.3, 0.9,
+      );
+    }
+
+    // 기존 나선형 스폰 배치 (우리가 배치한 커스텀 구역 및 마을 주변은 충돌을 피해서)
     for (let i = 0; i < LANDMARK_COUNT; i++) {
       const t = LANDMARK_TYPES[i % LANDMARK_TYPES.length];
-      const radius = 18 + i * 5.8;
+      const radius = 30 + i * 8.5; // 마을 영역을 피하기 위해 반경 증가
       const a = i * GOLDEN_ANGLE;
       const x = Math.cos(a) * radius;
       const z = Math.sin(a) * radius;
-      this.props.push({ x, z, kind: t.kind, width: t.width, height: t.height });
-      this.landmarks.push({
-        x, z, kind: t.kind, width: t.width, height: t.height,
-        name: t.name, glow: t.glow, gr: t.gr, gg: t.gg, gb: t.gb,
-      });
+
+      // 수련용 바위, 신사, 그리고 생성된 각 마을들과 겹치지 않게 거리 체크 (최소 20m)
+      const d1 = (x - (-40)) ** 2 + (z - (-10)) ** 2;
+      const d2 = (x - 0) ** 2 + (z - 80) ** 2;
+      if (d1 < 400 || d2 < 400) continue;
+
+      let overlapVillage = false;
+      for (const vil of villages) {
+        const dv = (x - vil.x) ** 2 + (z - vil.z) ** 2;
+        if (dv < 484) { // 22m 이내면 중복 제거
+          overlapVillage = true;
+          break;
+        }
+      }
+      if (overlapVillage) continue;
+
+      // 일반 프롭들도 이제 전부 충돌 영역을 가져 실제 장애물 역할을 함!
+      if (t.glow > 0) {
+        addLandmark(x, z, t.kind, t.width, t.height, t.name, t.glow, t.gr, t.gg, t.gb);
+      } else {
+        addProp(x, z, t.kind, t.width, t.height);
+      }
     }
   }
 
@@ -417,6 +516,20 @@ export class BattlefieldMap {
     this.props.push({ x: cx + 6, z: cz + ohz + 1, kind: 11, width: 2.6, height: 4.4 });
     this.props.push({ x: cx - ohx + 2, z: cz - ohz, kind: 2, width: 3.2, height: 5.4 });
     this.props.push({ x: cx + ohx - 2, z: cz - ohz, kind: 2, width: 3.2, height: 5.4 });
+
+    // === 절차적 3D 무한성 전각 및 누각 타워 배치 (Asiahouse Palace/Compound 조립) ===
+    // 1. 중앙 내성 대전 (무한성 무잔/코쿠시보 3층 대전)
+    this.houses.push({ x: cx, z: cz - 4, w: 16, d: 14, h: 4.5, pavilion: true, tiers: 3 });
+
+    // 2. 외성 4개 모서리 십이귀월 2층 수호 누각 (Yagura Pagodas)
+    this.houses.push({ x: cx - ohx + 4, z: cz + ohz - 4, w: 8, d: 8, h: 3.2, pavilion: true, tiers: 2 });
+    this.houses.push({ x: cx + ohx - 4, z: cz + ohz - 4, w: 8, d: 8, h: 3.2, pavilion: true, tiers: 2 });
+    this.houses.push({ x: cx - ohx + 4, z: cz - ohz + 4, w: 8, d: 8, h: 3.2, pavilion: true, tiers: 2 });
+    this.houses.push({ x: cx + ohx - 4, z: cz - ohz + 4, w: 8, d: 8, h: 3.2, pavilion: true, tiers: 2 });
+
+    // 3. 내성 안뜰 좌우 행각 전각 (Eastern & Western Japanese Halls)
+    this.houses.push({ x: cx - ihx + 4, z: cz + 2, w: 6, d: 9, h: 3.2 });
+    this.houses.push({ x: cx + ihx - 4, z: cz + 2, w: 6, d: 9, h: 3.2 });
 
     // 랜드마크(글로우 + 이름표 + 앰비언트): run.ts의 기존 랜드마크 루프가 그대로 소비.
     this.landmarks.push({
