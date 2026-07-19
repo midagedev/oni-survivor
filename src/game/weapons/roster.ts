@@ -287,8 +287,8 @@ export class FireWeapon extends TimedWeapon {
     const targetZ = ctx.pz + ctx.aimZ * 1.5;
     ctx.zones.spawn(targetX, targetZ, radius, life, dps, 2.5, 0.3, 1.2); // 네즈코 혈귀술 분홍 화염
     ctx.effects.spawnTechniqueMesh('blood', targetX, 0.15, targetZ, 0, radius * 1.2, 1.0, radius * 1.2, 2.4, 0.4, 1.5, 0.95);
-    ctx.effects.spawnTripleShock(targetX, targetZ, radius * 1.3, 2.4, 0.4, 1.5);
-    ctx.effects.spawnFlash(targetX, targetZ, 2.4, 0.4, 1.5, 3.5);
+    ctx.effects.spawnTripleShock(targetX, targetZ, radius, 2.4, 0.4, 1.5);
+    ctx.effects.spawnFlash(targetX, targetZ, 2.4, 0.4, 1.5, 1.6);
   }
 }
 
@@ -801,8 +801,8 @@ export class SoundWeapon extends TimedWeapon {
     const tx = ctx.px + ctx.aimX * 4;
     const tz = ctx.pz + ctx.aimZ * 4;
     arcHit(ctx, tx, tz, ctx.aimX, ctx.aimZ, radius, Math.PI, d, 6); // 360° 폭발
-    ctx.effects.spawnTripleShock(tx, tz, radius * 1.3, 2.2, 1.6, 0.6); // 음 금색
-    ctx.effects.spawnFlash(tx, tz, 2.2, 1.6, 0.6, radius);
+    ctx.effects.spawnTripleShock(tx, tz, radius * 0.8, 2.2, 1.6, 0.6); // 음 금색
+    ctx.effects.spawnFlash(tx, tz, 2.2, 1.6, 0.6, radius * 0.4);
     ctx.effects.spawnRing(tx, tz, radius, 2.2, 1.6, 0.6, 0.3);
     ctx.particles.burst(tx, tz, 2.2, 1.6, 0.6, 14, 6);
   }
@@ -839,8 +839,8 @@ export class StoneWeapon extends TimedWeapon {
     const tz = ctx.pz + ctx.aimZ * radius * 0.6;
     arcHit(ctx, tx, tz, ctx.aimX, ctx.aimZ, radius, Math.PI, d, 8); // 강한 넉백
     ctx.effects.spawnRing(tx, tz, radius, 1.6, 1.3, 0.7, 0.4); // 바위 갈금
-    ctx.effects.spawnFlash(tx, tz, 1.6, 1.3, 0.7, radius * 0.8);
-    ctx.effects.spawnTripleShock(tx, tz, radius, 1.6, 1.3, 0.7);
+    ctx.effects.spawnFlash(tx, tz, 1.6, 1.3, 0.7, radius * 0.35);
+    ctx.effects.spawnTripleShock(tx, tz, radius * 0.7, 1.6, 1.3, 0.7);
     for (let k = 0; k < 8; k++) {
       const a = (k / 8) * Math.PI * 2;
       ctx.particles.dust(tx + Math.cos(a) * 2, tz + Math.sin(a) * 2);

@@ -935,8 +935,8 @@ const RING_FRAG = /* glsl */ `
   varying vec2 vUv;
   void main() {
     float fade = 1.0 - uT;
-    float b = fade * 1.4;
-    gl_FragColor = vec4(uColor * b * 1.3, fade);
+    float b = fade * 1.15;
+    gl_FragColor = vec4(uColor * b * 1.0, fade * 0.9);
   }
 `;
 
@@ -951,7 +951,7 @@ const FLASH_FRAG = /* glsl */ `
     float fade = 1.0 - uT;
     float b = core * fade;
     if (b <= 0.001) discard;
-    gl_FragColor = vec4(uColor * b * 1.6, b);
+    gl_FragColor = vec4(uColor * b * 1.05, b * 0.85);
   }
 `;
 

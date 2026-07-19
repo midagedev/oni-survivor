@@ -195,7 +195,9 @@ export class ProjectilePool {
           }
           if (b <= 0.001) discard;
           // 생성 스프라이트가 본체를 담당한다. 이 셰이더는 뒤쪽 후광/속도선만 얇게 맡는다.
-          gl_FragColor = vec4(vColor * b * 0.34, b * vFade * 0.2);
+          // 강도를 낮춰 전방위 다발 무기(뇌·화·음·암)가 중심에서 후광을 겹쳐도
+          // 별 모양으로 화이트아웃되지 않게 한다(additive 중첩 완화).
+          gl_FragColor = vec4(vColor * b * 0.13, b * vFade * 0.07);
         }
       `,
       transparent: true,

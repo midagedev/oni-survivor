@@ -85,7 +85,8 @@ export class DecalPool {
           float ember = smoothstep(0.5, 0.0, r) * 0.35; // 중심 잔불
           float b = (cracks * radial + ember) * vFade;
           if (b <= 0.004) discard;
-          gl_FragColor = vec4(vColor * b * 1.4, b * 0.9);
+          // 지면 균열은 은은하게만 — 이전 1.4배 additive는 폭발마다 방사형 별로 화면을 덮었다.
+          gl_FragColor = vec4(vColor * b * 0.5, b * 0.5);
         }
       `,
       transparent: true,
