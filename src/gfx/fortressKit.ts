@@ -287,14 +287,16 @@ const roofMaterial = fortressMaterial({
   textureScale: 0.62,
 });
 const woodMaterial = fortressMaterial({
-  base: 0x9b1b1b,
-  dark: 0x4a0a0a,
+  // 무한성 검붉은 옻칠 목조 — 이전 0x9b1b1b는 밝은 주홍이라 자금성처럼 보였다.
+  base: 0x6e1414,
+  dark: 0x290606,
   surface: 'wood',
   textureScale: 0.72,
 });
 const goldMaterial = fortressMaterial({
-  base: 0xe1b65d,
-  dark: 0x714521,
+  // 무한성 낡은 청동/흐린 금 — 과한 금빛을 절제해 음산한 무드 유지.
+  base: 0xbe9a45,
+  dark: 0x5e3a1c,
   surface: 'gold',
   textureScale: 0.8,
 });

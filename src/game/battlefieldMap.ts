@@ -518,8 +518,9 @@ export class BattlefieldMap {
     this.props.push({ x: cx + ohx - 2, z: cz - ohz, kind: 2, width: 3.2, height: 5.4 });
 
     // === 절차적 3D 무한성 전각 및 누각 타워 배치 (Asiahouse Palace/Compound 조립) ===
-    // 1. 중앙 내성 대전 (무한성 무잔/코쿠시보 3층 대전)
-    this.houses.push({ x: cx, z: cz - 4, w: 16, d: 14, h: 4.5, pavilion: true, tiers: 3 });
+    // 1. 내성 대전 (무한성 무잔/코쿠시보 3층 어전) — 북벽에 붙여 배경으로 물리고,
+    //    안뜰 앞쪽(남쪽)은 결전 플레이 공간으로 비운다(중앙에 두면 시야·지형을 가림).
+    this.houses.push({ x: cx, z: cz - ihz + 5, w: 14, d: 8, h: 5.0, pavilion: true, tiers: 3 });
 
     // 2. 외성 4개 모서리 십이귀월 2층 수호 누각 (Yagura Pagodas)
     this.houses.push({ x: cx - ohx + 4, z: cz + ohz - 4, w: 8, d: 8, h: 3.2, pavilion: true, tiers: 2 });
