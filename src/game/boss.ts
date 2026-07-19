@@ -35,23 +35,23 @@ interface BossDef {
 // 3분/6분/9분 슬롯 + 무한 미니보스. 전부 스프라이트 보유(sgrade/apriority manifest charIndex).
 export const BOSS_DEFS: Record<string, BossDef> = {
   // 3분 슬롯 (랜덤 1)
-  yuanshao: { name: '도마', hanja: '童磨', charIndex: 1, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 6000, speed: 2.5, contact: 14, radius: 1.4, tr: 0.8, tg: 1.2, tb: 1.5 },
-  xiahoudun: { name: '아카자', hanja: '猗窩座', charIndex: 5, sheet: SHEET_SGRADE, pattern: 'dash', hp: 6000, speed: 2.9, contact: 16, radius: 1.45, tr: 1.5, tg: 0.8, tb: 1.1 },
-  sunce: { name: '코쿠시보', hanja: '黒死牟', charIndex: 6, sheet: SHEET_SGRADE, pattern: 'rush', hp: 5800, speed: 3.3, contact: 15, radius: 1.35, tr: 1.0, tg: 0.6, tb: 1.3 },
+  yuanshao: { name: '도마', hanja: '童磨', charIndex: 1, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 9000, speed: 2.5, contact: 14, radius: 1.4, tr: 0.8, tg: 1.2, tb: 1.5 },
+  xiahoudun: { name: '아카자', hanja: '猗窩座', charIndex: 5, sheet: SHEET_SGRADE, pattern: 'dash', hp: 9000, speed: 2.9, contact: 16, radius: 1.45, tr: 1.5, tg: 0.8, tb: 1.1 },
+  sunce: { name: '코쿠시보', hanja: '黒死牟', charIndex: 6, sheet: SHEET_SGRADE, pattern: 'rush', hp: 8800, speed: 3.3, contact: 15, radius: 1.35, tr: 1.0, tg: 0.6, tb: 1.3 },
   // 6분 슬롯 (랜덤 1)
-  dongzhuo: { name: '엔무', hanja: '魘夢', charIndex: 2, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 3600, speed: 2.1, contact: 18, radius: 1.6, tr: 0.8, tg: 1.3, tb: 1.2 },
-  simayi: { name: '루이', hanja: '累', charIndex: 9, sheet: SHEET_SOLDIERS, pattern: 'delaybolt', hp: 4000, speed: 2.3, contact: 16, radius: 1.5, tr: 1.2, tg: 1.2, tb: 1.2 },
-  zhouyu: { name: '교코', hanja: '玉壺', charIndex: 3, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 3600, speed: 2.4, contact: 16, radius: 1.5, tr: 0.7, tg: 1.4, tb: 0.9 },
+  dongzhuo: { name: '엔무', hanja: '魘夢', charIndex: 2, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 5500, speed: 2.1, contact: 18, radius: 1.6, tr: 0.8, tg: 1.3, tb: 1.2 },
+  simayi: { name: '루이', hanja: '累', charIndex: 9, sheet: SHEET_SOLDIERS, pattern: 'delaybolt', hp: 6000, speed: 2.3, contact: 16, radius: 1.5, tr: 1.2, tg: 1.2, tb: 1.2 },
+  zhouyu: { name: '교코', hanja: '玉壺', charIndex: 3, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 5500, speed: 2.4, contact: 16, radius: 1.5, tr: 0.7, tg: 1.4, tb: 0.9 },
   // 9분 고정 최종
-  lvbu: { name: '무잔', hanja: '鬼舞辻 無惨', charIndex: 7, sheet: SHEET_SGRADE, pattern: 'lvbu', hp: 7500, speed: 3.6, contact: 20, radius: 1.5, tr: 1.6, tg: 0.4, tb: 0.4 },
+  lvbu: { name: '무잔', hanja: '鬼舞辻 無惨', charIndex: 7, sheet: SHEET_SGRADE, pattern: 'lvbu', hp: 12500, speed: 3.6, contact: 20, radius: 1.5, tr: 1.6, tg: 0.4, tb: 0.4 },
   // 무한성 성주 나키메
-  huaxiong: { name: '나키메', hanja: '鳴女', charIndex: 8, sheet: SHEET_SOLDIERS, pattern: 'dash', hp: 5200, speed: 2.7, contact: 16, radius: 1.45, tr: 0.7, tg: 0.4, tb: 0.8 },
+  huaxiong: { name: '나키메', hanja: '鳴女', charIndex: 8, sheet: SHEET_SOLDIERS, pattern: 'dash', hp: 7800, speed: 2.7, contact: 16, radius: 1.45, tr: 0.7, tg: 0.4, tb: 0.8 },
   // 무한 미니보스 (12분+ 순환, 스케일링)
-  dianwei: { name: '규타로', hanja: '妓夫太郎', charIndex: 4, sheet: SHEET_SOLDIERS, pattern: 'dash', hp: 5000, speed: 2.8, contact: 17, radius: 1.4, tr: 1.3, tg: 1.1, tb: 0.7 },
-  gaoshun: { name: '다키', hanja: '堕姫', charIndex: 0, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 5000, speed: 2.5, contact: 15, radius: 1.35, tr: 1.5, tg: 0.8, tb: 1.2 },
-  xiahouyuan: { name: '한텐구', hanja: '半天狗', charIndex: 6, sheet: SHEET_SOLDIERS, pattern: 'delaybolt', hp: 5000, speed: 2.6, contact: 15, radius: 1.4, tr: 1.1, tg: 0.9, tb: 0.6 },
-  lumeng: { name: '카이가쿠', hanja: '獪岳', charIndex: 7, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 5000, speed: 2.5, contact: 16, radius: 1.45, tr: 0.5, tg: 0.8, tb: 1.5 },
-  luxun: { name: '손 혈귀', hanja: '手鬼', charIndex: 5, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 5000, speed: 2.5, contact: 15, radius: 1.4, tr: 0.4, tg: 1.4, tb: 0.8 },
+  dianwei: { name: '규타로', hanja: '妓夫太郎', charIndex: 4, sheet: SHEET_SOLDIERS, pattern: 'dash', hp: 7500, speed: 2.8, contact: 17, radius: 1.4, tr: 1.3, tg: 1.1, tb: 0.7 },
+  gaoshun: { name: '다키', hanja: '堕姫', charIndex: 0, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 7500, speed: 2.5, contact: 15, radius: 1.35, tr: 1.5, tg: 0.8, tb: 1.2 },
+  xiahouyuan: { name: '한텐구', hanja: '半天狗', charIndex: 6, sheet: SHEET_SOLDIERS, pattern: 'delaybolt', hp: 7500, speed: 2.6, contact: 15, radius: 1.4, tr: 1.1, tg: 0.9, tb: 0.6 },
+  lumeng: { name: '카이가쿠', hanja: '獪岳', charIndex: 7, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 7500, speed: 2.5, contact: 16, radius: 1.45, tr: 0.5, tg: 0.8, tb: 1.5 },
+  luxun: { name: '손 혈귀', hanja: '手鬼', charIndex: 5, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 7500, speed: 2.5, contact: 15, radius: 1.4, tr: 0.4, tg: 1.4, tb: 0.8 },
 };
 
 // 무한 모드 미니보스 순환 순서.

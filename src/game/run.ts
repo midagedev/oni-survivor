@@ -340,7 +340,7 @@ export class Run {
       dianwei: 'gyutaro',
       gaoshun: 'daki',
       xiahouyuan: 'hantengu',
-      lumeng: 'sanemi',
+      lumeng: 'akaza',
       luxun: 'hand_demon',
     };
     this.boss = new Boss(atlas, (name, hanja, typeId) => {
