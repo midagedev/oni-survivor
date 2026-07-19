@@ -189,6 +189,7 @@ export class Player {
     this.baseSpeed = hero.baseSpeed;
     this.baseHp = hero.baseHp;
     this.blockPx = hero.charIndex * 4 * CELL_W;
+    this.quad.setSheet(this.atlas[hero.sheet || 'sgrade']);
   }
 
   // 메타 상점 영구 강화 세팅. resetStats에서 base·패시브 위에 곱해진다.
