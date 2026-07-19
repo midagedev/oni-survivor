@@ -367,16 +367,16 @@ export class OrbitWeapon implements Weapon {
   }
 }
 
-// 9. 파괴살 (나침 / 난식) — 360° 나침 충격파 + 8방향 3D 공격 발사 (Air Punch Shockwaves)
+// 9. 파괴살 (나침 / 난식) — 360° 나침 충격파 + 6방향 3D 공격 발사 (Air Punch Shockwaves)
 export class HalberdWeapon extends TimedWeapon {
   readonly id = 'halberd';
-  protected baseCooldown = 1.5;
+  protected baseCooldown = 2.6; // 연사 속도 억제를 위해 쿨다운 대폭 상향 (1.5 -> 2.6)
   protected fire(ctx: WeaponContext): void {
     const radius = (3.6 + (this.level - 1) * 0.35) * ctx.stats.areaMul;
-    const d = dmg(ctx, 14, this.level, 0.16);
+    const d = dmg(ctx, 11, this.level, 0.12); // 기본 공격력 및 레벨당 성장률 조정 (14 -> 11)
 
     // 1) 360° 근접 히트 판정
-    arcHit(ctx, ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, Math.PI, d, 6);
+    arcHit(ctx, ctx.px, ctx.pz, ctx.aimX, ctx.aimZ, radius, Math.PI, d, 4.5); // 넉백 완화 (6 -> 4.5)
 
     // 2) 3D 파괴살 나침 눈꽃 스테이지 지면 문양 컷인
     ctx.effects.spawnTechniqueMesh('compass', ctx.px, 0.1, ctx.pz, 0, radius * 1.6, 0.8, radius * 1.6, 0.8, 0.4, 2.2, 0.95);
@@ -385,14 +385,14 @@ export class HalberdWeapon extends TimedWeapon {
     ctx.effects.spawnRing(ctx.px, ctx.pz, radius * 1.4, 0.8, 0.4, 2.2, 0.45);
     ctx.effects.spawnRing(ctx.px, ctx.pz, radius * 0.8, 1.4, 0.6, 2.5, 0.3);
 
-    // 4) 8방향 파괴살 난식 3D 공권 투사체 충격파 방사
-    const count = 8 + ctx.stats.projectileBonus;
+    // 4) 6방향 파괴살 난식 3D 공권 투사체 충격파 방사 (8방향 -> 6방향 하향)
+    const count = 6 + ctx.stats.projectileBonus;
     for (let k = 0; k < count; k++) {
       const ang = (k / count) * Math.PI * 2;
       const dx = Math.cos(ang);
       const dz = Math.sin(ang);
       ctx.projectiles.spawn(
-        ctx.px, ctx.pz, dx, dz, 13, d * 0.7, 1.2, 3, 0.6,
+        ctx.px, ctx.pz, dx, dz, 13, d * 0.45, 1.2, 3, 0.6, // 투사체 대미지 계수 하향 (0.7 -> 0.45)
         PK_SLASHWAVE, 0.8, 0.4, 2.2, radius * 0.7, radius * 0.5, false, 0, true,
       );
     }
