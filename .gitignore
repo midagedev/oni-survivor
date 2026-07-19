@@ -9,4 +9,6 @@ artifacts/
 .wrangler/
 .agents/
 .claude/
+scripts/
+tests/
 
