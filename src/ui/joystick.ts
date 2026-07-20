@@ -6,6 +6,11 @@ import type { Input } from '../core/input';
 const RADIUS = 60;
 const DEADZONE = 0.1;
 
+/**
+ * 모바일 HUD가 보내는 일시정지 의도 이벤트. payload는 없으며 실제 pause 전환은 게임 셸이 담당한다.
+ */
+export const ONI_PAUSE_REQUEST_EVENT = 'oni-pause-request' as const;
+
 export class Joystick {
   private readonly input: Input;
   private readonly moveZone: HTMLDivElement;
@@ -13,6 +18,7 @@ export class Joystick {
   private readonly knob: HTMLDivElement;
   private readonly musouBtn: HTMLDivElement;
   private readonly musouRing: HTMLDivElement;
+  private readonly pauseBtn: HTMLButtonElement;
   private movePointer = -1;
   private startX = 0;
   private startY = 0;
@@ -25,6 +31,7 @@ export class Joystick {
     // 이동 존 = 전체 화면(무쌍 버튼은 z-index가 더 높아 자연히 제외).
     // "아무 데나 터치 = 이동" 원스틱 패턴 — 좁은 존 밖 탭으로 첫 활성화 실패하는 문제 제거.
     this.moveZone = document.createElement('div');
+    this.moveZone.className = 'oni-move-zone';
     this.moveZone.style.cssText = [
       'position:fixed',
       'inset:0',
@@ -35,6 +42,7 @@ export class Joystick {
 
     // 베이스는 뷰포트 기준 fixed (터치 지점 = clientX/clientY에 중앙 정렬).
     this.base = document.createElement('div');
+    this.base.className = 'oni-joystick-base';
     this.base.style.cssText = [
       'position:fixed',
       'z-index:22',
@@ -65,6 +73,10 @@ export class Joystick {
 
     // 우측 무쌍 버튼
     this.musouBtn = document.createElement('div');
+    this.musouBtn.className = 'oni-musou-button';
+    this.musouBtn.setAttribute('role', 'button');
+    this.musouBtn.setAttribute('aria-label', '필살기');
+    this.musouBtn.title = '필살기';
     this.musouBtn.style.cssText = [
       'position:fixed',
       'right:calc(env(safe-area-inset-right,0px) + 22px)',
@@ -99,15 +111,54 @@ export class Joystick {
       'background:radial-gradient(circle at 40% 35%,#2a2410,#14120a)',
       'border:1px solid rgba(232,198,103,0.5)',
       'display:flex',
+      'flex-direction:column',
       'align-items:center',
       'justify-content:center',
       'color:#e8c667',
-      'font-size:26px',
-      'letter-spacing:1px',
+      'line-height:1',
     ].join(';');
-    core.textContent = '無';
+    const coreGlyph = document.createElement('span');
+    coreGlyph.textContent = '극';
+    coreGlyph.style.cssText = 'font-size:24px;font-weight:800;text-shadow:0 0 8px rgba(232,198,103,0.45)';
+    const coreLabel = document.createElement('span');
+    coreLabel.textContent = '필살';
+    coreLabel.style.cssText = 'margin-top:3px;font-size:11px;font-weight:700;letter-spacing:2px';
+    core.append(coreGlyph, coreLabel);
     this.musouBtn.appendChild(core);
     document.body.appendChild(this.musouBtn);
+
+    // 모바일에서 언제든 닿는 독립 pause intent. 실제 상태 전환은 run/main 쪽 이벤트 구독자가 담당한다.
+    this.pauseBtn = document.createElement('button');
+    this.pauseBtn.type = 'button';
+    this.pauseBtn.className = 'oni-pause-button';
+    this.pauseBtn.setAttribute('aria-label', '일시정지');
+    this.pauseBtn.title = '일시정지';
+    this.pauseBtn.textContent = 'Ⅱ';
+    this.pauseBtn.style.cssText = [
+      'position:fixed',
+      'top:calc(env(safe-area-inset-top,0px) + 10px)',
+      'right:calc(env(safe-area-inset-right,0px) + 10px)',
+      'width:48px',
+      'height:48px',
+      'min-width:48px',
+      'min-height:48px',
+      'z-index:24',
+      'display:none',
+      'align-items:center',
+      'justify-content:center',
+      'touch-action:manipulation',
+      'border:1px solid rgba(232,198,103,0.55)',
+      'border-radius:12px',
+      'background:linear-gradient(180deg,rgba(26,27,36,0.92),rgba(10,11,17,0.92))',
+      'box-shadow:0 2px 12px rgba(0,0,0,0.48),0 0 12px rgba(232,198,103,0.12)',
+      'color:#f0e4c0',
+      'font-family:"Nanum Myeongjo","Times New Roman",serif',
+      'font-size:24px',
+      'line-height:1',
+      'cursor:pointer',
+      '-webkit-tap-highlight-color:transparent',
+    ].join(';');
+    document.body.appendChild(this.pauseBtn);
 
     // 이벤트 바인딩 (Pointer Events). passive:false로 preventDefault 보장(iOS 스크롤/줌 개입 차단).
     this.moveZone.addEventListener('pointerdown', this.onMoveDown, { passive: false });
@@ -118,8 +169,14 @@ export class Joystick {
     // 안전망: 캡처 실패/이벤트 누락으로 존에서 up을 못 받아도 window에서 해제 → stuck 방지.
     window.addEventListener('pointerup', this.onWindowRelease);
     window.addEventListener('pointercancel', this.onWindowRelease);
+    // 운영체제 제스처/앱 전환/탭 숨김 뒤에도 마지막 이동축이 남지 않게 모든 포커스 이탈 경로를 리셋한다.
+    window.addEventListener('blur', this.onFocusLost);
+    window.addEventListener('pagehide', this.onFocusLost);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
 
     this.musouBtn.addEventListener('pointerdown', this.onMusouDown);
+    this.pauseBtn.addEventListener('pointerdown', this.onPausePointerDown);
+    this.pauseBtn.addEventListener('click', this.onPauseClick);
   }
 
   // window 레벨 해제 안전망 (추적 중인 포인터가 어디서 놓이든 확실히 리셋).
@@ -127,11 +184,23 @@ export class Joystick {
     if (this.movePointer !== -1 && e.pointerId === this.movePointer) this.endMove();
   };
 
+  private readonly onFocusLost = (): void => {
+    this.endMove();
+  };
+
+  private readonly onVisibilityChange = (): void => {
+    if (document.hidden) this.endMove();
+  };
+
   setVisible(v: boolean): void {
-    if (this.visible === v) return;
+    if (this.visible === v) {
+      if (!v) this.endMove();
+      return;
+    }
     this.visible = v;
     this.moveZone.style.display = v ? 'block' : 'none';
     this.musouBtn.style.display = v ? 'flex' : 'none';
+    this.pauseBtn.style.display = v ? 'flex' : 'none';
     if (!v) this.endMove();
   }
 
@@ -232,6 +301,18 @@ export class Joystick {
       [{ filter: 'brightness(1.8)' }, { filter: 'brightness(1)' }],
       { duration: 200, easing: 'ease-out' },
     );
+  };
+
+  private readonly onPausePointerDown = (e: PointerEvent): void => {
+    // 전체 화면 이동 존과 window 안전망에 pause 터치가 이동 입력으로 전달되지 않게 분리한다.
+    e.stopPropagation();
+  };
+
+  private readonly onPauseClick = (e: MouseEvent): void => {
+    e.preventDefault();
+    e.stopPropagation();
+    this.endMove();
+    window.dispatchEvent(new CustomEvent(ONI_PAUSE_REQUEST_EVENT));
   };
 }
 

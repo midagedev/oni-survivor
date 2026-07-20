@@ -7,7 +7,7 @@ import { loadAtlas } from './gfx/atlas';
 import { Run } from './game/run';
 import type { RunResult } from './game/run';
 import { Screens } from './ui/screens';
-import { Joystick, isTouchDevice } from './ui/joystick';
+import { Joystick, isTouchDevice, ONI_PAUSE_REQUEST_EVENT } from './ui/joystick';
 import { audio } from './core/audio';
 import { loadSave, writeSave, updateBest } from './core/save';
 import type { SaveData } from './core/save';
@@ -17,6 +17,7 @@ import { evaluateAchievements, bestTitle } from './data/achievements';
 import { isHeroUnlocked, unlockedHeroIds } from './data/heroUnlocks';
 import { unlockedWeaponIds, isWeaponUnlocked } from './data/weaponUnlocks';
 import { WEAPON_DEFS } from './data/weapons';
+import { rng } from './core/rng';
 
 type Scene = 'title' | 'select' | 'run' | 'result' | 'shop' | 'pause';
 
@@ -101,6 +102,7 @@ loadAtlas()
     function startRun(heroId: string, bypassUnlock = false): void {
       if (!bypassUnlock && !isHeroUnlocked(heroId, save)) return;
       lastHero = heroId;
+      lastResult = null;
       scene = 'run';
       screens.hide();
       run.beginRun(heroId, computeMeta(save.upgrades), availableStartWeapons(save));
@@ -127,6 +129,7 @@ loadAtlas()
         victory: result.victory,
         kills: result.kills,
         maxCombo: result.maxCombo,
+        noHitTime: result.noHitTime,
         time: result.time,
         level: result.level,
         bosses: result.bosses,
@@ -206,6 +209,10 @@ loadAtlas()
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Escape' && scene === 'pause') resumeRun();
     });
+    // 모바일 HUD는 상태를 직접 바꾸지 않고 의도만 보낸다. 실제 전환은 셸에서 단일 처리한다.
+    window.addEventListener(ONI_PAUSE_REQUEST_EVENT, () => {
+      if (scene === 'run') run.pause();
+    });
 
     // iOS/iPad 견고화: 초기 사이징 레이스(잘못된 innerWidth로 캔버스 생성 후 resize 미발화 →
     // 우측 일부 블랙) 방지. visualViewport·orientation·지연 재적용까지 모두 재사이즈.
@@ -235,17 +242,21 @@ loadAtlas()
     // 드로우콜 프레임 단위 측정
     renderer.info.autoReset = false;
     let fpsEma = 60;
+    let frame = 0;
     const loop = new Loop((dt) => {
+      frame++;
       input.poll();
       run.update(dt);
       if (scene === 'run') joystick.setMusou(run.musouGauge, run.musouReadyFlag);
+      input.endFrame();
+    }, (frameDt) => {
+      run.prepareRender();
       pipeline.setMusou(run.musouStrength, run.renderTime);
       if (scene === 'run' && run.consumeReplayTrigger()) pipeline.playReplay();
       renderer.info.reset();
       pipeline.render();
-      input.endFrame();
       audio.endFrame();
-      if (dt > 0) fpsEma += (1 / dt - fpsEma) * 0.05;
+      if (frameDt > 0) fpsEma += (1 / frameDt - fpsEma) * 0.05;
     });
     loop.start();
 
@@ -253,8 +264,10 @@ loadAtlas()
     // 공개 Pages 빌드에서는 치트/계측 전역을 노출하지 않는다. 로컬 dev/preview에서만 활성화.
     const allowTestHooks =
       import.meta.env.DEV || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-    if (allowTestHooks) {
-      (window as unknown as { __GAME_TEST__: unknown }).__GAME_TEST__ = {
+    // 일부 임베디드 브라우저는 보안상 Window를 비확장 객체로 제공한다. 그 환경에서는
+    // 전역 훅 설치를 조용히 건너뛰고, 일반 Chromium/Playwright 로컬 QA에서만 노출한다.
+    if (allowTestHooks && Object.isExtensible(window)) {
+      const legacyHooks = {
       // 씬 제어
       goToTitle: () => goTitle(),
       selectHero: (id: string) => startRun(id, true),
@@ -286,13 +299,14 @@ loadAtlas()
       },
       // 런 제어 (기존 유지)
       setTime: (s: number) => run.testSetTime(s),
-      giveWeapon: (id: string) => run.testGiveWeapon(id),
+      giveWeapon: (id: string, level?: number) => run.testGiveWeapon(id, level),
       givePassive: (id: string, lv?: number) => run.testGivePassive(id, lv),
       levelUp: () => run.testForceLevel(),
       fillMusou: () => run.testFillMusou(),
       activateMusou: () => run.testActivateMusou(),
       addGold: (n: number) => run.testAddGold(n),
       showProjectiles: () => run.testSpawnProjectileShowcase(),
+      showTechniques: () => run.testSpawnTechniqueShowcase(),
       showEnemyProjectiles: () => run.testSpawnEnemyProjectileShowcase(),
       musouFx: () => run.testMusouFx(),
       shrineBuff: (kind?: string, dur?: number) => run.testShrineBuff(kind, dur),
@@ -306,6 +320,21 @@ loadAtlas()
       showWorldObjects: () => run.testShowWorldObjects(),
       setPlayerPosition: (x: number, z: number) => run.testSetPlayerPosition(x, z),
       setInvulnerable: (seconds?: number) => run.testSetInvulnerable(seconds),
+      cullNonBoss: () => run.testCullNonBoss(),
+      // 밸런스 QA는 헤드리스 rAF 속도에 의존하지 않고 실제 런과 같은 60Hz 고정 스텝으로
+      // 전투를 진행한다. 로컬 개발 훅 안에서만 노출되며 한 호출은 최대 10초로 제한한다.
+      advanceSimulation: (seconds = 0.25) => {
+        const steps = Math.ceil(Math.min(10, Math.max(1 / 60, seconds)) * 60);
+        for (let step = 0; step < steps; step++) {
+          input.poll();
+          run.update(1 / 60);
+          input.endFrame();
+        }
+      },
+      setQaFrozen: (frozen: boolean) => {
+        if (frozen) loop.stop();
+        else loop.start();
+      },
       primeGate: () => run.testPrimeGate(),
       breachGate: () => run.testBreachGate(),
       triggerHulao: () => run.testTriggerHulao(),
@@ -325,17 +354,76 @@ loadAtlas()
       get stats() {
         return run.testStats;
       },
+      get result() {
+        return lastResult ? { victory: lastResult.victory, time: lastResult.time } : null;
+      },
+      };
+      (window as unknown as { __GAME_TEST__: unknown }).__GAME_TEST__ = legacyHooks;
+
+      // threejs-game-skills의 캔버스 인스펙터/시각 회귀/봇과 공유하는 표준 계약.
+      // 기존 풍부한 __GAME_TEST__ API는 그대로 두고 얇은 어댑터만 제공한다.
+      (window as unknown as { __THREE_GAME_TEST_HOOKS__: unknown }).__THREE_GAME_TEST_HOOKS__ = {
+        seed: (value: number) => rng.seed(value),
+        setState: (name: string) => {
+          if (name === 'title') {
+            goTitle();
+            return;
+          }
+          startRun('tanjiro', true);
+          if (name === 'stress') {
+            run.testSetInvulnerable(120);
+            run.testGiveWeapon('spear', 4);
+            run.testGivePassive('warbook', 5);
+            run.testSetPlayerPosition(-40, -5);
+            run.testSpawnTechniqueShowcase();
+          } else if (name === 'boss') {
+            run.testSetInvulnerable(120);
+            run.testSpawnBoss('muzan');
+          } else if (name === 'fail' || name === 'fail-or-retry') {
+            run.testKillPlayer();
+          }
+        },
+        setPausedForScreenshot: (paused: boolean) => {
+          if (paused && scene === 'run') run.pause();
+          else if (!paused && scene === 'pause') resumeRun();
+        },
+        setReducedMotion: (enabled: boolean) => {
+          document.documentElement.classList.toggle('qa-reduced-motion', enabled);
+        },
+        hideDebugUi: (hidden: boolean) => {
+          document.documentElement.classList.toggle('qa-hide-debug', hidden);
+        },
       };
 
       // 성능/디버그 계측 훅
+      const debugInfo = () => ({
+        fps: Math.round(fpsEma),
+        calls: renderer.info.render.calls,
+        tris: renderer.info.render.triangles,
+        geometries: renderer.info.memory.geometries,
+        textures: renderer.info.memory.textures,
+      });
       (window as unknown as { __DEBUG__: unknown }).__DEBUG__ = {
-        info: () => ({
-          fps: Math.round(fpsEma),
-          calls: renderer.info.render.calls,
-          tris: renderer.info.render.triangles,
-          geometries: renderer.info.memory.geometries,
-          textures: renderer.info.memory.textures,
-        }),
+        info: debugInfo,
+      };
+      (window as unknown as { __THREE_GAME_DIAGNOSTICS__: unknown }).__THREE_GAME_DIAGNOSTICS__ = {
+        renderer: renderer.info,
+        get frame() { return frame; },
+        get ready() { return loading.isConnected === false; },
+        get state() {
+          const stats = run.testStats;
+          return {
+            scene,
+            phase: stats.state,
+            complete: stats.state === 'victory',
+            failed: stats.state === 'dead',
+            score: stats.kills,
+            level: stats.level,
+            objective: stats.journey.stage === 'complete' ? stats.siege.state : stats.journey.stage,
+            player: { x: stats.map.playerX, z: stats.map.playerZ },
+            performance: debugInfo(),
+          };
+        },
       };
     }
   })

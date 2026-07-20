@@ -21,6 +21,24 @@ function maxDpr(): number {
   return Math.min(window.devicePixelRatio, isMobile() ? 1.5 : 2);
 }
 
+type NavigatorWithDeviceHints = Navigator & {
+  deviceMemory?: number;
+  connection?: { saveData?: boolean };
+};
+
+// 캔버스 링버퍼는 프레임마다 CPU/GPU 표면을 보유할 수 있다. 모바일은 항상 끄고,
+// 접근성/데이터 절약 또는 메모리와 CPU가 모두 낮은 기기에서도 할당 자체를 피한다.
+// 일반 데스크톱의 90프레임 리플레이 품질은 그대로 유지한다.
+function supportsPipReplay(): boolean {
+  if (isMobile()) return false;
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return false;
+  const nav = navigator as NavigatorWithDeviceHints;
+  if (nav.connection?.saveData) return false;
+  const lowMemory = nav.deviceMemory !== undefined && nav.deviceMemory <= 4;
+  const lowCpu = nav.hardwareConcurrency > 0 && nav.hardwareConcurrency <= 4;
+  return !(lowMemory && lowCpu);
+}
+
 export function createRenderer(canvasParent: HTMLElement): WebGLRenderer {
   const renderer = new WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(maxDpr());
@@ -132,8 +150,8 @@ export class RenderPipeline {
 
     this.composer.addPass(new OutputPass());
 
-    // PiP 리플레이는 데스크톱에서만 (모바일은 캡처 부하/메모리 회피).
-    this.pipEnabled = !isMobile();
+    // 비활성 티어에서는 initPip을 호출하지 않아 90개 캔버스/컨텍스트를 만들지 않는다.
+    this.pipEnabled = supportsPipReplay();
     if (this.pipEnabled) this.initPip();
   }
 

@@ -232,7 +232,9 @@ export class GlowMeshBatch {
         }
       `,
       transparent: true,
-      depthWrite: true,
+      // Technique volume is a translucent accent beneath authored art. Writing depth here made
+      // overlapping ribbons/heads cut holes into one another at oblique camera angles.
+      depthWrite: false,
       depthTest: true,
     });
     this.mesh = new InstancedMesh(geo, mat, cap);

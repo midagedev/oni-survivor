@@ -330,14 +330,14 @@ export class Screens {
           .join(' · ');
         s.appendChild(el('div', 'ach-toast hero-unlock-toast', `${t('heroUnlockGet')} <b>${names}</b>`));
       }
-      // 신규 병법(무기) 해금 토스트 (DESIGN 13.1) — 라벨만 언어별, 무기명 nameOf/한자 공통.
+      // 신규 호흡법 해금 토스트 — 라벨만 언어별, 기술명 nameOf/한자 공통.
       if (share.newWeapons && share.newWeapons.length > 0) {
         const names = share.newWeapons
           .map((id) => (WEAPON_DEFS[id] ? `${nameOf('weapon', id, WEAPON_DEFS[id].name)} ${WEAPON_DEFS[id].hanja}` : null))
           .filter((x): x is string => !!x)
           .join(' · ');
         if (names) {
-          const label = getLang() === 'en' ? 'New tactic unlocked' : '신규 병법 해금';
+          const label = getLang() === 'en' ? 'New breathing art unlocked' : '신규 호흡법 해금';
           s.appendChild(el('div', 'ach-toast weapon-unlock-toast', `${label} — <b>${names}</b>`));
         }
       }
@@ -349,6 +349,7 @@ export class Screens {
       stats.appendChild(this.stat(t('rsLevel'), `Lv ${result.level}`, records.level));
       stats.appendChild(this.stat(t('rsHero'), nameOf('hero', result.heroId, HEROES[result.heroId]?.name ?? result.heroId), false));
       stats.appendChild(this.stat(t('rsBossKill'), String(result.bosses.length), false));
+      stats.appendChild(this.stat(getLang() === 'en' ? 'Longest no-hit' : '최장 무피격', fmtTime(result.noHitTime), false));
       s.appendChild(stats);
 
       const gold = el(
@@ -364,7 +365,7 @@ export class Screens {
         el(
           'div',
           'controls-hint',
-          `${t('baseBalance', { n: save.gold })} · ${en ? 'spend it below to upgrade your camp' : '아래 강화로 본진을 영구 강화'}`,
+          `${t('baseBalance', { n: save.gold })} · ${en ? 'spend it below to strengthen the Corps Estate' : '아래 강화로 귀살대 본부를 영구 강화'}`,
         ),
       );
 
@@ -382,7 +383,7 @@ export class Screens {
       row.appendChild(this.button(t('retry'), this.cb.onRetry, { primary: true }));
       // 본진 강화 직행 버튼 — 사망 후 획득 골드 소비 경로가 안 보였다는 피드백(#50). 금색 강조 + 잔액 표기.
       const upgradeBtn = this.button(
-        `${en ? 'Upgrade' : '본진 강화'} ⟡ ${save.gold} 強化`,
+        `${en ? 'Corps Upgrade' : '본부 강화'} ⟡ ${save.gold} 強化`,
         () => this.cb.onOpenShop('upgrade'),
       );
       upgradeBtn.style.borderColor = '#e8c667';
@@ -543,9 +544,9 @@ export class Screens {
     }
     wrap.appendChild(grid);
 
-    // 병법(무기) 도감 — 보유 병법 + 진화 비전 (DESIGN 13.1/13.3)
+    // 호흡법 도감 — 보유 기술 + 진화 비전.
     const en = getLang() === 'en';
-    wrap.appendChild(el('div', 'controls-hint', en ? 'Tactics Codex 兵法' : '병법 도감 兵法'));
+    wrap.appendChild(el('div', 'controls-hint', en ? 'Breathing Arts 呼吸法' : '호흡법 도감 呼吸法'));
     const wpnGrid = el('div', 'wpn-grid');
     for (const id in WEAPON_DEFS) {
       const d = WEAPON_DEFS[id];

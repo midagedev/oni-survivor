@@ -19,7 +19,7 @@ export interface CardView {
 export class LevelUp {
   private readonly root: HTMLDivElement;
   private readonly cardEls: HTMLDivElement[] = [];
-  private readonly rerollBtn: HTMLDivElement;
+  private readonly rerollBtn: HTMLButtonElement;
   private readonly titleEl: HTMLDivElement;
   private readonly hintEl: HTMLDivElement;
   private onPick: ((index: number) => void) | null = null;
@@ -58,7 +58,8 @@ export class LevelUp {
     this.hintEl = hint;
     bottom.appendChild(hint);
 
-    this.rerollBtn = document.createElement('div');
+    this.rerollBtn = document.createElement('button');
+    this.rerollBtn.type = 'button';
     this.rerollBtn.className = 'levelup-reroll';
     this.rerollBtn.addEventListener('click', () => {
       if (this.onReroll) this.onReroll();
@@ -117,7 +118,8 @@ export class LevelUp {
     this.hintEl.textContent = t('levelupHint');
     this.rerollBtn.textContent = t('reroll', { n: gold });
     this.rerollBtn.style.opacity = canReroll ? '1' : '0.4';
-    this.rerollBtn.style.pointerEvents = canReroll ? 'auto' : 'none';
+    this.rerollBtn.disabled = !canReroll;
+    this.rerollBtn.setAttribute('aria-disabled', String(!canReroll));
     this.root.style.display = 'flex';
     this.active = true;
   }

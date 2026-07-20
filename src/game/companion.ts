@@ -8,11 +8,31 @@ import { COMPANION_BY_HERO, COMPANION_JOIN_TIME, companionLine } from '../data/c
 import type { CompanionDef } from '../data/companions';
 import type { Player } from './player';
 import type { WeaponContext } from './weapons/types';
+import type { TechniqueTheme } from '../gfx/techniqueSprites';
+import { resolvedDamage } from './damagePolicy';
 
 const FOLLOW_RATE = 4.5;
 const ATTACK_RANGE = 15;
 const ANIM_FPS = 7;
 const CONE_COS = 0.64; // 부채꼴 반각 ≈50°
+
+function companionTheme(id: string): TechniqueTheme {
+  switch (id) {
+    case 'urokodaki': return 'water';
+    case 'tokito': return 'mist';
+    case 'zenitsu': return 'thunder';
+    case 'aoi': return 'butterfly';
+    case 'kanao': return 'flower';
+    case 'himejima': return 'stone';
+    case 'inosuke': return 'beast';
+    case 'uzui': return 'sound';
+    case 'sanemi': return 'wind';
+    case 'kanroji': return 'love';
+    case 'genya': return 'blood';
+    case 'iguro': return 'wind';
+    default: return 'water';
+  }
+}
 
 export interface SpecialEvent {
   line: string;
@@ -192,7 +212,7 @@ export class Companion {
     const fz = player.faceZ || 1;
     // 진입 예고: 말발굽 먼지 웨이브(뒤→착지) + 돌격 스러스트(기병 합류감).
     for (let k = 1; k <= 4; k++) ctx.particles.dust(this.x - fx * (1.2 * k), this.z - fz * (1.2 * k));
-    ctx.effects.spawnThrust(this.x - fx * 4.5, this.z - fz * 4.5, fx, fz, 4.5, 1.4, d.cr, d.cg, d.cb, 0.2);
+    ctx.effects.spawnThrust(this.x - fx * 4.5, this.z - fz * 4.5, fx, fz, 4.5, 1.4, d.cr, d.cg, d.cb, 0.2, companionTheme(d.id));
     ctx.effects.spawnFlash(this.x, this.z, d.cr, d.cg, d.cb, 2);
     ctx.effects.spawnRing(this.x, this.z, 2.8, d.cr, d.cg, d.cb, 0.45); // <3 → 광원 미생성
     this.aoe(ctx, this.x, this.z, 6, this.dmg(60, ctx), 7); // 히트 범위는 유지
@@ -216,16 +236,18 @@ export class Companion {
     if (this.def.attack === 'lightning') {
       // #34: 기본공격은 대형 낙뢰 버스트(반경9 광원+화면플래시) 제거 → 은은한 연쇄 아크만. 적 은폐 방지.
       ctx.effects.spawnChainArc(this.x, this.z, en.x[best], en.z[best], this.def.cr, this.def.cg, this.def.cb);
+      ctx.effects.spawnTechniqueLine(companionTheme(this.def.id), this.x, this.z, en.x[best], en.z[best], 1.45, 0.2, 0.78);
       this.hit(ctx, best, nx, nz, base * boost, 3);
       const chain = this.nearestOther(ctx, en.x[best], en.z[best], best, 6);
       if (chain >= 0) {
         ctx.effects.spawnChainArc(en.x[best], en.z[best], en.x[chain], en.z[chain], this.def.cr, this.def.cg, this.def.cb);
+        ctx.effects.spawnTechniqueLine(companionTheme(this.def.id), en.x[best], en.z[best], en.x[chain], en.z[chain], 1.25, 0.18, 0.68);
         this.hit(ctx, chain, nx, nz, base * 0.8 * boost, 2);
       }
     } else {
       // #42 킬셰어 레버 (a): 기본 콘 히트 7.5→5.5 + 시각 아크 4.5→5.5로 일치("보이는 만큼 벤다").
       // 밀집 시 커버리지가 킬셰어를 결정하므로 히트 반경 축소가 실효 레버. 특기(광역기) 반경은 불변.
-      ctx.effects.spawnSlashArc(this.x, this.z, nx, nz, 5.5, 0.9, this.def.cr, this.def.cg, this.def.cb, 0.18);
+      ctx.effects.spawnSlashArc(this.x, this.z, nx, nz, 5.5, 0.9, this.def.cr, this.def.cg, this.def.cb, 0.18, companionTheme(this.def.id));
       this.cone(ctx, nx, nz, 5.5, base * boost, 4);
     }
 
@@ -265,7 +287,7 @@ export class Companion {
         const dd = Math.hypot(dx, dz) || 1;
         const nx = dx / dd;
         const nz = dz / dd;
-        ctx.effects.spawnThrust(this.x, this.z, nx, nz, 11, 2.2, d.cr, d.cg, d.cb, 0.24);
+        ctx.effects.spawnThrust(this.x, this.z, nx, nz, 11, 2.2, d.cr, d.cg, d.cb, 0.24, companionTheme(d.id));
         this.capsule(ctx, this.x, this.z, nx, nz, 11, 1.4, this.dmg(85, ctx), 9);
         this.x += nx * 8;
         this.z += nz * 8;
@@ -280,7 +302,7 @@ export class Companion {
         const dd = Math.hypot(dx, dz) || 1;
         const nx = dx / dd;
         const nz = dz / dd;
-        ctx.effects.spawnSlashArc(this.x, this.z, nx, nz, 9, 1.3, d.cr, d.cg, d.cb, 0.24);
+        ctx.effects.spawnSlashArc(this.x, this.z, nx, nz, 9, 1.3, d.cr, d.cg, d.cb, 0.24, companionTheme(d.id));
         this.cone(ctx, nx, nz, 9, this.dmg(60, ctx), 5);
         ctx.zones.spawn(this.x + nx * 5, this.z + nz * 5, 4, 3, this.dmg(24, ctx), 2.4, 0.9, 0.25);
         break;
@@ -288,7 +310,7 @@ export class Companion {
       case 'chargesweep': {
         // 이노스케 저돌맹진 스윕: 대형 아크 + 강넉백
         ctx.effects.spawnRing(this.x, this.z, 9, d.cr, d.cg, d.cb, 0.5);
-        ctx.effects.spawnSlashArc(this.x, this.z, this.dir === 2 ? 1 : -1, 0, 9, 1.5, d.cr, d.cg, d.cb, 0.26);
+        ctx.effects.spawnSlashArc(this.x, this.z, this.dir === 2 ? 1 : -1, 0, 9, 1.5, d.cr, d.cg, d.cb, 0.26, companionTheme(d.id));
         this.aoe(ctx, this.x, this.z, 9, this.dmg(75, ctx), 9);
         break;
       }
@@ -300,8 +322,9 @@ export class Companion {
   private hit(ctx: WeaponContext, i: number, nx: number, nz: number, damage: number, knockback: number): void {
     const en = ctx.enemies;
     if (en.alive[i] === 0) return;
-    const died = en.damageAt(i, damage);
-    ctx.damageText.spawn(damage, en.x[i], en.scale[i] * 0.7, en.z[i], false);
+    const dealt = resolvedDamage(damage, en.boss[i] === 1, en.groggy[i] === 1, 'companion');
+    const died = en.damageAt(i, dealt);
+    ctx.damageText.spawn(dealt, en.x[i], en.scale[i] * 0.7, en.z[i], false);
     en.push(i, nx, nz, knockback);
     if (died) ctx.onKill(i);
   }
@@ -318,8 +341,9 @@ export class Companion {
       const d2 = dx * dx + dz * dz;
       if (d2 > radius * radius) continue;
       const d = Math.sqrt(d2) || 1;
-      const died = en.damageAt(j, damage);
-      ctx.damageText.spawn(damage, en.x[j], en.scale[j] * 0.7, en.z[j], false);
+      const dealt = resolvedDamage(damage, en.boss[j] === 1, en.groggy[j] === 1, 'companion');
+      const died = en.damageAt(j, dealt);
+      ctx.damageText.spawn(dealt, en.x[j], en.scale[j] * 0.7, en.z[j], false);
       en.push(j, dx / d, dz / d, knockback);
       if (died) { this.kills++; ctx.onKill(j); }
     }
@@ -338,8 +362,9 @@ export class Companion {
       if (d2 > range * range) continue;
       const d = Math.sqrt(d2) || 1;
       if ((dx / d) * dirX + (dz / d) * dirZ < CONE_COS) continue;
-      const died = en.damageAt(j, damage);
-      ctx.damageText.spawn(damage, en.x[j], en.scale[j] * 0.7, en.z[j], false);
+      const dealt = resolvedDamage(damage, en.boss[j] === 1, en.groggy[j] === 1, 'companion');
+      const died = en.damageAt(j, dealt);
+      ctx.damageText.spawn(dealt, en.x[j], en.scale[j] * 0.7, en.z[j], false);
       en.push(j, dx / d, dz / d, knockback);
       if (died) { this.kills++; ctx.onKill(j); }
     }
@@ -364,8 +389,9 @@ export class Companion {
       const ex = en.x[j] - px;
       const ez = en.z[j] - pz;
       if (ex * ex + ez * ez > hitR * hitR) continue;
-      const died = en.damageAt(j, damage);
-      ctx.damageText.spawn(damage, en.x[j], en.scale[j] * 0.7, en.z[j], false);
+      const dealt = resolvedDamage(damage, en.boss[j] === 1, en.groggy[j] === 1, 'companion');
+      const died = en.damageAt(j, dealt);
+      ctx.damageText.spawn(dealt, en.x[j], en.scale[j] * 0.7, en.z[j], false);
       en.push(j, dx, dz, knockback);
       if (died) { this.kills++; ctx.onKill(j); }
     }

@@ -1,26 +1,28 @@
 import type { WeaponContext } from './weapons/types';
 import type { Player } from './player';
 import { PK_ARROW, PK_BUTTERFLY } from './projectiles';
+import type { TechniqueTheme } from '../gfx/techniqueSprites';
+import { resolvedDamage } from './damagePolicy';
 
 const DURATION = 5.0;
 const ENEMY_SLOW = 0.3;
 
 // 대원별 문장 한자 + 테마 광원 색 — 각 호흡법의 정체성.
-const CREST: Record<string, { char: string; r: number; g: number; b: number }> = {
-  tanjiro: { char: '陽', r: 2.6, g: 1.0, b: 0.3 },   // 히노카미 카구라 — 태양
-  tomioka: { char: '水', r: 0.4, g: 1.2, b: 2.4 },   // 물의 호흡
-  nezuko: { char: '血', r: 2.4, g: 0.5, b: 0.9 },    // 폭혈 — 혈염
-  kanroji: { char: '恋', r: 2.4, g: 0.7, b: 1.4 },   // 사랑의 호흡
-  shinobu: { char: '蟲', r: 1.5, g: 0.7, b: 2.2 },   // 벌레의 호흡
-  kanao: { char: '花', r: 2.2, g: 0.6, b: 1.0 },     // 꽃의 호흡
-  rengoku: { char: '炎', r: 2.6, g: 0.8, b: 0.2 },   // 화염의 호흡
-  zenitsu: { char: '雷', r: 2.4, g: 2.0, b: 0.4 },   // 번개의 호흡
-  inosuke: { char: '獣', r: 1.0, g: 1.6, b: 1.9 },   // 짐승의 호흡
-  tokito: { char: '霞', r: 1.2, g: 1.8, b: 2.0 },    // 안개의 호흡
-  uzui: { char: '音', r: 2.2, g: 1.6, b: 0.6 },      // 음의 호흡
-  sanemi: { char: '風', r: 0.5, g: 1.9, b: 1.0 },    // 바람의 호흡
-  himejima: { char: '岩', r: 1.6, g: 1.3, b: 0.7 },  // 바위의 호흡
-  default: { char: '滅', r: 1.5, g: 1.4, b: 1.0 },
+const CREST: Record<string, { char: string; r: number; g: number; b: number; theme: TechniqueTheme }> = {
+  tanjiro: { char: '陽', r: 2.6, g: 1.0, b: 0.3, theme: 'sun' },
+  tomioka: { char: '水', r: 0.4, g: 1.2, b: 2.4, theme: 'water' },
+  nezuko: { char: '血', r: 2.4, g: 0.5, b: 0.9, theme: 'blood' },
+  kanroji: { char: '恋', r: 2.4, g: 0.7, b: 1.4, theme: 'love' },
+  shinobu: { char: '蟲', r: 1.5, g: 0.7, b: 2.2, theme: 'butterfly' },
+  kanao: { char: '花', r: 2.2, g: 0.6, b: 1.0, theme: 'flower' },
+  rengoku: { char: '炎', r: 2.6, g: 0.8, b: 0.2, theme: 'flame' },
+  zenitsu: { char: '雷', r: 2.4, g: 2.0, b: 0.4, theme: 'thunder' },
+  inosuke: { char: '獣', r: 1.0, g: 1.6, b: 1.9, theme: 'beast' },
+  tokito: { char: '霞', r: 1.2, g: 1.8, b: 2.0, theme: 'mist' },
+  uzui: { char: '音', r: 2.2, g: 1.6, b: 0.6, theme: 'sound' },
+  sanemi: { char: '風', r: 0.5, g: 1.9, b: 1.0, theme: 'wind' },
+  himejima: { char: '岩', r: 1.6, g: 1.3, b: 0.7, theme: 'stone' },
+  default: { char: '滅', r: 1.5, g: 1.4, b: 1.0, theme: 'water' },
 };
 
 // 무쌍 게이지 + 대원별 오의. 킬 +1%, 피격 +3%, 콤보 가속. Space로 발동.
@@ -141,6 +143,7 @@ export class Musou {
       // (시각 규모는 절제 — 데미지 반경 30은 유지하되 화면을 태우는 광원/링은 축소)
       ctx.effects.spawnTripleShock(player.x, player.z, 18, crest.r, crest.g, crest.b);
       ctx.effects.spawnRing(player.x, player.z, 15, crest.r, crest.g, crest.b, 0.7);
+      ctx.effects.spawnTechnique(crest.theme, player.x, player.z, this.stormAngle, 18, 18, 0.72, 0.96, 1.0, 0.16);
       ctx.effects.spawnMusouLight?.(player.x, player.z, crest.r * 0.4, crest.g * 0.4, crest.b * 0.4, 10, 0.5);
       this.aoe(ctx, player.x, player.z, 30, 400 * ctx.stats.damageMul, 6);
       return true;
@@ -149,13 +152,20 @@ export class Musou {
   }
 
   // 공통 회전 참격 폭풍(색 지정 폴백/기반).
-  private runCommon(ctx: WeaponContext, player: Player, r: number, g: number, b: number): void {
+  private runCommon(
+    ctx: WeaponContext,
+    player: Player,
+    r: number,
+    g: number,
+    b: number,
+    theme: TechniqueTheme | null = null,
+  ): void {
     if (this.tick > 0) return;
     this.tick = 0.1;
     this.stormAngle += 0.9;
     const dx = Math.cos(this.stormAngle);
     const dz = Math.sin(this.stormAngle);
-    ctx.effects.spawnSlashArc(player.x, player.z, dx, dz, 7, 1.3, r, g, b, 0.24);
+    ctx.effects.spawnSlashArc(player.x, player.z, dx, dz, 7, 1.3, r, g, b, 0.24, theme);
     this.aoe(ctx, player.x, player.z, 7.5, 60 * ctx.stats.damageMul, 0);
   }
 
@@ -164,10 +174,10 @@ export class Musou {
     if (this.tick > 0) return;
     this.tick = 0.09;
     this.stormAngle += 0.7;
-    ctx.effects.spawnTechniqueMesh('sun', player.x, 0.45, player.z, this.stormAngle, 8, 1.0, 8, 2.6, 1.0, 0.3, 0.9);
+    ctx.effects.spawnTechnique('sun', player.x, player.z, this.stormAngle, 13.5, 13.5, 0.25, 0.93, 1.4, 0.08);
     for (let k = 0; k < 3; k++) {
       const a = this.stormAngle + (k / 3) * Math.PI * 2;
-      ctx.effects.spawnSlashArc(player.x, player.z, Math.cos(a), Math.sin(a), 8, 0.8, 2.6, 1.0, 0.3, 0.22);
+      ctx.effects.spawnSlashArc(player.x, player.z, Math.cos(a), Math.sin(a), 8, 0.8, 0.52, 0.2, 0.06, 0.22);
     }
     ctx.particles.burst(player.x, player.z, 2.6, 1.0, 0.3, 6, 3);
     this.aoe(ctx, player.x, player.z, 8.5, 66 * ctx.stats.damageMul, 5);
@@ -180,8 +190,8 @@ export class Musou {
     this.stormAngle += 0.55;
     const dx = Math.cos(this.stormAngle);
     const dz = Math.sin(this.stormAngle);
-    ctx.effects.spawnSlashArc(player.x, player.z, dx, dz, 9.5, 1.5, 0.4, 1.2, 2.4, 0.2);
-    ctx.effects.spawnTechniqueMesh('water', player.x, 0.3, player.z, this.stormAngle, 9, 1.0, 9, 0.4, 1.2, 2.4, 0.7);
+    ctx.effects.spawnSlashArc(player.x, player.z, dx, dz, 9.5, 1.5, 0.08, 0.24, 0.48, 0.2);
+    ctx.effects.spawnTechnique('water', player.x, player.z, this.stormAngle, 15.5, 15.5, 0.22, 0.91, 1.2, 0.07);
     ctx.particles.waterSplash(player.x + dx * 8, player.z + dz * 8, 8);
     this.aoe(ctx, player.x, player.z, 9.5, 55 * ctx.stats.damageMul, 5);
   }
@@ -191,7 +201,7 @@ export class Musou {
     if (!this.initDone) {
       this.initDone = true;
       ctx.effects.spawnTripleShock(player.x, player.z, 17, 2.4, 0.5, 0.9);
-      ctx.effects.spawnTechniqueMesh('blood', player.x, 0.2, player.z, 0, 8, 1.0, 8, 2.4, 0.4, 0.9, 0.8);
+      ctx.effects.spawnTechnique('blood', player.x, player.z, 0, 15, 15, 0.8, 0.96, 0.8, 0.16);
       this.aoe(ctx, player.x, player.z, 30, 90 * ctx.stats.damageMul, 10);
     }
     if (this.tick > 0) return;
@@ -206,10 +216,10 @@ export class Musou {
     if (this.tick > 0) return;
     this.tick = 0.07;
     this.stormAngle += 0.9;
+    ctx.effects.spawnTechnique('love', player.x, player.z, this.stormAngle, 15, 15, 0.2, 0.9, 2.4, 0.06);
     for (let k = 0; k < 2; k++) {
       const a = this.stormAngle + k * Math.PI;
-      ctx.effects.spawnTechniqueMesh('ribbon', player.x, 0.4, player.z, a, 9, 0.9, 9, 2.4, 0.7, 1.4, 0.85);
-      ctx.effects.spawnSlashArc(player.x, player.z, Math.cos(a), Math.sin(a), 9, 0.5, 2.4, 0.7, 1.4, 0.2);
+      ctx.effects.spawnSlashArc(player.x, player.z, Math.cos(a), Math.sin(a), 9, 0.5, 0.48, 0.14, 0.28, 0.2);
     }
     this.aoe(ctx, player.x, player.z, 9.5, 58 * ctx.stats.damageMul, 4);
   }
@@ -225,7 +235,7 @@ export class Musou {
       const a = this.stormAngle + (k / count) * Math.PI * 2;
       ctx.projectiles.spawn(
         player.x, player.z, Math.cos(a), Math.sin(a), 15, d, 0.5, 3, 1.6,
-        PK_BUTTERFLY, 1.3, 0.5, 2.0, 1.5, 0.9,
+        PK_BUTTERFLY, 1.3, 0.5, 2.0, 1.5, 0.9, false, 6, false, 'butterfly',
       );
     }
     ctx.particles.butterflyPoison(player.x, player.z, 8);
@@ -241,9 +251,10 @@ export class Musou {
     if (this.tick > 0) return;
     this.tick = 0.1;
     this.stormAngle += 0.7;
+    ctx.effects.spawnTechnique('flower', player.x, player.z, this.stormAngle, 11.5, 11.5, 0.24, 0.9, 1.0, 0.06);
     for (let k = 0; k < 3; k++) {
       const a = this.stormAngle + (k / 3) * Math.PI * 2;
-      ctx.effects.spawnSlashArc(player.x, player.z, Math.cos(a), Math.sin(a), 7, 0.7, 2.2, 0.6, 1.0, 0.2);
+      ctx.effects.spawnSlashArc(player.x, player.z, Math.cos(a), Math.sin(a), 7, 0.7, 0.44, 0.12, 0.2, 0.2);
     }
     this.aoe(ctx, player.x, player.z, 7.5, 60 * ctx.stats.damageMul, 4);
     if (this.dashTimer <= 0) {
@@ -254,7 +265,7 @@ export class Musou {
         const a = this.stormAngle + (k / count) * Math.PI * 2;
         ctx.projectiles.spawn(
           player.x, player.z, Math.cos(a), Math.sin(a), 16, d, 0.5, 3, 1.5,
-          PK_BUTTERFLY, 2.0, 0.6, 1.4, 1.5, 0.9,
+          PK_BUTTERFLY, 2.0, 0.6, 1.4, 1.5, 0.9, false, 6, false, 'flower',
         );
       }
     }
@@ -266,7 +277,7 @@ export class Musou {
     if (this.tick > 0) return;
     this.tick = 0.28;
     ctx.effects.spawnFireWall(player.x, player.z, player.faceX, player.faceZ, 6, 1.5, 0.5);
-    ctx.effects.spawnTechniqueMesh('flame', player.x, 0.5, player.z, Math.atan2(-player.faceZ, player.faceX), 6, 1.2, 3, 2.6, 0.8, 0.2, 0.85);
+    ctx.effects.spawnTechnique('flame', player.x, player.z, Math.atan2(-player.faceZ, player.faceX), 9.5, 9.5, 0.42, 0.95, 0, 0.12);
     ctx.effects.spawnRing(player.x, player.z, 2.6, 2.6, 0.9, 0.3, 0.3);
     this.aoe(ctx, player.x, player.z, 7, 85 * ctx.stats.damageMul * 2.3, 6);
   }
@@ -276,27 +287,27 @@ export class Musou {
     if (this.tick > 0) return;
     this.tick = 0.14;
     const t = ctx.enemies.randomAlive();
-    if (t < 0) { this.runCommon(ctx, player, 2.4, 2.0, 0.4); return; }
+    if (t < 0) { this.runCommon(ctx, player, 2.4, 2.0, 0.4, 'thunder'); return; }
     const x = ctx.enemies.x[t];
     const z = ctx.enemies.z[t];
     const dx = x - player.x;
     const dz = z - player.z;
     const dd = Math.hypot(dx, dz) || 1;
     ctx.effects.spawnChainArc(player.x, player.z, x, z, 2.6, 2.2, 0.5);
+    ctx.effects.spawnTechniqueLine('thunder', player.x, player.z, x, z, 2.4, 0.24, 0.98);
     // 적 바로 앞으로 순보(무적)
     player.x = x - (dx / dd) * 1.4;
     player.z = z - (dz / dd) * 1.4;
     player.faceX = dx / dd;
     player.faceZ = dz / dd;
     ctx.effects.spawnLightning(x, z, 2.6, 2.2, 0.5, 5);
-    ctx.effects.spawnTechniqueMesh('thunder', player.x, 0.4, player.z, Math.atan2(-dz, dx), 4, 1.0, 1.2, 2.6, 2.2, 0.5, 0.9);
     ctx.particles.lightningSpark(x, z, 10);
     this.aoe(ctx, x, z, 4.2, 92 * ctx.stats.damageMul, 3);
   }
 
   // 이노스케 — 짐승의 호흡: 8방향 광란 이도류 돌격 + 손톱 참격
   private runInosuke(ctx: WeaponContext, player: Player): void {
-    this.runCommon(ctx, player, 1.0, 1.6, 1.9); // 주변 난도질 유지
+    this.runCommon(ctx, player, 1.0, 1.6, 1.9, 'beast'); // 주변 난도질 유지
     if (this.dashTimer > 0) return;
     this.dashTimer = 0.45;
     const a = (this.dashIdx / 8) * Math.PI * 2 + this.stormAngle * 0.1;
@@ -307,7 +318,7 @@ export class Musou {
     player.z += dz * 3.4;
     player.faceX = dx;
     player.faceZ = dz;
-    ctx.effects.spawnTechniqueMesh('claw', player.x, 0.4, player.z, Math.atan2(-dz, dx), 4, 1.0, 2, 1.0, 1.5, 1.8, 0.9);
+    ctx.effects.spawnTechnique('beast', player.x, player.z, Math.atan2(-dz, dx), 7.5, 7.5, 0.32, 0.94, 0.3, 0.12);
     this.capsule(ctx, player.x, player.z, dx, dz, 9, 1.3, 90 * ctx.stats.damageMul);
   }
 
@@ -332,7 +343,7 @@ export class Musou {
     player.z = tz;
     player.faceX = dx / dd;
     player.faceZ = dz / dd;
-    ctx.effects.spawnSlashArc(player.x, player.z, dx / dd, dz / dd, 6, 1.4, 1.2, 1.8, 2.0, 0.2);
+    ctx.effects.spawnSlashArc(player.x, player.z, dx / dd, dz / dd, 6, 1.4, 1.2, 1.8, 2.0, 0.2, 'mist');
     this.aoe(ctx, player.x, player.z, 6, 72 * ctx.stats.damageMul, 3);
   }
 
@@ -340,6 +351,7 @@ export class Musou {
   private runUzui(ctx: WeaponContext, player: Player): void {
     if (this.tick > 0) return;
     this.tick = 0.5; // 리듬
+    ctx.effects.spawnTechnique('sound', player.x, player.z, this.stormAngle, 15, 15, 0.48, 0.96, 0.6, 0.16);
     ctx.effects.spawnTripleShock(player.x, player.z, 12, 2.2, 1.6, 0.6);
     ctx.effects.spawnRing(player.x, player.z, 10, 2.2, 1.6, 0.6, 0.4);
     ctx.effects.spawnFlash(player.x, player.z, 2.2, 1.6, 0.6, 6);
@@ -359,9 +371,10 @@ export class Musou {
     if (this.tick > 0) return;
     this.tick = 0.07;
     this.stormAngle += 1.1;
+    ctx.effects.spawnTechnique('wind', player.x, player.z, this.stormAngle, 14, 14, 0.21, 0.9, 2.6, 0.06);
     for (let k = 0; k < 2; k++) {
       const a = this.stormAngle + k * Math.PI;
-      ctx.effects.spawnSlashArc(player.x, player.z, Math.cos(a), Math.sin(a), 8, 1.0, 0.5, 1.9, 1.0, 0.2);
+      ctx.effects.spawnSlashArc(player.x, player.z, Math.cos(a), Math.sin(a), 8, 1.0, 0.1, 0.38, 0.2, 0.2);
     }
     ctx.effects.spawnRing(player.x, player.z, 7 + (this.stormAngle % 2), 0.5, 1.9, 1.0, 0.15);
     this.aoe(ctx, player.x, player.z, 8.5, 52 * ctx.stats.damageMul, 5);
@@ -372,6 +385,7 @@ export class Musou {
     if (!this.initDone) {
       this.initDone = true;
       this.stunAll(ctx, player.x, player.z, 30, 3.0);
+      ctx.effects.spawnTechnique('stone', player.x, player.z, 0, 19, 19, 0.9, 0.96, 0.2, 0.2);
       ctx.effects.spawnTripleShock(player.x, player.z, 17, 1.6, 1.3, 0.7);
       this.aoe(ctx, player.x, player.z, 30, 100 * ctx.stats.damageMul, 12);
     }
@@ -381,6 +395,7 @@ export class Musou {
     const r = 4 + Math.random() * 10;
     const mx = player.x + Math.cos(a) * r;
     const mz = player.z + Math.sin(a) * r;
+    ctx.effects.spawnTechnique('stone', mx, mz, a, 9, 9, 0.52, 0.95, 0.3, 0.16);
     ctx.effects.spawnRing(mx, mz, 6, 1.6, 1.3, 0.7, 0.4);
     ctx.effects.spawnFlash(mx, mz, 1.6, 1.3, 0.7, 5);
     for (let k = 0; k < 10; k++) {
@@ -401,7 +416,8 @@ export class Musou {
       const dz = en.z[j] - cz;
       const d2 = dx * dx + dz * dz;
       if (d2 > radius * radius) continue;
-      const died = en.damageAt(j, damage);
+      const dealt = resolvedDamage(damage, en.boss[j] === 1, en.groggy[j] === 1, 'musou');
+      const died = en.damageAt(j, dealt);
       if (knockback > 0) {
         const d = Math.sqrt(d2) || 1;
         en.push(j, dx / d, dz / d, knockback);
@@ -437,7 +453,8 @@ export class Musou {
       const ex = en.x[j] - px;
       const ez = en.z[j] - pz;
       if (ex * ex + ez * ez > hitR * hitR) continue;
-      const died = en.damageAt(j, damage);
+      const dealt = resolvedDamage(damage, en.boss[j] === 1, en.groggy[j] === 1, 'musou');
+      const died = en.damageAt(j, dealt);
       en.push(j, dx, dz, 6);
       if (died) ctx.onKill(j);
     }

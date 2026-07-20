@@ -37,7 +37,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'first_win',
     name: '무한성의 정복자',
     hanja: '無限城征服',
-    desc: '첫 승리 (10:00 생존)',
+    desc: '무잔을 처치하고 첫 승리',
     priority: 60,
     check: (c) => c.victory,
   },
@@ -103,7 +103,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     hanja: '十二鬼月討伐',
     desc: '한 런에서 세 보스 모두 처치',
     priority: 75,
-    check: (c) => c.bosses.includes('doma') && c.bosses.includes('enmu') && c.bosses.includes('muzan'),
+    check: (c) => c.bosses.includes('muzan') && c.bosses.length >= 3,
   },
   {
     id: 'high_level',
@@ -149,6 +149,6 @@ export function bestTitle(earnedIds: string[]): { name: string; hanja: string } 
     if (a && (!best || a.priority > best.priority)) best = a;
   }
   const en = getLang() === 'en';
-  if (!best) return { name: en ? 'Nameless General' : '무명의 장수', hanja: '無名將' };
+  if (!best) return { name: en ? 'Unranked Slayer' : '무명의 대원', hanja: '無名隊士' };
   return { name: en ? ACH_EN[best.id]?.name ?? best.name : best.name, hanja: best.hanja };
 }

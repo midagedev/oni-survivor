@@ -77,7 +77,7 @@ export function heroUnlockText(id: string, progress: HeroUnlockProgress): string
       return en ? 'Slay 1 Twelve Kizuki Boss' : '십이귀월 보스 1회 토벌';
 
     case 'rengoku':
-      return en ? 'Unlock at Camp (5000⟡)' : '본진에서 5000⟡ 해금';
+      return en ? 'Unlock at Corps Estate (5000⟡)' : '귀살대 본부에서 5000⟡ 해금';
 
     default:
       return '';

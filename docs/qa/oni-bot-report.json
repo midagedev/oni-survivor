@@ -1,0 +1,148 @@
+{
+  "seed": 20260720,
+  "headlessFpsReported": false,
+  "note": "Headless frame counts are functional evidence only; no FPS claim is made.",
+  "inputScript": [
+    "KeyW",
+    "KeyD",
+    "KeyS",
+    "KeyA",
+    "KeyW",
+    "KeyD"
+  ],
+  "framesAdvanced": 545,
+  "distanceTravelled": 19.974605760511988,
+  "killsBefore": 0,
+  "killsAfter": 3,
+  "killsDelta": 3,
+  "softlockWindows": [],
+  "levelupRecoveries": 0,
+  "failObserved": true,
+  "retrySucceeded": true,
+  "samples": [
+    {
+      "key": "KeyW",
+      "before": {
+        "frame": 85,
+        "scene": "run",
+        "phase": "play",
+        "kills": 0,
+        "x": 0,
+        "z": 0
+      },
+      "after": {
+        "frame": 155,
+        "scene": "run",
+        "phase": "play",
+        "kills": 0,
+        "x": 0,
+        "z": -3.0113194672469117
+      },
+      "distance": 3.0113194672469117
+    },
+    {
+      "key": "KeyD",
+      "before": {
+        "frame": 170,
+        "scene": "run",
+        "phase": "play",
+        "kills": 0,
+        "x": 0,
+        "z": -3.011660424143675
+      },
+      "after": {
+        "frame": 245,
+        "scene": "run",
+        "phase": "play",
+        "kills": 0,
+        "x": 3.4879917065045403,
+        "z": -3.011660424143675
+      },
+      "distance": 3.4879917065045403
+    },
+    {
+      "key": "KeyS",
+      "before": {
+        "frame": 260,
+        "scene": "run",
+        "phase": "play",
+        "kills": 0,
+        "x": 3.488332675957608,
+        "z": -3.011660424143675
+      },
+      "after": {
+        "frame": 335,
+        "scene": "run",
+        "phase": "play",
+        "kills": 0,
+        "x": 3.488332675957608,
+        "z": 0.4763312823608655
+      },
+      "distance": 3.4879917065045403
+    },
+    {
+      "key": "KeyA",
+      "before": {
+        "frame": 350,
+        "scene": "run",
+        "phase": "play",
+        "kills": 0,
+        "x": 3.488332675957608,
+        "z": 0.47667225181393336
+      },
+      "after": {
+        "frame": 425,
+        "scene": "run",
+        "phase": "play",
+        "kills": 0,
+        "x": 0.0003409694530674902,
+        "z": 0.47667225181393336
+      },
+      "distance": 3.4879917065045403
+    },
+    {
+      "key": "KeyW",
+      "before": {
+        "frame": 440,
+        "scene": "run",
+        "phase": "play",
+        "kills": 1,
+        "x": -3.318742849978129e-16,
+        "z": 0.47667225181393336
+      },
+      "after": {
+        "frame": 515,
+        "scene": "run",
+        "phase": "play",
+        "kills": 2,
+        "x": -3.318742849978129e-16,
+        "z": -3.011319454690607
+      },
+      "distance": 3.4879917065045403
+    },
+    {
+      "key": "KeyD",
+      "before": {
+        "frame": 530,
+        "scene": "run",
+        "phase": "play",
+        "kills": 2,
+        "x": -3.318742849978129e-16,
+        "z": -3.0116604241436744
+      },
+      "after": {
+        "frame": 600,
+        "scene": "run",
+        "phase": "play",
+        "kills": 3,
+        "x": 3.0113194672469117,
+        "z": -3.0116604241436744
+      },
+      "distance": 3.011319467246912
+    }
+  ],
+  "runtime": {
+    "consoleErrors": [],
+    "pageErrors": []
+  }
+}

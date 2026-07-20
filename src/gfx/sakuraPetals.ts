@@ -10,7 +10,20 @@ import {
   Vector3,
 } from 'three';
 
-const CAPACITY = 600;
+const DESKTOP_CAPACITY = 600;
+const MOBILE_CAPACITY = 240;
+const REDUCED_MOTION_CAPACITY = 96;
+
+function petalTier(): { capacity: number; motionScale: number } {
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  if (reducedMotion) return { capacity: REDUCED_MOTION_CAPACITY, motionScale: 0.35 };
+  const mobile = 'ontouchstart' in window
+    || navigator.maxTouchPoints > 0
+    || window.matchMedia?.('(pointer: coarse)').matches === true;
+  return mobile
+    ? { capacity: MOBILE_CAPACITY, motionScale: 1 }
+    : { capacity: DESKTOP_CAPACITY, motionScale: 1 };
+}
 
 function makePetalTexture(): CanvasTexture {
   const canvas = document.createElement('canvas');
@@ -37,6 +50,8 @@ const FOG_DENSITY = 0.019;
 
 // 벚꽃/등꽃 흩날리기 파티클 시스템 (asiahouse/src/env/petals.js 기법 영감)
 export class SakuraPetalsSystem {
+  private readonly capacity: number;
+  private readonly motionScale: number;
   private readonly points: Points;
   private readonly pos: Float32Array;
   private readonly col: Float32Array;
@@ -55,14 +70,17 @@ export class SakuraPetalsSystem {
   private time = 0;
 
   constructor(scene: Scene) {
-    this.pos = new Float32Array(CAPACITY * 3);
-    this.col = new Float32Array(CAPACITY * 3);
-    this.life = new Float32Array(CAPACITY);
-    this.size = new Float32Array(CAPACITY);
-    this.phase = new Float32Array(CAPACITY);
-    this.fallSpeed = new Float32Array(CAPACITY);
-    this.flutterAmp = new Float32Array(CAPACITY);
-    this.flutterFreq = new Float32Array(CAPACITY);
+    const tier = petalTier();
+    this.capacity = tier.capacity;
+    this.motionScale = tier.motionScale;
+    this.pos = new Float32Array(this.capacity * 3);
+    this.col = new Float32Array(this.capacity * 3);
+    this.life = new Float32Array(this.capacity);
+    this.size = new Float32Array(this.capacity);
+    this.phase = new Float32Array(this.capacity);
+    this.fallSpeed = new Float32Array(this.capacity);
+    this.flutterAmp = new Float32Array(this.capacity);
+    this.flutterFreq = new Float32Array(this.capacity);
 
     const colors = [
       [1.0, 0.82, 0.88],  // soft pink
@@ -71,7 +89,7 @@ export class SakuraPetalsSystem {
       [0.92, 0.78, 0.98], // wisteria light purple
     ];
 
-    for (let i = 0; i < CAPACITY; i++) {
+    for (let i = 0; i < this.capacity; i++) {
       const p3 = i * 3;
       this.pos[p3] = (Math.random() - 0.5) * 44;
       this.pos[p3 + 1] = Math.random() * 18 + 0.5;
@@ -83,7 +101,9 @@ export class SakuraPetalsSystem {
       this.col[p3 + 2] = c[2];
 
       this.life[i] = 1.0;
-      this.size[i] = 0.45 + Math.random() * 0.45;
+      // 전경을 가리지 않도록 작은 꽃잎 위주로 유지한다. 원근상 가까운 입자는
+      // 여전히 충분히 읽히지만, 전투 VFX와 캐릭터 실루엣을 덮지 않는다.
+      this.size[i] = 0.34 + Math.random() * 0.34;
       this.phase[i] = Math.random() * Math.PI * 2;
       this.fallSpeed[i] = 0.8 + Math.random() * 1.2;
       this.flutterAmp[i] = 0.8 + Math.random() * 1.4;
@@ -143,10 +163,12 @@ export class SakuraPetalsSystem {
           if (vLife <= 0.0) discard;
           vec4 tex = texture2D(uMap, gl_PointCoord);
           if (tex.a < 0.1) discard;
-          vec3 col = vColor * tex.rgb * 1.35;
+          // 애디티브 블렌딩에서 1.0을 넘기면 분홍색이 흰 점으로 클리핑된다.
+          // 꽃잎 고유색을 보존하면서도 야간 장면의 하이라이트를 태우지 않는다.
+          vec3 col = vColor * tex.rgb * 0.92;
           float fog = 1.0 - exp(-uFogDensity * uFogDensity * vFogDepth * vFogDepth);
           col = mix(col, uFogColor, clamp(fog, 0.0, 1.0));
-          gl_FragColor = vec4(col, tex.a * vLife * 0.85);
+          gl_FragColor = vec4(col, tex.a * vLife * 0.58);
         }
       `,
       transparent: true,
@@ -166,7 +188,7 @@ export class SakuraPetalsSystem {
     const t = this.time;
     const pos = this.pos;
 
-    for (let i = 0; i < CAPACITY; i++) {
+    for (let i = 0; i < this.capacity; i++) {
       const p3 = i * 3;
       const ph = this.phase[i];
       const freq = this.flutterFreq[i];
@@ -174,9 +196,9 @@ export class SakuraPetalsSystem {
       const fall = this.fallSpeed[i];
 
       // 흩날리는 벚꽃 물리: 부유 낙하 + 바람 수평 팔랑임(사인 파동)
-      pos[p3] += Math.sin(t * freq + ph) * amp * dt + 0.8 * dt;
-      pos[p3 + 1] -= fall * dt;
-      pos[p3 + 2] += Math.cos(t * freq * 0.7 + ph) * amp * 0.6 * dt;
+      pos[p3] += (Math.sin(t * freq + ph) * amp + 0.8) * dt * this.motionScale;
+      pos[p3 + 1] -= fall * dt * this.motionScale;
+      pos[p3 + 2] += Math.cos(t * freq * 0.7 + ph) * amp * 0.6 * dt * this.motionScale;
 
       // 카메라/플레이어 중심 22m 밖으로 벗어나거나 바닥에 닿으면 플레이어 상공으로 재배치
       const dx = pos[p3] - px;

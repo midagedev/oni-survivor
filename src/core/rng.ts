@@ -6,6 +6,11 @@ export class Rng {
     this.s = seed >>> 0;
   }
 
+  // QA/replay용 결정론적 재시드. 0도 유효한 seed로 유지한다.
+  seed(value: number): void {
+    this.s = value >>> 0;
+  }
+
   // 0..1
   next(): number {
     this.s = (this.s + 0x6d2b79f5) | 0;

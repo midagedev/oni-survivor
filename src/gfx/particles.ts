@@ -7,6 +7,7 @@ import {
   AdditiveBlending,
   DynamicDrawUsage,
 } from 'three';
+import type { TechniqueTheme } from './techniqueSprites';
 
 // GPU 파티클 풀. 롤링 커서로 슬롯 재사용, 프레임당 할당 0.
 // 사망 버스트 / 화염 상승 / 먼지 / 젬 스파클 / 트레일을 공용 emit로 처리.
@@ -272,7 +273,12 @@ export class ParticleSystem {
     g: number,
     b: number,
     kind: number,
+    theme?: TechniqueTheme,
   ): void {
+    if (theme !== undefined) {
+      this.techniqueTrail(theme, x, z, vx, vz, r, g, b);
+      return;
+    }
     const speed = Math.hypot(vx, vz) || 1;
     const nx = vx / speed;
     const nz = vz / speed;
@@ -300,6 +306,90 @@ export class ParticleSystem {
     }
   }
 
+  // Theme-aware secondary motes. The continuous path silhouette belongs to TechniqueTrailBatch;
+  // these sparse particles only supply spray, embers, poison, petals, or debris around that path.
+  techniqueTrail(
+    theme: TechniqueTheme,
+    x: number,
+    z: number,
+    vx: number,
+    vz: number,
+    r: number,
+    g: number,
+    b: number,
+  ): void {
+    const speed = Math.hypot(vx, vz) || 1;
+    const nx = vx / speed;
+    const nz = vz / speed;
+    const px = -nz;
+    const pz = nx;
+
+    let count = 1;
+    let spread = 0.24;
+    let back = 0.5;
+    let size = 0.34;
+    let duration = 0.22;
+    let y = 0.78;
+    let rise = 0.4;
+    let gravity = 1;
+    let drag = 0.89;
+    let colorScale = 0.72;
+
+    switch (theme) {
+      case 'water':
+        count = 2; spread = 0.42; back = 0.7; size = 0.42; y = 0.42; rise = 1.15; gravity = 4.5;
+        break;
+      case 'love':
+      case 'flower':
+        count = 2; spread = 0.7; back = 0.45; size = 0.34; duration = 0.3; rise = 0.7; gravity = -0.2; drag = 0.93;
+        break;
+      case 'mist':
+        count = 2; spread = 0.8; back = 0.8; size = 0.72; duration = 0.42; y = 0.5; rise = 0.22; gravity = -0.3; drag = 0.96; colorScale = 0.48;
+        break;
+      case 'wind':
+        count = 2; spread = 0.62; back = 0.65; size = 0.3; duration = 0.24; rise = 0.5; gravity = 0; drag = 0.94;
+        break;
+      case 'flame':
+      case 'sun':
+      case 'blood':
+        count = 2; spread = 0.28; back = 0.9; size = 0.3; duration = 0.28; rise = 1.7; gravity = -1.1; drag = 0.91; colorScale = 0.82;
+        break;
+      case 'thunder':
+        spread = 0.17; back = 0.35; size = 0.24; duration = 0.12; rise = 0.5; gravity = 0; drag = 0.84; colorScale = 0.95;
+        break;
+      case 'butterfly':
+        spread = 0.45; back = 0.4; size = 0.25; duration = 0.36; rise = 0.8; gravity = -0.35; drag = 0.94;
+        break;
+      case 'beast':
+      case 'sound':
+      case 'stone':
+        spread = 0.48; back = 0.38; size = 0.34; duration = 0.2; rise = 0.9; gravity = 3.5; drag = 0.87; colorScale = 0.62;
+        break;
+    }
+
+    for (let k = 0; k < count; k++) {
+      // Alternate the side for two-line families so the wake brackets the collision path.
+      const sideSign = count > 1 ? (k === 0 ? -1 : 1) : Math.random() * 2 - 1;
+      const side = sideSign * spread * (0.45 + Math.random() * 0.55);
+      const trailBack = back * (0.2 + Math.random() * 0.8);
+      this.emit(
+        x - nx * trailBack + px * side,
+        y + Math.random() * 0.25,
+        z - nz * trailBack + pz * side,
+        -nx * (0.5 + Math.random() * 1.1) + px * side * 1.6,
+        rise + Math.random() * 0.55,
+        -nz * (0.5 + Math.random() * 1.1) + pz * side * 1.6,
+        r * colorScale,
+        g * colorScale,
+        b * colorScale,
+        size * (0.75 + Math.random() * 0.5),
+        duration * (0.82 + Math.random() * 0.35),
+        gravity,
+        drag,
+      );
+    }
+  }
+
   // 명중 순간에는 도트 파편이 바깥으로 터져 투사체 종류와 충돌 위치를 동시에 읽힌다.
   projectileImpact(
     x: number,
@@ -308,7 +398,12 @@ export class ParticleSystem {
     g: number,
     b: number,
     kind: number,
+    theme?: TechniqueTheme,
   ): void {
+    if (theme !== undefined) {
+      this.techniqueImpact(theme, x, z, r, g, b);
+      return;
+    }
     const count = kind === 2 || kind === 4 || kind === 8 ? 9 : kind === 3 || kind === 6 || kind === 9 ? 6 : 4;
     const force = kind === 4 || kind === 8 ? 5.2 : kind === 2 || kind === 6 ? 4.0 : 2.8;
     for (let k = 0; k < count; k++) {
@@ -328,6 +423,70 @@ export class ParticleSystem {
         0.18 + Math.random() * 0.18,
         4.2,
         0.9,
+      );
+    }
+  }
+
+  techniqueImpact(
+    theme: TechniqueTheme,
+    x: number,
+    z: number,
+    r: number,
+    g: number,
+    b: number,
+  ): void {
+    if (theme === 'water') {
+      this.waterSplash(x, z, 9);
+      return;
+    }
+    if (theme === 'thunder') {
+      this.lightningSpark(x, z, 11);
+      return;
+    }
+    if (theme === 'butterfly') {
+      this.butterflyPoison(x, z, 7);
+      return;
+    }
+
+    let count = 6;
+    let force = 3.4;
+    let size = 0.46;
+    let duration = 0.26;
+    let gravity = 4.2;
+    let rise = 1.4;
+    if (theme === 'flame' || theme === 'sun' || theme === 'blood') {
+      count = 9; force = 4.4; size = 0.56; duration = 0.3; gravity = -0.7; rise = 2.1;
+    } else if (theme === 'love' || theme === 'flower') {
+      count = 8; force = 2.8; size = 0.4; duration = 0.38; gravity = 0.5; rise = 1.1;
+    } else if (theme === 'mist') {
+      count = 5; force = 1.7; size = 0.8; duration = 0.46; gravity = -0.4; rise = 0.45;
+    } else if (theme === 'wind') {
+      count = 8; force = 4.2; size = 0.34; duration = 0.24; gravity = 0; rise = 0.75;
+    } else if (theme === 'beast' || theme === 'stone') {
+      count = 8; force = 4.8; size = 0.5; duration = 0.28; gravity = 7; rise = 2.4;
+    } else if (theme === 'sound') {
+      count = 10; force = 5.0; size = 0.42; duration = 0.2; gravity = 3; rise = 1.8;
+    }
+
+    for (let k = 0; k < count; k++) {
+      const angle = k / count * Math.PI * 2 + Math.random() * 0.28;
+      // Sound uses alternating rings, love/flower rotate gently, stone/beast throw grounded debris.
+      const rhythm = theme === 'sound' ? (k % 2 === 0 ? 1 : 0.58) : 1;
+      const velocity = force * rhythm * (0.55 + Math.random() * 0.5);
+      this.emit(
+        x,
+        theme === 'stone' || theme === 'beast' ? 0.38 : 0.68,
+        z,
+        Math.cos(angle) * velocity,
+        rise * (0.7 + Math.random() * 0.65),
+        Math.sin(angle) * velocity,
+        r,
+        g,
+        b,
+        size * (0.72 + Math.random() * 0.55),
+        duration * (0.8 + Math.random() * 0.4),
+        gravity,
+        theme === 'mist' ? 0.96 : 0.9,
       );
     }
   }

@@ -1,0 +1,49 @@
+{
+  "seed": 20260720,
+  "headlessFpsReported": false,
+  "project": "desktop",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "state": "stress",
+  "loadedTechniqueFiles": [
+    "technique-atlas.png"
+  ],
+  "canvas": {
+    "width": 1440,
+    "height": 900,
+    "sampled": 26574,
+    "opaqueRatio": 1,
+    "quantizedColors": 453,
+    "luminanceRange": 250.35299999999998,
+    "brightChromaSamples": 453
+  },
+  "diagnostics": {
+    "frame": 325,
+    "state": {
+      "scene": "run",
+      "phase": "play",
+      "complete": false,
+      "failed": false,
+      "score": 0,
+      "level": 1,
+      "objective": "boulder",
+      "player": {
+        "x": -40,
+        "z": -5
+      },
+      "performance": {
+        "calls": 52,
+        "tris": 18912,
+        "geometries": 84,
+        "textures": 44
+      }
+    }
+  },
+  "runtime": {
+    "consoleErrors": [],
+    "pageErrors": [],
+    "criticalNetworkErrors": []
+  }
+}

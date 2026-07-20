@@ -12,3 +12,11 @@ artifacts/
 scripts/
 tests/
 
+# Keep the historical ignored test area intact; only the new release harness is tracked.
+!tests/
+tests/*
+!tests/oni-visual.spec.ts
+!tests/oni-bot.spec.ts
+!tests/oni-balance.spec.ts
+test-results/
+playwright-report/

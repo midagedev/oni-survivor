@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "qa:visual": "playwright test tests/oni-visual.spec.ts",
+    "qa:bot": "playwright test tests/oni-bot.spec.ts --project=desktop",
+    "qa:balance": "playwright test tests/oni-balance.spec.ts --project=desktop"
   },
   "dependencies": {
     "three": "^0.185.1"

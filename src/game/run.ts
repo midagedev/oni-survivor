@@ -47,7 +47,7 @@ import {
 import { TreasurePool } from './treasure';
 import { Combo } from './combo';
 import { Musou } from './musou';
-import { Boss, MINIBOSS_CYCLE } from './boss';
+import { Boss, BOSS_SLOT_3, BOSS_SLOT_6, MINIBOSS_CYCLE } from './boss';
 import { BattlefieldEvents } from './events';
 import { BattlefieldObjects } from './objects';
 import type { BuffKind } from './player';
@@ -71,12 +71,13 @@ import { audio } from '../core/audio';
 import { Companion } from './companion';
 import { pickSecondCompanion, SECOND_JOIN_TIME, companionLine } from '../data/companions';
 import { pickLine } from '../data/dialogue';
-import { BattlefieldMap, castleRenderData, CASTLE } from './battlefieldMap';
+import { BattlefieldMap, castleRenderData, CASTLE, JOURNEY_LANDMARKS } from './battlefieldMap';
 import type { GateBarrier, MapLandmark } from './battlefieldMap';
 import { SiegeSystem } from './siege';
 import { lordName, lordAppearLine, lordDeathLine, siegeQuestLine, siegeBanner } from '../data/siegeData';
 import { factionNarration, hulaoNarration, minibossHail } from '../data/narration';
 import { LandmarkSystem, WATCHTOWER_RANGE_MUL, BEACON_ATTACK_MUL } from './landmarks';
+import { resolvedDamage } from './damagePolicy';
 
 type State = 'attract' | 'play' | 'levelup' | 'paused' | 'dead' | 'victory';
 
@@ -87,6 +88,7 @@ export interface RunResult {
   time: number;
   kills: number;
   maxCombo: number;
+  noHitTime: number; // 이번 런의 최장 무피격 지속(초)
   level: number;
   goldEarned: number; // 전투 골드 + 콤보 보너스
   comboBonus: number;
@@ -109,6 +111,7 @@ const MAX_WEAPONS = 6;
 const MAX_PASSIVES = 6;
 const REROLL_COST = 50;
 const RUN_LENGTH = 600; // 10분
+const BOULDER_MAX_HP = 120;
 
 type Choice =
   | { kind: 'newWeapon'; id: string }
@@ -206,11 +209,17 @@ export class Run {
   private reviveAvailable = false;
   private reviveUsed = false;
   private ended = false; // onEnd 중복 방지
-  private boulderTime = 0;
+  private boulderHp = BOULDER_MAX_HP;
   private boulderCompleted = false;
   private shrineCompleted = false;
   private discoveredTrainWreck = false;
   private discoveredWisteriaHouse = false;
+  private discoveredInfinityGate = false;
+  private dawnWarningShown = false;
+  private noHitCurrent = 0;
+  private maxNoHitTime = 0;
+  private shinobuProcCooldown = 0;
+  private suppressKillProc = false;
   private musouFreezeT = 0;
   private attractTime = 0;
   private bossFlags = { b3: false, b6: false, b9: false };
@@ -224,7 +233,7 @@ export class Run {
   private masterworkIds: string[] = []; // 보유 명기(보스 드랍, 상한 없음)
   private feverWasOn = false; // 콤보 피버 진입 감지
   private endless = false; // 무한 모드(10분 승리 후 계속)
-  private victoryAchieved = false; // 10분 도달(이후 사망해도 승리 처리)
+  private victoryAchieved = false; // 최종보스 무잔 처치로만 달성
   private forceRelicNext = false; // 테스트: 다음 레벨업 카드에 유물 강제
   private heroQuoteCursor = 0;
   private nextHeroQuoteAt = 12;
@@ -242,6 +251,10 @@ export class Run {
   // 무쌍 포스트 연출 (main이 읽어 파이프라인에 전달)
   musouStrength = 0;
   renderTime = 0;
+  // Fixed-step simulation can run several times before one browser frame. Instance attributes are
+  // rebuilt only for the final state consumed by that frame, avoiding 2–3× CPU submission work on
+  // a 20–30fps mobile device while preserving the full 60Hz gameplay simulation.
+  private renderDirty = true;
 
   private readonly scratch: number[] = [];
   private readonly ctx: WeaponContext;
@@ -284,7 +297,12 @@ export class Run {
     );
 
     this.effects = new EffectsSystem(this.scene);
-    this.effects.initGlowBatches(lu);
+    this.effects.initGlowBatches(lu, touch);
+    this.effects.submitTechniqueLight = (theme, x, z, radius, intensity, kind, priority) => {
+      this.lightField.submitTechniqueThemeLight(
+        theme, x, z, radius, intensity, kind, priority,
+      );
+    };
     this.arrowRain = new ArrowRain(this.scene, this.effects);
     this.starAura = new StarAura(this.scene);
     this.decals = new DecalPool(this.scene);
@@ -677,6 +695,7 @@ export class Run {
     this.enemies.reset();
     this.gems.reset();
     this.projectiles.reset();
+    this.effects.reset();
     this.zones.reset();
     this.enemyProj.reset();
     this.treasure.reset();
@@ -706,11 +725,16 @@ export class Run {
     this.starAura.reset();
     this.cinematics.reset();
     this.gateRushTimer = 0;
-    this.boulderTime = 0;
+    this.boulderHp = BOULDER_MAX_HP;
     this.boulderCompleted = false;
     this.shrineCompleted = false;
     this.discoveredTrainWreck = false;
     this.discoveredWisteriaHouse = false;
+    this.discoveredInfinityGate = false;
+    this.dawnWarningShown = false;
+    this.noHitCurrent = 0;
+    this.maxNoHitTime = 0;
+    this.shinobuProcCooldown = 0;
     this.hulaoAt = 420 + rng.range(0, 120); // 7~9분 사이 호로관 세트피스 1회
     this.playerWallHits = 0;
     this.lastAttackWeapon = '';
@@ -808,8 +832,13 @@ export class Run {
 
   update(dt: number): void {
     this.renderTime += dt;
+    if (this.musouFreezeT > 0 || this.state === 'attract' || this.state === 'play') {
+      this.renderDirty = true;
+    }
 
     if (this.musouFreezeT > 0) {
+      this.effects.beginFrame();
+      this.lightField.beginTechniqueFrame(this.player.x, this.player.z);
       this.musouFreezeT -= dt;
       this.updateMusouFreeze(dt);
       return;
@@ -817,9 +846,11 @@ export class Run {
 
     // 어트랙트(메뉴 배경): 지면/반딧불/파티클 + 느린 카메라 드리프트만.
     if (this.state === 'attract') {
+      this.effects.beginFrame();
       this.attractTime += dt;
       const tx = Math.sin(this.attractTime * 0.06) * 5;
       const tz = Math.cos(this.attractTime * 0.05) * 5;
+      this.lightField.beginTechniqueFrame(tx, tz);
       this.ground.update(dt, tx, tz);
       this.mountains.group.position.set(tx, 0, tz);
       const count = Math.floor(4 * dt + Math.random());
@@ -833,7 +864,6 @@ export class Run {
       this.rig.update(dt, tx, tz);
       updateFortressCutaway(0, 0, 0, 0, 0, 0, false); // 메뉴 배경엔 컷어웨이 없음
       this.musouStrength += (0 - this.musouStrength) * Math.min(1, dt * 6);
-      this.renderSprites();
       return;
     }
 
@@ -850,6 +880,10 @@ export class Run {
       this.pause();
     }
     if (this.state === 'paused') return;
+
+    // Instanced 보조 메시 커서를 모든 게임플레이 VFX 방출 전에 연다.
+    this.effects.beginFrame();
+    this.lightField.beginTechniqueFrame(this.player.x, this.player.z);
 
     // 시네마틱(보스 등장 팬) 스킵: 이동/Space 입력 시
     if (
@@ -879,6 +913,9 @@ export class Run {
 
     // === 시뮬레이션 ===
     this.gameTime += gdt;
+    this.shinobuProcCooldown = Math.max(0, this.shinobuProcCooldown - gdt);
+    this.noHitCurrent += gdt;
+    if (this.noHitCurrent > this.maxNoHitTime) this.maxNoHitTime = this.noHitCurrent;
     this.player.musouInvuln = this.musou.active;
     this.map.update(this.player.x, this.player.z, gdt);
     const prevPlayerX = this.player.x;
@@ -1051,7 +1088,7 @@ export class Run {
       gdt, this.player.x, this.player.z, this.enemies, this.hash,
       this.damageText, this.ctx.onKill, this.particles, this.effects, this.scratch,
     );
-    this.zones.update(gdt, this.enemies, this.hash, this.damageText, this.ctx.onKill, this.particles, this.scratch);
+    this.zones.update(gdt, this.enemies, this.hash, this.damageText, this.onZoneKill, this.particles, this.scratch);
 
     // 전장 오브젝트: 접촉(등나무꽃 약탕/사당) + 화약통은 플레이어 근접 시 무기 판정으로 유폭
     this.objects.update(gdt, this.gameTime);
@@ -1208,103 +1245,120 @@ export class Run {
     const target = this.musou.active ? 0.9 : 0;
     this.musouStrength += (target - this.musouStrength) * Math.min(1, dt * 6);
 
-    // 렌더 버퍼
-    this.renderSprites();
+    // DOM/월드 마커는 시뮬레이션 상태를 따라가고, 대형 인스턴스 렌더 버퍼는
+    // prepareRender()에서 실제 browser frame당 한 번만 제출한다.
     this.updateLabels();
     this.updateMarkers(dt);
-    // === 귀멸의 칼칼 오픈월드 커스텀 퀘스트 ===
+    // === 밤의 연속 임무: 수련터 → 등나무 마을 → 무한열차 → 무한성 ===
     const en = getLang() === 'en';
     let activeQuest: { title: string; sub?: string; progress01?: number; color?: string } | null = null;
 
-    // 1. 바위 베기 수련 (Training Boulder at (-40, -10))
+    // 1. 바위 베기 수련. 단순 체류가 아니라 실제 무기 발동 횟수로 내구도를 깎는다.
     if (!this.boulderCompleted) {
-      const dx = this.player.x - (-40);
-      const dz = this.player.z - (-10);
+      const target = JOURNEY_LANDMARKS.boulder;
+      const dx = this.player.x - target.x;
+      const dz = this.player.z - target.z;
       const dist = Math.hypot(dx, dz);
-      if (dist <= 4.5) {
-        this.boulderTime += dt;
-        if (this.boulderTime >= 5.0) {
+      if (dist <= 7 && atkThisFrame > 0) {
+        const dealt = Math.min(this.boulderHp, 20 * this.player.stats.damageMul * atkThisFrame);
+        this.boulderHp -= dealt;
+        this.damageText.spawn(dealt, target.x, 2.1, target.z, this.boulderHp <= 0);
+        this.effects.spawnRing(target.x, target.z, 1.5, 1.15, 0.9, 0.65, 0.22);
+        this.particles.dust(target.x, target.z);
+        audio.sfx('hit');
+        if (this.boulderHp <= 0) {
           this.boulderCompleted = true;
-          this.boulderTime = 5.0;
+          this.boulderHp = 0;
           audio.sfx('achievement');
-          this.gold += 300;
-          this.goldEarned += 300;
+          this.addGold(250);
           for (let k = 0; k < 15; k++) {
-            const a = Math.random() * Math.PI * 2;
-            this.gems.spawn(-40 + Math.cos(a) * 3, -10 + Math.sin(a) * 3, 5);
+            const a = rng.next() * Math.PI * 2;
+            this.gems.spawn(target.x + Math.cos(a) * 3, target.z + Math.sin(a) * 3, 5);
           }
-          this.effects.spawnRing(-40, -10, 3.5, 2.0, 1.2, 0.4, 0.4);
-          this.particles.burst(-40, -10, 0.8, 0.8, 0.8, 20, 5);
+          this.effects.spawnRing(target.x, target.z, 5.5, 2.0, 1.2, 0.4, 0.55);
+          this.particles.burst(target.x, target.z, 0.8, 0.8, 0.8, 28, 5);
+          this.hud.banner(en ? 'TRAINING COMPLETE' : '바위 베기 성공', '#e8c667', 44, 1400);
           this.hud.quote(en ? 'Sakonji' : '우로코다키 사콘지', en ? 'You have sliced the boulder. Well done!' : '바위를 벴구나. 잘 했다.', 3500);
-        } else {
-          activeQuest = {
-            title: en ? 'Quest: Slicing the Boulder' : '임무: 바위 베기 수련',
-            sub: en ? `Stay near the training boulder (${(5.0 - this.boulderTime).toFixed(1)}s left)` : `수련 바위 근처에 머물러라 (${(5.0 - this.boulderTime).toFixed(1)}초 남음)`,
-            progress01: this.boulderTime / 5.0,
-            color: '#a8a8a8',
-          };
         }
-      } else if (dist <= 15) {
-        activeQuest = {
-          title: en ? 'Quest: Slicing the Boulder' : '임무: 바위 베기 수련',
-          sub: en ? 'Approach the boulder to begin slicing training' : '수련 바위 근처로 가서 수련을 시작하라',
-          color: '#a8a8a8',
-        };
       }
+      if (!this.boulderCompleted) activeQuest = {
+        title: en ? 'Night Mission 1/4 · Slice the Boulder' : '야간 임무 1/4 · 바위 베기 수련',
+        sub: en
+          ? `${Math.round(dist)}m · Release breathing attacks beside the boulder`
+          : `${Math.round(dist)}m · 바위 곁에서 호흡 공격을 발동하라`,
+        progress01: 1 - this.boulderHp / BOULDER_MAX_HP,
+        color: '#d7c6a3',
+      };
     }
 
-    // 2. 등나무꽃 신사 참배 (Wisteria Shrine at (0, 80))
+    // 2. 등나무꽃 마을 구조/회복 비트.
     if (!this.shrineCompleted && !activeQuest) {
-      const dx = this.player.x - 0;
-      const dz = this.player.z - 80;
+      const target = JOURNEY_LANDMARKS.wisteriaVillage;
+      const dx = this.player.x - target.x;
+      const dz = this.player.z - target.z;
       const dist = Math.hypot(dx, dz);
-      if (dist <= 6.0) {
+      if (dist <= 8) {
         this.shrineCompleted = true;
+        this.discoveredWisteriaHouse = true;
         audio.sfx('revive');
         this.player.heal(this.player.maxHp);
         this.player.invuln = Math.max(this.player.invuln, 12);
-        this.effects.spawnRing(0, 80, 5.5, 1.2, 0.4, 1.2, 0.4);
-        this.particles.burst(0, 80, 0.7, 0.3, 0.9, 30, 4);
+        this.addGold(180);
+        this.effects.spawnRing(target.x, target.z, 7, 1.2, 0.4, 1.2, 0.5);
+        this.particles.burst(target.x, target.z, 0.7, 0.3, 0.9, 30, 4);
+        this.hud.banner(en ? 'WISTERIA SAFE HAVEN' : '등꽃 결계 · 전원 회복', '#d99cff', 42, 1500);
         this.hud.quote(en ? 'Kagaya' : '우부야시키 카가야', en ? 'May fortune and victory bless the Demon Slayers.' : '오늘도 귀살대 대원에게 무운이 깃들기를.', 3800);
-      } else if (dist <= 25) {
-        activeQuest = {
-          title: en ? 'Quest: Wisteria Shrine Blessing' : '임무: 신사의 가호',
-          sub: en ? 'Visit the Wisteria Shrine ahead to receive a divine blessing' : '앞에 보이는 등나무꽃 신사를 참배하여 가호를 받아라',
-          color: '#9b30b0',
-        };
       }
+      if (!this.shrineCompleted) activeQuest = {
+        title: en ? 'Night Mission 2/4 · Wisteria Refuge' : '야간 임무 2/4 · 등나무꽃 마을 구조',
+        sub: en ? `${Math.round(dist)}m · Reach the refuge to recover` : `${Math.round(dist)}m · 피난처에 도달해 주민을 지켜라`,
+        color: '#d99cff',
+      };
     }
 
-    // 3. 무한열차 잔해 발견 (Mugen Train Wreckage proximity trigger)
-    if (!this.discoveredTrainWreck) {
-      for (const lm of this.map.landmarks) {
-        if (lm.name.includes('열차') || lm.name.includes('列車')) {
-          const dx = this.player.x - lm.x;
-          const dz = this.player.z - lm.z;
-          if (dx * dx + dz * dz <= 100) { // 10m 이내
-            this.discoveredTrainWreck = true;
-            this.hud.quote(en ? 'Kyojuro' : '렌고쿠 쿄쥬로', en ? 'The Mugen Train... I will protect everyone to the very end!' : '무한열차인가... 단 한 사람도 죽게 두지 않는다!', 4500);
-            audio.sfx('achievement');
-            break;
-          }
-        }
+    // 3. 무한열차 탈선 현장 조사. 명기 상자와 경험치로 중반 빌드 곡선을 당긴다.
+    if (!this.discoveredTrainWreck && !activeQuest) {
+      const target = JOURNEY_LANDMARKS.mugenTrain;
+      const dx = this.player.x - target.x;
+      const dz = this.player.z - target.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist <= 11) {
+        this.discoveredTrainWreck = true;
+        this.xp += this.nextXp * 1.15 * this.player.stats.xpMul;
+        this.treasure.spawn(target.x, target.z + 2, false);
+        this.effects.spawnRing(target.x, target.z, 8, 2.2, 0.8, 0.3, 0.5);
+        this.hud.banner(en ? 'PASSENGERS SECURED' : '무한열차 생존자 확보', '#ffb05a', 42, 1500);
+        this.hud.quote(en ? 'Kyojuro' : '렌고쿠 쿄쥬로', en ? 'The Mugen Train... I will protect everyone to the very end!' : '무한열차인가... 단 한 사람도 죽게 두지 않는다!', 4500);
+        audio.sfx('achievement');
       }
+      if (!this.discoveredTrainWreck) activeQuest = {
+        title: en ? 'Night Mission 3/4 · Mugen Train' : '야간 임무 3/4 · 무한열차 잔해 조사',
+        sub: en ? `${Math.round(dist)}m · Secure the derailed cars` : `${Math.round(dist)}m · 탈선 객차의 생존자를 확보하라`,
+        color: '#ffb05a',
+      };
     }
 
-    // 4. 등나무꽃 가문의 집 발견 (Wisteria House proximity trigger)
-    if (!this.discoveredWisteriaHouse) {
-      for (const lm of this.map.landmarks) {
-        if (lm.name.includes('후지꽃') || lm.name.includes('藤의 집') || lm.name.includes('藤の家')) {
-          const dx = this.player.x - lm.x;
-          const dz = this.player.z - lm.z;
-          if (dx * dx + dz * dz <= 100) { // 10m 이내
-            this.discoveredWisteriaHouse = true;
-            this.hud.quote(en ? 'Tanjiro' : '카마도 탄지로', en ? 'The scent of wisteria! A crest of the Wisteria family is here.' : '등나무꽃의 향기야! 후지꽃 가문의 문양집이구나.', 4000);
-            audio.sfx('achievement');
-            break;
-          }
-        }
+    // 4. 무한성 관문 도달. 최종전 직전 단 한 번의 회복/무쌍 충전 비트.
+    if (!this.discoveredInfinityGate && !activeQuest) {
+      const target = JOURNEY_LANDMARKS.infinityGate;
+      const dx = this.player.x - target.x;
+      const dz = this.player.z - target.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist <= 13) {
+        this.discoveredInfinityGate = true;
+        this.player.heal(this.player.maxHp * 0.35);
+        this.musou.gauge = 100;
+        this.addGold(220);
+        this.effects.spawnRing(target.x, target.z, 10, 0.6, 1.4, 2.2, 0.65);
+        this.hud.banner(en ? 'INFINITY CASTLE OPEN' : '무한성 결전 개방', '#82d9ff', 46, 1700);
+        this.hud.quote(en ? 'Tanjiro' : '카마도 탄지로', en ? 'Muzan is beyond this gate. We end it tonight.' : '이 문 너머에 무잔이 있어. 오늘 밤 끝내자.', 4200);
+        audio.sfx('achievement');
       }
+      if (!this.discoveredInfinityGate) activeQuest = {
+        title: en ? 'Night Mission 4/4 · Infinity Castle' : '야간 임무 4/4 · 무한성 관문 집결',
+        sub: en ? `${Math.round(dist)}m · Rally at the final gate` : `${Math.round(dist)}m · 최종 관문으로 집결하라`,
+        color: '#82d9ff',
+      };
     }
 
     if (activeQuest) {
@@ -1316,9 +1370,15 @@ export class Run {
     // 레벨업 대기
     if (this.pendingLevels > 0 && this.state === 'play') this.showNextLevelUp();
 
-    // 종료 판정 (사망 → 부활 또는 결과, 10분 도달 → 승리 선택)
+    // 종료 판정. 새벽은 자동승리가 아니라 최종 토벌 압박의 시작이다.
     if (this.player.dead) this.onPlayerDeath();
-    else if (!this.endless && this.gameTime >= RUN_LENGTH) this.finish(true);
+    else if (!this.endless && this.gameTime >= RUN_LENGTH && !this.dawnWarningShown) {
+      this.dawnWarningShown = true;
+      this.player.heal(this.player.maxHp * 0.3);
+      this.musou.gauge = 100;
+      this.hud.banner(en ? 'DAWN · SLAY MUZAN' : '새벽 · 무잔을 토벌하라', '#ffcf8a', 48, 1900);
+      this.hud.quote(en ? 'Kagaya' : '우부야시키 카가야', en ? 'Dawn is near. The battle ends only when Muzan falls.' : '동이 튼다. 무잔이 쓰러져야만 이 싸움은 끝난다.', 4600);
+    }
     // 종료된 프레임은 HUD 갱신 생략(숨김 상태 유지).
     if (this.ended) return;
 
@@ -1353,21 +1413,18 @@ export class Run {
   }
 
   // 슬롯별 등장 후보(랜덤). 9분 슬롯은 최종보스 여포 고정.
-  private static readonly BOSS_SLOT_3 = ['doma', 'akaza', 'kokushibo'];
-  private static readonly BOSS_SLOT_6 = ['enmu', 'rui', 'gyokko'];
-
   private checkBossSpawn(): void {
     if (this.boss.active) return;
     let spawned = false;
     const minute = this.gameTime / 60;
     if (!this.bossFlags.b3 && this.gameTime >= 180) {
       this.bossFlags.b3 = true;
-      const pool = Run.BOSS_SLOT_3;
+      const pool = BOSS_SLOT_3;
       this.boss.spawn(pool[rng.int(pool.length)], minute, this.ctx, this.player.x, this.player.z);
       spawned = true;
     } else if (!this.bossFlags.b6 && this.gameTime >= 360) {
       this.bossFlags.b6 = true;
-      const pool = Run.BOSS_SLOT_6;
+      const pool = BOSS_SLOT_6;
       this.boss.spawn(pool[rng.int(pool.length)], minute, this.ctx, this.player.x, this.player.z);
       spawned = true;
     } else if (!this.bossFlags.b9 && this.gameTime >= 540) {
@@ -1409,6 +1466,12 @@ export class Run {
     this.postfx = fx;
   }
 
+  prepareRender(): void {
+    if (!this.renderDirty) return;
+    this.renderSprites();
+    this.renderDirty = false;
+  }
+
   private renderSprites(): void {
     this.shadowR.begin();
     if (this.state !== 'attract') this.shadowR.push(this.player.x, this.player.z, this.player.radius * 1.6);
@@ -1420,7 +1483,9 @@ export class Run {
     this.shadowR.end();
     this.decals.render();
     this.gems.render();
-    this.projectiles.render(this.renderTime);
+    this.effects.beginTechniqueRender();
+    this.projectiles.render(this.renderTime, this.effects.techniqueSprites);
+    this.effects.endTechniqueRender();
     this.zones.render(this.renderTime);
     this.enemyProj.render(this.renderTime);
     this.treasure.render();
@@ -1499,10 +1564,41 @@ export class Run {
     if (this.boss.active && this.boss.idx >= 0 && en.alive[this.boss.idx] === 1) {
       return { x: en.x[this.boss.idx], z: en.z[this.boss.idx], color: 'rgba(232,92,74,0.95)' }; // 적색(보스)
     }
-    // 3) 성 공방전 목표.
+    // 3) 연속 임무. 멀리 있어도 다음 목적지를 항상 잃지 않는다.
+    const journey = this.journeyGuideTarget();
+    if (journey) return journey;
+    // 4) 성 공방전 목표.
     const s = this.siegeGuideTarget();
     if (s) return { x: s.x, z: s.z, color: 'rgba(120,220,200,0.9)' }; // 청록(성 목표)
     return null;
+  }
+
+  private journeyGuideTarget(): { x: number; z: number; color: string } | null {
+    if (!this.boulderCompleted) {
+      const p = JOURNEY_LANDMARKS.boulder;
+      return { x: p.x, z: p.z, color: 'rgba(215,198,163,0.96)' };
+    }
+    if (!this.shrineCompleted) {
+      const p = JOURNEY_LANDMARKS.wisteriaVillage;
+      return { x: p.x, z: p.z, color: 'rgba(217,156,255,0.96)' };
+    }
+    if (!this.discoveredTrainWreck) {
+      const p = JOURNEY_LANDMARKS.mugenTrain;
+      return { x: p.x, z: p.z, color: 'rgba(255,176,90,0.96)' };
+    }
+    if (!this.discoveredInfinityGate) {
+      const p = JOURNEY_LANDMARKS.infinityGate;
+      return { x: p.x, z: p.z, color: 'rgba(130,217,255,0.96)' };
+    }
+    return null;
+  }
+
+  private journeyStage(): 'boulder' | 'wisteria' | 'train' | 'infinity' | 'complete' {
+    if (!this.boulderCompleted) return 'boulder';
+    if (!this.shrineCompleted) return 'wisteria';
+    if (!this.discoveredTrainWreck) return 'train';
+    if (!this.discoveredInfinityGate) return 'infinity';
+    return 'complete';
   }
 
   // 현재 공성 국면의 목표 지점(셰브론이 가리킬 곳). 성 근처가 아니면 null(선택형).
@@ -1601,6 +1697,7 @@ export class Run {
       }
     }
     if (maxDmg > 0 && this.player.takeDamage(maxDmg * 0.5)) {
+      this.registerPlayerHit();
       this.hitstop(90, 0.05);
       this.rig.addTrauma(0.65);
       this.pulseDamageVig(0.22 + (maxDmg * 0.5 / this.player.maxHp) * 1.1);
@@ -1613,6 +1710,7 @@ export class Run {
 
   private readonly onPlayerHit = (dmg: number, dirX = 0, dirZ = 0): boolean => {
     if (this.player.takeDamage(dmg)) {
+      this.registerPlayerHit();
       this.hitstop(90, 0.05);
       this.rig.addTrauma(0.62);
       this.pulseDamageVig(0.22 + (dmg / this.player.maxHp) * 1.1);
@@ -1631,10 +1729,22 @@ export class Run {
     return true;
   };
 
+  private registerPlayerHit(): void {
+    if (this.noHitCurrent > this.maxNoHitTime) this.maxNoHitTime = this.noHitCurrent;
+    this.noHitCurrent = 0;
+  }
+
   private addGold(amount: number): void {
     this.gold += amount;
     this.goldEarned += amount;
   }
+
+  private readonly onZoneKill = (i: number): void => {
+    const previous = this.suppressKillProc;
+    this.suppressKillProc = true;
+    this.handleKill(i);
+    this.suppressKillProc = previous;
+  };
 
   private handleKill(i: number): void {
     const en = this.enemies;
@@ -1655,6 +1765,7 @@ export class Run {
       return;
     }
     if (en.boss[i] === 1) {
+      const defeatedBossId = this.boss.typeId;
       // 무한성 수호자(화웅): 일반 보스 보상 경로 우회 → 공방전 점령으로 처리. (DESIGN 20)
       if (this.boss.typeId === 'nakime') {
         this.captureCastle(i);
@@ -1674,16 +1785,20 @@ export class Run {
       this.flashScreen(0.4);
       this.hud.banner('討伐', '#e8c667', 90, 1600, 1);
       audio.sfx('levelup');
-      if (this.boss.typeId) {
+      if (defeatedBossId) {
         // 보스 처치 대사 (#37)
-        const line = bossLine(this.boss.typeId, 'death');
-        if (line) this.hud.quote(nameOf('hero', this.boss.typeId, this.boss.name), line, 3200);
-        this.bossesKilled.add(this.boss.typeId);
+        const line = bossLine(defeatedBossId, 'death');
+        if (line) this.hud.quote(nameOf('hero', defeatedBossId, this.boss.name), line, 3200);
+        this.bossesKilled.add(defeatedBossId);
       }
       audio.playBgm('battle'); // 보스 처치 → 전투 BGM 복귀
       this.addGold(Math.round(300 * this.player.stats.goldMul));
       this.kills++;
       en.kill(i);
+      if (defeatedBossId === 'muzan') {
+        this.victoryAchieved = true;
+        this.finish(true);
+      }
       return;
     }
     if (en.elite[i] === 1) {
@@ -1701,8 +1816,10 @@ export class Run {
     }
     // 일반: 사망 파티클 버스트(적 틴트) + 젬
     // 시노부(황충) 패시브 고유 스킬: 처치 시 등나무꽃 독성 나비 영역(Zones) 생성 + 연쇄 폭발
-    if (this.hero.id === 'shinobu') {
+    if (this.hero.id === 'shinobu' && !this.suppressKillProc && this.shinobuProcCooldown <= 0) {
+      this.shinobuProcCooldown = 0.65;
       this.zones.spawn(x, z, 2.4, 1.8, 42 * this.player.stats.damageMul, 0.7, 0.3, 0.9);
+      this.effects.spawnTechnique('butterfly', x, z, 0, 4.4, 4.4, 0.4, 0.85, 0.8, 0.1);
       this.particles.burst(x, z, 0.7, 0.3, 0.9, 8, 3.2);
     }
     this.particles.burst(x, z, 2.2 * en.tr[i], 1.3 * en.tg[i], 0.5 * en.tb[i], 14, 4.5);
@@ -1903,14 +2020,25 @@ export class Run {
         if (this.passives[def.id] === undefined) pool.push({ kind: 'newPassive', id: def.id });
       }
     }
-    // 셔플 후 3개
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = rng.int(i + 1);
-      const t = pool[i];
-      pool[i] = pool[j];
-      pool[j] = t;
+    // 중복 없는 가중 추첨. 금테 희귀 패시브는 일반 카드의 28% 가중치만 가진다.
+    const remaining = pool.slice();
+    const out: Choice[] = [];
+    while (out.length < 3 && remaining.length > 0) {
+      let total = 0;
+      for (const c of remaining) {
+        const rarePassive = (c.kind === 'newPassive' || c.kind === 'upPassive') && PASSIVE_BY_ID[c.id]?.rare;
+        total += rarePassive ? 0.28 : 1;
+      }
+      let roll = rng.range(0, total);
+      let pick = remaining.length - 1;
+      for (let i = 0; i < remaining.length; i++) {
+        const c = remaining[i];
+        const rarePassive = (c.kind === 'newPassive' || c.kind === 'upPassive') && PASSIVE_BY_ID[c.id]?.rare;
+        roll -= rarePassive ? 0.28 : 1;
+        if (roll <= 0) { pick = i; break; }
+      }
+      out.push(remaining.splice(pick, 1)[0]);
     }
-    const out = pool.slice(0, 3);
     while (out.length < 3) {
       const r = (['heal', 'gold', 'xp'] as const)[out.length % 3];
       out.push({ kind: 'reward', id: r });
@@ -2048,11 +2176,10 @@ export class Run {
       audio.sfx('revive');
       return;
     }
-    this.finish(this.victoryAchieved); // 무한 모드 중 사망도 승리로 처리(10분 도달)
+    this.finish(this.victoryAchieved); // 무잔 토벌 뒤 이어간 무한 모드에서만 승리 이력 유지
   }
 
-  // 결과 화면 "계속 싸운다" → 현재 런을 무한 모드로 이어감 (App/phase3-ui가 호출).
-  // 풀은 리셋하지 않으므로 10분 시점 전황이 그대로 이어진다.
+  // 결과 화면 "계속 싸운다" → 무잔 토벌 직후 전황을 그대로 이어간다.
   resumeEndless(): void {
     if (this.endless) return;
     this.endless = true;
@@ -2078,7 +2205,8 @@ export class Run {
       if (d2 > radius * radius) continue;
       const d = Math.sqrt(d2) || 1;
       en.push(j, dx / d, dz / d, 10);
-      if (en.damageAt(j, damage)) this.handleKill(j);
+      const dealt = resolvedDamage(damage, en.boss[j] === 1, en.groggy[j] === 1, 'special');
+      if (en.damageAt(j, dealt)) this.handleKill(j);
     }
   }
 
@@ -2086,7 +2214,6 @@ export class Run {
   private finish(victory: boolean): void {
     if (this.ended) return;
     this.ended = true;
-    if (victory && !this.endless && this.gameTime >= RUN_LENGTH) this.victoryAchieved = true;
     this.hud.setFever(false);
     this.state = victory ? 'victory' : 'dead';
     if (victory) {
@@ -2105,6 +2232,7 @@ export class Run {
       time: this.gameTime,
       kills: this.kills,
       maxCombo: this.maxCombo,
+      noHitTime: this.maxNoHitTime,
       level: this.level,
       goldEarned: Math.floor(this.goldEarned) + comboBonus,
       comboBonus,
@@ -2113,7 +2241,7 @@ export class Run {
       bosses: Array.from(this.bossesKilled),
       masterworks: [...this.masterworkIds],
       endless: this.endless,
-      canContinue: victory && !this.endless && this.gameTime >= RUN_LENGTH,
+      canContinue: victory && !this.endless && this.bossesKilled.has('muzan'),
       luoyang:
         this.siegeEvents.defended > 0 ? 'held'
         : this.siegeEvents.lost > 0 ? 'fallen'
@@ -2127,15 +2255,16 @@ export class Run {
   testSetTime(sec: number): void {
     this.gameTime = sec;
   }
-  testGiveWeapon(id: string): void {
+  testGiveWeapon(id: string, level = 8): void {
     if (!WEAPON_DEFS[id]) return;
+    const targetLevel = Math.max(1, Math.min(8, Math.round(level)));
     const w = this.weapons.find((x) => x.id === id);
     if (w) {
-      w.level = 8;
+      w.level = targetLevel;
     } else {
       if (this.weapons.length >= MAX_WEAPONS) this.weapons.pop();
       const nw = createWeapon(id);
-      nw.level = 8;
+      nw.level = targetLevel;
       this.weapons.push(nw);
     }
     this.refreshLoadout();
@@ -2220,6 +2349,16 @@ export class Run {
     }
     this.testSpawnEnemyProjectileShowcase();
   }
+  // 데스크톱/모바일 시각 회귀용: 실제 런타임 기술 렌더러에 대표 호흡 세 종을
+  // 겹치지 않게 오래 남겨 캡처 타이밍과 무관하게 원화/알파/스케일을 확인한다.
+  testSpawnTechniqueShowcase(): void {
+    const x = this.player.x;
+    const z = this.player.z;
+    // 주인공 실루엣을 덮지 않도록 대표 기술도 실제 공격처럼 살짝 전방에 배치한다.
+    this.effects.spawnTechnique('water', x - 1.4, z - 2.0, 0, 4.8, 4.8, 4.0, 0.64, 0.08, 0.01);
+    this.effects.spawnTechnique('flame', x + 6.4, z + 4.2, -0.45, 3.7, 3.7, 4.0, 0.70, 0.05, 0.01);
+    this.effects.spawnTechnique('butterfly', x + 6.4, z - 4.2, 0.45, 3.4, 3.4, 4.0, 0.70, -0.05, 0.01);
+  }
   testSpawnEnemyProjectileShowcase(): void {
     const x = this.player.x - 2.4;
     const z = this.player.z;
@@ -2265,6 +2404,11 @@ export class Run {
   }
   testSetInvulnerable(seconds = 60): void {
     this.player.invuln = Math.max(this.player.invuln, seconds);
+  }
+  testCullNonBoss(): void {
+    for (let i = 0; i < this.enemies.alive.length; i++) {
+      if (this.enemies.alive[i] === 1 && this.enemies.boss[i] === 0) this.enemies.kill(i);
+    }
   }
   testTriggerHulao(): void {
     this.map.triggerHulao(this.player.x, this.player.z);
@@ -2376,6 +2520,14 @@ export class Run {
       bossHp01: this.boss.hpFrac(this.ctx), // #47 QA: 보스 HP 비율(직접 DPS 측정용)
       bossX: this.boss.idx >= 0 ? this.enemies.x[this.boss.idx] : 0,
       bossZ: this.boss.idx >= 0 ? this.enemies.z[this.boss.idx] : 0,
+      journey: {
+        stage: this.journeyStage(),
+        boulderHp: this.boulderHp,
+        boulderMaxHp: BOULDER_MAX_HP,
+        wisteriaReached: this.shrineCompleted,
+        trainSecured: this.discoveredTrainWreck,
+        infinityReached: this.discoveredInfinityGate,
+      },
       companion: this.companion.active ? this.companion.definition.id : null,
       companionAttacks: this.companion.attacks,
       companionKills: this.companion.kills + this.companion2.kills,
@@ -2393,9 +2545,6 @@ export class Run {
   }
 
   private updateMusouFreeze(dt: number): void {
-    // 렌더 타임 갱신
-    this.renderTime += dt;
-
     // 비주얼 연출 및 환경 효과 갱신 (게임플레이 물리 및 조작은 멈춤)
     this.combo.update(dt);
     this.effects.update(dt);
@@ -2428,8 +2577,6 @@ export class Run {
     // 무쌍 연출 포스트 프로세싱 세기 조정
     this.musouStrength += (0.9 - this.musouStrength) * Math.min(1, dt * 6);
 
-    // 렌더링 프레임 제출
-    this.renderSprites();
     this.updateLabels();
     this.updateMarkers(dt);
   }

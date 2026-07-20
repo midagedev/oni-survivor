@@ -34,18 +34,18 @@ interface BossDef {
 
 // 3분/6분/9분 슬롯 + 무한 미니보스. 전부 스프라이트 보유(sgrade/apriority manifest charIndex).
 export const BOSS_DEFS: Record<string, BossDef> = {
-  // 3분 슬롯 (랜덤 1) — 상현 혈귀
-  doma: { name: '도마', hanja: '童磨', charIndex: 1, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 9000, speed: 2.5, contact: 14, radius: 1.4, tr: 0.55, tg: 1.35, tb: 1.7 }, // 얼음 부채·연꽃 청록
-  akaza: { name: '아카자', hanja: '猗窩座', charIndex: 5, sheet: SHEET_SGRADE, pattern: 'dash', hp: 9000, speed: 2.9, contact: 16, radius: 1.45, tr: 1.7, tg: 0.55, tb: 0.9 }, // 파괴살 격투 분홍적
-  kokushibo: { name: '코쿠시보', hanja: '黒死牟', charIndex: 6, sheet: SHEET_SGRADE, pattern: 'rush', hp: 8800, speed: 3.3, contact: 15, radius: 1.35, tr: 1.4, tg: 0.5, tb: 1.05 }, // 달의 참격 붉보라
-  // 6분 슬롯 (랜덤 1) — 하현/상현 혈귀
-  enmu: { name: '엔무', hanja: '魘夢', charIndex: 2, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 5500, speed: 2.1, contact: 18, radius: 1.6, tr: 1.5, tg: 0.5, tb: 1.15 }, // 꿈 최면 분홍
-  rui: { name: '루이', hanja: '累', charIndex: 9, sheet: SHEET_SOLDIERS, pattern: 'delaybolt', hp: 6000, speed: 2.3, contact: 16, radius: 1.5, tr: 1.6, tg: 0.35, tb: 0.45 }, // 거미실 붉은
-  gyokko: { name: '교코', hanja: '玉壺', charIndex: 3, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 5500, speed: 2.4, contact: 16, radius: 1.5, tr: 0.4, tg: 1.25, tb: 1.6 }, // 물감옥 청록
+  // 6분 슬롯 (랜덤 1) — 상현 최상위 혈귀
+  doma: { name: '도마', hanja: '童磨', charIndex: 1, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 22000, speed: 2.5, contact: 14, radius: 1.4, tr: 0.55, tg: 1.35, tb: 1.7 }, // 얼음 부채·연꽃 청록
+  akaza: { name: '아카자', hanja: '猗窩座', charIndex: 5, sheet: SHEET_SGRADE, pattern: 'dash', hp: 22000, speed: 2.9, contact: 16, radius: 1.45, tr: 1.7, tg: 0.55, tb: 0.9 }, // 파괴살 격투 분홍적
+  kokushibo: { name: '코쿠시보', hanja: '黒死牟', charIndex: 6, sheet: SHEET_SGRADE, pattern: 'rush', hp: 21500, speed: 3.3, contact: 15, radius: 1.35, tr: 1.4, tg: 0.5, tb: 1.05 }, // 달의 참격 붉보라
+  // 3분 슬롯 (랜덤 1) — 하현/초기 상현 혈귀
+  enmu: { name: '엔무', hanja: '魘夢', charIndex: 2, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 12000, speed: 2.1, contact: 18, radius: 1.6, tr: 1.5, tg: 0.5, tb: 1.15 }, // 꿈 최면 분홍
+  rui: { name: '루이', hanja: '累', charIndex: 9, sheet: SHEET_SOLDIERS, pattern: 'delaybolt', hp: 12500, speed: 2.3, contact: 16, radius: 1.5, tr: 1.6, tg: 0.35, tb: 0.45 }, // 거미실 붉은
+  gyokko: { name: '교코', hanja: '玉壺', charIndex: 3, sheet: SHEET_SOLDIERS, pattern: 'firezone', hp: 12000, speed: 2.4, contact: 16, radius: 1.5, tr: 0.4, tg: 1.25, tb: 1.6 }, // 물감옥 청록
   // 9분 고정 최종 — 혈귀의 왕
-  muzan: { name: '무잔', hanja: '鬼舞辻 無惨', charIndex: 7, sheet: SHEET_SGRADE, pattern: 'muzan', hp: 12500, speed: 3.6, contact: 20, radius: 1.5, tr: 1.7, tg: 0.35, tb: 0.35 }, // 검붉은 촉수
+  muzan: { name: '무잔', hanja: '鬼舞辻 無惨', charIndex: 7, sheet: SHEET_SGRADE, pattern: 'muzan', hp: 32000, speed: 3.6, contact: 20, radius: 1.5, tr: 1.7, tg: 0.35, tb: 0.35 }, // 검붉은 촉수
   // 무한성 성주 나키메 — 공간을 다루는 비파의 혈귀
-  nakime: { name: '나키메', hanja: '鳴女', charIndex: 8, sheet: SHEET_SOLDIERS, pattern: 'dash', hp: 7800, speed: 2.7, contact: 16, radius: 1.45, tr: 0.9, tg: 0.4, tb: 1.45 }, // 공간 이동 보라
+  nakime: { name: '나키메', hanja: '鳴女', charIndex: 8, sheet: SHEET_SOLDIERS, pattern: 'dash', hp: 20000, speed: 2.7, contact: 16, radius: 1.45, tr: 0.9, tg: 0.4, tb: 1.45 }, // 공간 이동 보라
   // 무한 미니보스 (12분+ 순환, 스케일링)
   gyutaro: { name: '규타로', hanja: '妓夫太郎', charIndex: 4, sheet: SHEET_SOLDIERS, pattern: 'dash', hp: 7500, speed: 2.8, contact: 17, radius: 1.4, tr: 1.4, tg: 0.85, tb: 0.4 }, // 독 낫 황갈
   daki: { name: '다키', hanja: '堕姫', charIndex: 0, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 7500, speed: 2.5, contact: 15, radius: 1.35, tr: 1.7, tg: 0.6, tb: 1.2 }, // 오비 채찍 분홍
@@ -53,6 +53,11 @@ export const BOSS_DEFS: Record<string, BossDef> = {
   kaigaku: { name: '카이가쿠', hanja: '獪岳', charIndex: 7, sheet: SHEET_SOLDIERS, pattern: 'delaybolt', hp: 7500, speed: 2.5, contact: 16, radius: 1.45, tr: 2.2, tg: 1.9, tb: 0.4 }, // 번개 낙뢰 노랑
   handemon: { name: '손 혈귀', hanja: '手鬼', charIndex: 5, sheet: SHEET_SOLDIERS, pattern: 'fan', hp: 7500, speed: 2.5, contact: 15, radius: 1.4, tr: 0.5, tg: 1.3, tb: 0.9 }, // 붙잡는 손 청록
 };
+
+// 캠페인 난도 곡선: 하현/초기 상현을 3분, 최상위 상현을 6분에 배치한다.
+// run.ts는 이 상수를 import해 슬롯의 단일 원천으로 사용한다.
+export const BOSS_SLOT_3 = ['enmu', 'rui', 'gyokko'] as const;
+export const BOSS_SLOT_6 = ['doma', 'akaza', 'kokushibo'] as const;
 
 // 무한 모드 미니보스 순환 순서.
 export const MINIBOSS_CYCLE = ['gyutaro', 'daki', 'hantengu', 'kaigaku', 'handemon'];
@@ -136,7 +141,6 @@ export class Boss {
     // 등장 순간에만 짧게 스미는 테마색 백라이트(일반 광원 → 전투광에 밀려 누적 안 됨).
     // 강도·반경을 절제해 보스 스프라이트를 하얗게 태우지 않는다.
     ctx.effects.spawnLight?.(px, pz - 16, def.tr * 0.45, def.tg * 0.45, def.tb * 0.45, 8, 0.55);
-    this.onWarn(def.name, def.hanja, typeId);
   }
 
   update(dt: number, ctx: WeaponContext, enemyProj: EnemyProjectilePool, player: Player): void {
@@ -356,7 +360,7 @@ export class Boss {
       // 쾌속 돌진 경로 사각 텔레그래프(짧게).
       ctx.effects.spawnTelegraph(TG_RECT, en.x[i] + dx * 4, en.z[i] + dz * 4, Math.atan2(dz, dx), 8, 3.4, 0, 0.3);
       // 돌진 시작점에서 진행 방향으로 단일 리본 스트릭.
-      ctx.effects.spawnThrust(en.x[i], en.z[i], dx, dz, 7, 2.4, 0.5, 1.25, 2.2, 0.34, false);
+      ctx.effects.spawnThrust(en.x[i], en.z[i], dx, dz, 7, 2.4, 0.5, 1.25, 2.2, 0.34);
     }
   }
 

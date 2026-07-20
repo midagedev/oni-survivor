@@ -95,19 +95,20 @@ export async function loadAtlas(): Promise<Atlas> {
       loader.load(dir + file, resolve, undefined, reject);
     });
 
-  const [sgradeTex, apriorityTex, soldiersTex, variantsTex] = await Promise.all([
+  const [sgradeTex, apriorityTex, soldiersTex] = await Promise.all([
     load(manifest.sheets.sgrade.file),
     load(manifest.sheets.apriority.file),
     load(manifest.sheets.soldiers.file),
-    load(manifest.sheets.soldiersVariants.file),
   ]);
 
   return new Atlas(manifest, {
     sgrade: makeSheet(sgradeTex, manifest.sheets.sgrade.cols, manifest.sheets.sgrade.rows),
     apriority: makeSheet(apriorityTex, manifest.sheets.apriority.cols, manifest.sheets.apriority.rows),
     soldiers: makeSheet(soldiersTex, manifest.sheets.soldiers.cols, manifest.sheets.soldiers.rows),
+    // 변형 렌더 경로는 비활성이라 별도 GPU 텍스처를 만들지 않는다. 빈 렌더러가
+    // 이미 올라간 soldiers 텍스처를 공유해 API 계약만 유지한다.
     variants: makeSheet(
-      variantsTex,
+      soldiersTex,
       manifest.sheets.soldiersVariants.cols,
       manifest.sheets.soldiersVariants.rows,
     ),

@@ -35,11 +35,11 @@ interface TextStyle {
 }
 
 const NAME_STYLE: TextStyle = {
-  font: 'bold 30px "Nanum Myeongjo","Times New Roman",serif',
+  font: 'bold 25px "Nanum Myeongjo","Times New Roman",serif',
   fill: '#f0e0a0',
   stroke: 'rgba(0,0,0,0.92)',
-  strokeW: 6,
-  scale: 1.35,
+  strokeW: 5,
+  scale: 1.08,
 };
 
 const HINT_STYLE: TextStyle = {

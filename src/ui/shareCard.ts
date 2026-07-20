@@ -101,11 +101,11 @@ export function renderShareCard(data: ShareData, atlas?: Atlas): HTMLCanvasEleme
     ctx.drawImage(img, sx, 0, 48, 64, px0 + (pw - dw) / 2, py0 + (ph - dh) / 2 - 6, dw, dh);
   }
   ctx.restore();
-  // 장수 이름
+  // 귀살대원 이름
   ctx.textAlign = 'center';
   ctx.fillStyle = '#f0e4c0';
   ctx.font = `28px ${serif}`;
-  ctx.fillText(hero ? nameOf('hero', data.heroId, hero.name) : getLang() === 'en' ? 'General' : '장수', px0 + pw / 2, py0 + ph + 40);
+  ctx.fillText(hero ? nameOf('hero', data.heroId, hero.name) : getLang() === 'en' ? 'Slayer' : '대원', px0 + pw / 2, py0 + ph + 40);
   ctx.fillStyle = '#e8c667';
   ctx.font = `20px ${serif}`;
   ctx.fillText(hero ? hero.hanja : '', px0 + pw / 2, py0 + ph + 68);

@@ -144,7 +144,10 @@ export class Player {
   constructor(atlas: Atlas, hero: HeroDef, light: LightUniforms) {
     this.atlas = atlas;
     this.hero = hero;
-    this.quad = new SpriteQuad(atlas[hero.sheet || 'sgrade'], light);
+    // 탑다운 모바일에서도 얼굴/하오리 실루엣이 기술 원화 속에 묻히지 않는 크기.
+    // 전투 이펙트가 겹치는 모바일 화면에서도 주인공의 실루엣과 방향을 읽을 수 있는 크기.
+    // 충돌 반경은 바꾸지 않아 밸런스에는 영향을 주지 않는다.
+    this.quad = new SpriteQuad(atlas[hero.sheet || 'sgrade'], light, 3.2);
     this.quad.setPlayer(true); // 군중 속 가독성용 림 글로우 활성
     this.quad.setFootDepth(true); // #52 발 기준 깊이 통일 — 기운 빌보드 머리가 벽 박스에 파묻혀 가려지지 않게
     this.baseSpeed = hero.baseSpeed;
@@ -299,14 +302,33 @@ export class Player {
     this.invuln = 0;
     this.musouInvuln = false;
     this.flash = 0;
+    this.hurtT = 0;
     this.faceX = 0;
     this.faceZ = 1;
+    this.dir = 0;
+    this.frame = 0;
+    this.animTime = 0;
+    this.moving = false;
     this.vx = 0;
     this.vz = 0;
     this.dashT = 0;
     this.dashCd = 0;
+    this.ddx = 0;
+    this.ddz = 1;
+    this.time = 0;
+    this.lastTapCode = '';
+    this.lastTapAt = -1;
+    this.dashDirX = 0;
+    this.dashDirZ = 1;
+    this.knbX = 0;
+    this.knbZ = 0;
     this.driftCharge = 0;
+    this.driftSteerX = 0;
+    this.driftSteerZ = 1;
     this.boostT = 0;
+    this.boostMul = 1;
+    this.boostDirX = 0;
+    this.boostDirZ = 1;
     this.boostTier = 0;
     this.justSkid = false;
     this.justBoost = false;

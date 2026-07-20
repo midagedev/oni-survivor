@@ -7,12 +7,18 @@ import {
   AdditiveBlending,
   DynamicDrawUsage,
 } from 'three';
-import type { EnemyPool } from './enemies';
-import type { SpatialHash } from './collision';
+import { ENEMY_CAP, type EnemyPool } from './enemies';
+import { distToSegmentSq, type SpatialHash } from './collision';
 import type { DamageText } from '../gfx/damageText';
 import type { ParticleSystem } from '../gfx/particles';
 import type { EffectsSystem } from '../gfx/effects';
-import { RetroProjectileBatch } from '../gfx/projectileSprites';
+import {
+  TECHNIQUE_VISUALS,
+  techniqueThemeFromId,
+  techniqueThemeId,
+  type TechniqueSpriteRenderer,
+  type TechniqueTheme,
+} from '../gfx/techniqueSprites';
 import {
   ArrowMeshBatch,
   GlowMeshBatch,
@@ -28,17 +34,13 @@ import {
   makeBloodLotusGeometry,
 } from '../gfx/meshProjectiles';
 import type { LightUniforms } from '../gfx/lightField';
+import { resolvedDamage } from './damagePolicy';
 
 const CAP = 384;
-const HITMAX = 8; // 관통 시 중복 타격 방지용 최근 타격 목록 크기
-
-// #47 원거리 보스딜 보정: 이전엔 투사체에 보스 배수가 전혀 없어 원거리 빌드가 보스에 melee 대비 무력(실측: 미처치).
-// melee(roster.ts BOSS_DMG_MULT=4.5)는 #40 보정(사거리+20·각도무시)으로 스윙마다 100% 보스 명중하지만,
-// 투사체는 조준 duty(~45%) 프레임에만 보스를 향해 발사돼 명중률이 구조적으로 ~2배 낮다.
-// 이 명중률 격차를 per-hit 배수로 보상 → 8배(pinned 실측 melee/ranged 비 3.7→~2, 실전 카이팅에선 원거리 유리).
-// 오빗(재타격형)은 지속 히트라 0.35만 적용해 과보정 방지. 그로기 보스는 +60%(melee와 동일).
-const BOSS_DMG_MULT = 8;
-const ORBIT_BOSS_SCALE = 0.35;
+const HITMAX = 16; // 관통 시 중복 타격 방지용 최근 타격 목록 크기
+const POISON_DURATION = 3;
+const POISON_TICK = 0.5;
+const POISON_STACK_MAX = 4;
 
 // 시각 종류 — 0~5는 후광 셰이더가 kind 분기로 직접 처리, 6+는 캐릭터 시그니처 3D 메시.
 export const PK_ARROW = 0;
@@ -60,6 +62,9 @@ export const PK_LOTUS = 11; // 혈귀술 — 핏빛 연꽃 결정 (네즈코/유
 export class ProjectilePool {
   private readonly x = new Float32Array(CAP);
   private readonly z = new Float32Array(CAP);
+  // 고속 투사체의 스윕 판정·거리 기반 잔상을 위한 직전 위치.
+  private readonly prevX = new Float32Array(CAP);
+  private readonly prevZ = new Float32Array(CAP);
   private readonly vx = new Float32Array(CAP);
   private readonly vz = new Float32Array(CAP);
   private readonly life = new Float32Array(CAP);
@@ -82,12 +87,22 @@ export class ProjectilePool {
   private readonly oVel = new Float32Array(CAP);
   private readonly atkT = new Float32Array(CAP);
   private readonly dusty = new Uint8Array(CAP);
+  private readonly technique = new Uint8Array(CAP);
   private readonly trailT = new Float32Array(CAP);
+  private readonly trailDistance = new Float32Array(CAP);
+  private readonly poisonPower = new Float32Array(CAP);
   private readonly alive = new Uint8Array(CAP);
   private readonly hits = new Int32Array(CAP * HITMAX);
   private readonly hitN = new Uint8Array(CAP);
   private readonly free = new Int32Array(CAP);
   private freeTop = 0;
+
+  // 벌레의 호흡 독은 적 풀을 수정하지 않고 이 시스템이 소유한다. 적 슬롯이 죽는 즉시
+  // 상태를 비워 재사용된 슬롯에 독이 새어 들어가지 않게 한다.
+  private readonly poisonTimer = new Float32Array(ENEMY_CAP);
+  private readonly poisonTick = new Float32Array(ENEMY_CAP);
+  private readonly poisonStacks = new Uint8Array(ENEMY_CAP);
+  private readonly poisonBase = new Float32Array(ENEMY_CAP);
 
   private readonly mesh: InstancedMesh;
   private readonly matArr: Float32Array;
@@ -97,7 +112,6 @@ export class ProjectilePool {
   private readonly colAttr: InstancedBufferAttribute;
   private readonly kindAttr: InstancedBufferAttribute;
   private readonly fadeAttr: InstancedBufferAttribute;
-  private readonly spriteBatches: RetroProjectileBatch[];
   private readonly arrows: ArrowMeshBatch;
   private readonly slashes: GlowMeshBatch;
   private readonly orbs: GlowMeshBatch;
@@ -214,15 +228,6 @@ export class ProjectilePool {
     this.matArr = this.mesh.instanceMatrix.array as Float32Array;
     scene.add(this.mesh);
 
-    this.spriteBatches = [
-      new RetroProjectileBatch(scene, 'player-arrow-basic', CAP),
-      new RetroProjectileBatch(scene, 'talisman', CAP, 5, 1, true), // 팔랑이는 부적
-
-      new RetroProjectileBatch(scene, 'slash-wave', CAP),
-      new RetroProjectileBatch(scene, 'bagua-orb', CAP),
-      new RetroProjectileBatch(scene, 'cavalry', CAP),
-      new RetroProjectileBatch(scene, 'player-arrow', CAP), // 원융노 화염 화살
-    ];
     // 화살 계열은 스프라이트 대신 진짜 3D 메시로(부피감 + 광원 수광).
     this.arrows = new ArrowMeshBatch(scene, CAP, light);
     this.slashes = new GlowMeshBatch(scene, makeSlashGeometry(), CAP, light);
@@ -246,6 +251,10 @@ export class ProjectilePool {
 
   reset(): void {
     this.alive.fill(0);
+    this.poisonTimer.fill(0);
+    this.poisonTick.fill(0);
+    this.poisonStacks.fill(0);
+    this.poisonBase.fill(0);
     for (let i = 0; i < CAP; i++) this.free[i] = CAP - 1 - i;
     this.freeTop = CAP;
   }
@@ -275,11 +284,15 @@ export class ProjectilePool {
     homing = false,
     turn = 6,
     dusty = false,
+    technique: TechniqueTheme | null = null,
+    poisonPower = 0,
   ): void {
     const i = this.acquire();
     if (i < 0) return;
     this.x[i] = x;
     this.z[i] = z;
+    this.prevX[i] = x;
+    this.prevZ[i] = z;
     this.vx[i] = dirX * speed;
     this.vz[i] = dirZ * speed;
     this.life[i] = life;
@@ -298,7 +311,10 @@ export class ProjectilePool {
     this.hy[i] = kind === PK_SLASHWAVE ? 0.7 : kind === PK_ORB ? 0.9 : 1.0;
     this.mode[i] = 0;
     this.dusty[i] = dusty ? 1 : 0;
+    this.technique[i] = techniqueThemeId(technique);
     this.trailT[i] = 0;
+    this.trailDistance[i] = 0;
+    this.poisonPower[i] = poisonPower;
     this.hitN[i] = 0;
     this.alive[i] = 1;
   }
@@ -321,10 +337,17 @@ export class ProjectilePool {
     this.wid[i] = size;
     this.hy[i] = 0.9;
     this.atkT[i] = 0;
+    this.x[i] = 0;
+    this.z[i] = 0;
+    this.prevX[i] = 0;
+    this.prevZ[i] = 0;
     this.life[i] = 1;
     this.invDur[i] = 0;
     this.dusty[i] = 0;
+    this.technique[i] = 0;
     this.trailT[i] = 0;
+    this.trailDistance[i] = 0;
+    this.poisonPower[i] = 0;
     this.alive[i] = 1;
   }
 
@@ -367,9 +390,14 @@ export class ProjectilePool {
   ): void {
     const px = this.x[i];
     const pz = this.z[i];
-    const rq = this.radius[i] + 0.7;
-    const n = hash.query(px, pz, rq, scratch);
     const isOrbit = this.mode[i] === 1;
+    const ax = isOrbit ? px : this.prevX[i];
+    const az = isOrbit ? pz : this.prevZ[i];
+    const travel = Math.hypot(px - ax, pz - az);
+    const qx = (ax + px) * 0.5;
+    const qz = (az + pz) * 0.5;
+    const rq = this.radius[i] + 0.7 + travel * 0.5;
+    const n = hash.query(qx, qz, rq, scratch);
     const base = i * HITMAX;
     for (let c = 0; c < n; c++) {
       const j = scratch[c];
@@ -377,7 +405,11 @@ export class ProjectilePool {
       const dx = enemies.x[j] - px;
       const dz = enemies.z[j] - pz;
       const rr = this.radius[i] + enemies.radius[j];
-      if (dx * dx + dz * dz > rr * rr) continue;
+      if (isOrbit) {
+        if (dx * dx + dz * dz > rr * rr) continue;
+      } else if (distToSegmentSq(enemies.x[j], enemies.z[j], ax, az, px, pz) > rr * rr) {
+        continue;
+      }
       if (isOrbit) {
         if (!orbitPulse) continue;
       } else {
@@ -391,17 +423,33 @@ export class ProjectilePool {
           }
         }
         if (dup) continue;
-        if (cnt < HITMAX) this.hits[base + this.hitN[i]++] = j;
+        // 기록 상한 뒤에는 새 대상 피해도 멈춰 동일 슬롯이 겹친 적을 재타격하지 않게 한다.
+        // 16명 관통이면 한 발의 군중 제어 역할은 충분하고 보스 TTK도 안정적이다.
+        if (cnt >= HITMAX) continue;
+        this.hits[base + this.hitN[i]++] = j;
       }
       const isBoss = enemies.boss[j] === 1;
-      const dmg = isBoss
-        ? this.damage[i] * BOSS_DMG_MULT * (enemies.groggy[j] === 1 ? 1.6 : 1) * (isOrbit ? ORBIT_BOSS_SCALE : 1)
-        : this.damage[i];
-      const died = enemies.damageAt(j, dmg);
-      damageText.spawn(dmg, enemies.x[j], enemies.scale[j] * 0.7, enemies.z[j], false);
-      particles.projectileImpact(
-        enemies.x[j], enemies.z[j], this.cr[i], this.cg[i], this.cb[i], this.kind[i],
+      const dmg = resolvedDamage(
+        this.damage[i], isBoss, enemies.groggy[j] === 1, isOrbit ? 'orbit' : 'projectile',
       );
+      let died = enemies.damageAt(j, dmg);
+      damageText.spawn(dmg, enemies.x[j], enemies.scale[j] * 0.7, enemies.z[j], false);
+      const theme = techniqueThemeFromId(this.technique[i]);
+      particles.projectileImpact(
+        enemies.x[j], enemies.z[j], this.cr[i], this.cg[i], this.cb[i], this.kind[i], theme ?? undefined,
+      );
+      if (theme !== null) {
+        const profile = TECHNIQUE_VISUALS[theme];
+        effects.submitTechniqueLight?.(
+          theme,
+          enemies.x[j],
+          enemies.z[j],
+          Math.max(profile.lightRadius, this.radius[i] * 3.2),
+          theme === 'thunder' ? 1.2 : 0.92,
+          'impact',
+          enemies.boss[j] === 1 ? 2.5 : 1.2,
+        );
+      }
       const kk = this.kind[i];
       if (kk === PK_SLASHWAVE || kk === PK_WATER) {
         effects.spawnRing(enemies.x[j], enemies.z[j], 1.5, this.cr[i], this.cg[i], this.cb[i], 0.2);
@@ -411,6 +459,13 @@ export class ProjectilePool {
         effects.spawnRing(enemies.x[j], enemies.z[j], 1.9, 2.4, 0.9, 0.3, 0.24);
       } else if (kk === PK_COMPASS) {
         effects.spawnRing(enemies.x[j], enemies.z[j], 1.2, this.cr[i], this.cg[i], this.cb[i], 0.16);
+      }
+      // 벌레의 호흡: 찌르기 자체는 작고 빠르지만 3초 독이 중첩된다. 4중첩에 도달하면
+      // 즉시 작은 독꽃이 피며 스택을 소모하므로 연사/보스전에서도 무한 누적하지 않는다.
+      if (!died && this.poisonPower[i] > 0) {
+        died = this.applyPoison(
+          j, this.poisonPower[i], enemies, damageText, particles, effects,
+        );
       }
       // 기술별 넉백: 화염 돌진=강하게 쓸어냄, 물/참격파=중간, 오브=접촉 시 살짝
       if (!died) {
@@ -436,6 +491,80 @@ export class ProjectilePool {
     }
   }
 
+  private applyPoison(
+    enemy: number,
+    power: number,
+    enemies: EnemyPool,
+    damageText: DamageText,
+    particles: ParticleSystem,
+    effects: EffectsSystem,
+  ): boolean {
+    this.poisonTimer[enemy] = POISON_DURATION;
+    this.poisonTick[enemy] = this.poisonStacks[enemy] === 0
+      ? POISON_TICK
+      : Math.min(this.poisonTick[enemy], POISON_TICK);
+    this.poisonBase[enemy] = Math.max(this.poisonBase[enemy], power);
+    const stacks = Math.min(POISON_STACK_MAX, this.poisonStacks[enemy] + 1);
+    this.poisonStacks[enemy] = stacks;
+    particles.butterflyPoison(enemies.x[enemy], enemies.z[enemy], 2 + stacks);
+    if (stacks < POISON_STACK_MAX) return false;
+
+    const bloomRaw = this.poisonBase[enemy] * 0.7;
+    const bloom = resolvedDamage(
+      bloomRaw, enemies.boss[enemy] === 1, enemies.groggy[enemy] === 1, 'special',
+    );
+    const died = enemies.damageAt(enemy, bloom);
+    damageText.spawn(bloom, enemies.x[enemy], enemies.scale[enemy] * 0.82, enemies.z[enemy], true);
+    effects.spawnRing(enemies.x[enemy], enemies.z[enemy], 1.6, 1.45, 0.55, 2.2, 0.24);
+    effects.spawnFlash(enemies.x[enemy], enemies.z[enemy], 1.35, 0.45, 2.1, 1.15);
+    particles.butterflyPoison(enemies.x[enemy], enemies.z[enemy], 10);
+    this.clearPoison(enemy);
+    return died;
+  }
+
+  private clearPoison(enemy: number): void {
+    this.poisonTimer[enemy] = 0;
+    this.poisonTick[enemy] = 0;
+    this.poisonStacks[enemy] = 0;
+    this.poisonBase[enemy] = 0;
+  }
+
+  private updatePoison(
+    dt: number,
+    enemies: EnemyPool,
+    damageText: DamageText,
+    onKill: (idx: number) => void,
+    particles: ParticleSystem,
+  ): void {
+    for (let j = 0; j < ENEMY_CAP; j++) {
+      if (enemies.alive[j] === 0) {
+        if (this.poisonTimer[j] > 0) this.clearPoison(j);
+        continue;
+      }
+      if (this.poisonTimer[j] <= 0 || this.poisonStacks[j] === 0) continue;
+      this.poisonTimer[j] -= dt;
+      this.poisonTick[j] -= dt;
+      if (this.poisonTick[j] > 0) {
+        if (this.poisonTimer[j] <= 0) this.clearPoison(j);
+        continue;
+      }
+      this.poisonTick[j] += POISON_TICK;
+      const raw = this.poisonBase[j] * 0.12 * this.poisonStacks[j];
+      const dealt = resolvedDamage(
+        raw, enemies.boss[j] === 1, enemies.groggy[j] === 1, 'special',
+      );
+      const died = enemies.damageAt(j, dealt);
+      damageText.spawn(dealt, enemies.x[j], enemies.scale[j] * 0.58, enemies.z[j], false);
+      particles.butterflyPoison(enemies.x[j], enemies.z[j], Math.min(5, this.poisonStacks[j] + 1));
+      if (died) {
+        this.clearPoison(j);
+        onKill(j);
+      } else if (this.poisonTimer[j] <= 0) {
+        this.clearPoison(j);
+      }
+    }
+  }
+
   private kill(i: number): void {
     this.alive[i] = 0;
     this.free[this.freeTop++] = i;
@@ -453,10 +582,13 @@ export class ProjectilePool {
     effects: EffectsSystem,
     scratch: number[],
   ): void {
+    this.updatePoison(dt, enemies, damageText, onKill, particles);
     for (let i = 0; i < CAP; i++) {
       if (this.alive[i] === 0) continue;
       if (this.mode[i] === 1) {
         // 궤도 오브
+        this.prevX[i] = this.x[i];
+        this.prevZ[i] = this.z[i];
         this.oAng[i] += this.oVel[i] * dt;
         this.x[i] = px + Math.cos(this.oAng[i]) * this.oRad[i];
         this.z[i] = pz + Math.sin(this.oAng[i]) * this.oRad[i];
@@ -471,6 +603,7 @@ export class ProjectilePool {
           this.trailT[i] = 0.09;
         }
         this.tryHit(i, enemies, hash, damageText, onKill, scratch, pulse, particles, effects);
+        this.submitMovingLight(i, effects);
         continue;
       }
       // 유도
@@ -486,16 +619,13 @@ export class ProjectilePool {
           this.vz[i] += (dz / d * sp - this.vz[i]) * k;
         }
       }
+      this.prevX[i] = this.x[i];
+      this.prevZ[i] = this.z[i];
       this.x[i] += this.vx[i] * dt;
       this.z[i] += this.vz[i] * dt;
+      this.submitMovingLight(i, effects);
       if (this.dusty[i]) particles.dust(this.x[i], this.z[i]);
-      this.trailT[i] -= dt;
-      if (this.trailT[i] <= 0) {
-        particles.projectileTrail(
-          this.x[i], this.z[i], this.vx[i], this.vz[i], this.cr[i], this.cg[i], this.cb[i], this.kind[i],
-        );
-        this.trailT[i] = this.kind[i] === PK_CAVALRY ? 0.035 : this.kind[i] === PK_ARROW ? 0.08 : 0.055;
-      }
+      this.emitDistanceTrail(i, particles, effects);
       this.tryHit(i, enemies, hash, damageText, onKill, scratch, false, particles, effects);
       if (this.alive[i] === 0) continue;
       this.life[i] -= dt;
@@ -503,9 +633,73 @@ export class ProjectilePool {
     }
   }
 
-  render(time: number): void {
+  private submitMovingLight(i: number, effects: EffectsSystem): void {
+    const theme = techniqueThemeFromId(this.technique[i]);
+    if (theme === null) return;
+    const profile = TECHNIQUE_VISUALS[theme];
+    const radius = Math.min(
+      9,
+      Math.max(profile.lightRadius * 0.72, this.len[i] * 1.05, this.wid[i] * 2.4),
+    );
+    const intensity = theme === 'flame' || theme === 'thunder' || theme === 'sun'
+      ? 0.86
+      : theme === 'mist'
+        ? 0.42
+        : 0.62;
+    effects.submitTechniqueLight?.(
+      theme, this.x[i], this.z[i], radius, intensity, 'moving', this.mode[i] === 1 ? 0.6 : 0,
+    );
+  }
+
+  // 시간 간격 대신 이동 거리를 기준으로 잔상을 찍는다. 저FPS에서도 궤적에 구멍이 생기지 않고,
+  // 고FPS에서 같은 자리에 점이 과밀해지는 현상도 막는다.
+  private emitDistanceTrail(i: number, particles: ParticleSystem, effects: EffectsSystem): void {
+    const ax = this.prevX[i];
+    const az = this.prevZ[i];
+    const bx = this.x[i];
+    const bz = this.z[i];
+    const dx = bx - ax;
+    const dz = bz - az;
+    const moved = Math.hypot(dx, dz);
+    if (moved <= 0.0001) return;
+    const kk = this.kind[i];
+    const theme = techniqueThemeFromId(this.technique[i]);
+    if (theme !== null) {
+      effects.spawnTechniqueTrail(
+        theme, ax, az, bx, bz,
+        Math.max(0.32, this.wid[i] * 0.68),
+        theme === 'mist' ? 0.34 : theme === 'butterfly' ? 0.48 : 0.62,
+        i * 1.73 + this.life[i] * 7.5,
+        Math.max(0.28, this.hy[i] - 0.55),
+      );
+    }
+    const spacing = kk === PK_FLAME || kk === PK_CAVALRY
+      ? 0.48
+      : kk === PK_ARROW || kk === PK_FIRE_ARROW
+        ? 0.88
+        : kk === PK_BUTTERFLY
+          ? 0.7
+          : kk === PK_SLASHWAVE || kk === PK_WATER
+            ? 0.56
+            : 0.66;
+    let acc = this.trailDistance[i] + moved;
+    let emitted = 0;
+    while (acc >= spacing && emitted < 4) {
+      const behind = acc - spacing;
+      const t = Math.max(0, Math.min(1, 1 - behind / moved));
+      particles.projectileTrail(
+        ax + dx * t, az + dz * t, this.vx[i], this.vz[i],
+        this.cr[i], this.cg[i], this.cb[i], kk, theme ?? undefined,
+      );
+      acc -= spacing;
+      emitted++;
+    }
+    // 긴 프레임 스파이크에서 파티클 폭주를 막되 다음 프레임의 위상은 보존한다.
+    this.trailDistance[i] = acc % spacing;
+  }
+
+  render(time: number, techniques?: TechniqueSpriteRenderer): void {
     (this.mesh.material as ShaderMaterial).uniforms.uTime.value = time;
-    for (const batch of this.spriteBatches) batch.begin(time);
     this.arrows.begin();
     this.slashes.begin();
     this.orbs.begin();
@@ -557,30 +751,69 @@ export class ProjectilePool {
         const lt = this.life[i] * this.invDur[i];
         fade = Math.min(1, lt * 4) * Math.min(1, (1 - lt) * 6 + 0.3);
       }
-      this.fadeArr[w] = fade;
+      const theme = techniqueThemeFromId(this.technique[i]);
+      let authored = false;
+      if (theme !== null && techniques !== undefined) {
+        const profile = TECHNIQUE_VISUALS[theme];
+        const directional = profile.projection !== 'impact';
+        let artX: number;
+        let artZ: number;
+        let artPx = this.x[i];
+        let artPz = this.z[i];
+        if (directional && this.mode[i] === 0) {
+          artX = this.len[i] * 1.45;
+          artZ = Math.max(this.wid[i] * 1.75, 1.35);
+          // 생성 원화는 로컬 +X로 흐르고 머리가 u≈0.84에 있다. 충돌 중심을 그 머리에
+          // 맞추기 위해 그림의 중심만 뒤로 당긴다(물리 좌표/조준 방향은 그대로 유지).
+          const speed = Math.hypot(this.vx[i], this.vz[i]) || 1;
+          const back = artX * (profile.anchorU - 0.5);
+          artPx -= this.vx[i] / speed * back;
+          artPz -= this.vz[i] / speed * back;
+        } else {
+          // 연꽃·혈화·돌·음파 같은 충격/방사형 그림은 투사체 길이로 억지로 늘이지 않는다.
+          const square = Math.max(this.wid[i] * 1.9, 1.65);
+          artX = square;
+          artZ = square;
+        }
+        const lifeT = this.mode[i] === 0 ? Math.max(0, Math.min(1, this.life[i] * this.invDur[i])) : 0.5;
+        const progress = 1 - lifeT;
+        const artFrame = progress < 0.12
+          ? 0
+          : lifeT < 0.16
+            ? 3
+            : 1 + (Math.floor(time * profile.fps + i * 0.73) & 1);
+        authored = techniques.push(
+          theme,
+          artPx, this.hy[i] + 0.075, artPz, theta,
+          artX, artZ, fade * 0.98, 0.055, artFrame,
+        );
+      }
+      const accentScale = authored ? 0.54 : 1;
+      const accentFade = authored ? fade * 0.16 : fade;
+      this.fadeArr[w] = authored ? fade * 0.2 : fade;
 
       const k = this.kind[i];
       if (k === PK_WATER) {
-        // 물의 호흡: 진행 방향으로 넓게 흐르는 3D 물줄기 참격파
+        // 생성 원화가 본체, 물결 메시가 낮은 높이의 볼륨 악센트만 담당한다.
         this.waters.push(
           this.x[i], this.hy[i] + 0.28, this.z[i], theta,
-          this.len[i], 1.0, this.wid[i] * 1.35,
-          this.cr[i], this.cg[i], this.cb[i], fade,
+          this.len[i] * accentScale, accentScale, this.wid[i] * 1.35 * accentScale,
+          this.cr[i], this.cg[i], this.cb[i], accentFade,
         );
       } else if (k === PK_BUTTERFLY) {
-        // 벌레의 호흡: 날갯짓하며 팔랑이는 3D 독나비 (상하 흔들림 + 펄럭임)
+        // 독침 원화 아래에만 작은 나비 실루엣을 남긴다.
         const flap = 1.0 + Math.sin(time * 20 + i * 1.7) * 0.45;
         this.butterflies.push(
           this.x[i], this.hy[i] + 0.4 + Math.sin(time * 10 + i) * 0.16, this.z[i], theta,
-          this.wid[i] * 1.7, flap * 1.05, this.wid[i] * 1.7,
-          this.cr[i], this.cg[i], this.cb[i], fade,
+          this.wid[i] * 1.7 * accentScale, flap * 1.05 * accentScale, this.wid[i] * 1.7 * accentScale,
+          this.cr[i], this.cg[i], this.cb[i], accentFade,
         );
       } else if (k === PK_FLAME) {
-        // 화염의 호흡: 크고 길게 뻗는 3D 불꽃 용 아크 돌격
+        // 불호랑이 원화 아래에 절제한 화염 체적만 유지한다.
         this.flames.push(
           this.x[i], this.hy[i] + 0.5, this.z[i], theta,
-          this.len[i] * 0.9, 1.35, this.wid[i] * 1.35,
-          this.cr[i], this.cg[i], this.cb[i], fade,
+          this.len[i] * 0.9 * accentScale, 1.35 * accentScale, this.wid[i] * 1.35 * accentScale,
+          this.cr[i], this.cg[i], this.cb[i], accentFade,
         );
       } else if (k === PK_COMPASS) {
         // 파괴살: 지면 위에서 회전하며 날아가는 나침반 충격파 파편(작고 또렷하게)
@@ -594,14 +827,14 @@ export class ProjectilePool {
         this.thorns.push(
           this.x[i], this.hy[i] + 0.3, this.z[i], theta + time * 4.5,
           this.len[i], this.len[i], this.wid[i],
-          this.cr[i], this.cg[i], this.cb[i], fade,
+          this.cr[i], this.cg[i], this.cb[i], accentFade,
         );
       } else if (k === PK_LOTUS) {
         // 혈귀술: 부드럽게 회전하는 핏빛 연꽃 결정
         this.lotuses.push(
           this.x[i], this.hy[i] + 0.3, this.z[i], time * 3.0,
-          this.len[i] * 0.95, this.len[i] * 0.95, this.wid[i] * 0.95,
-          this.cr[i], this.cg[i], this.cb[i], fade,
+          this.len[i] * 0.95 * accentScale, this.len[i] * 0.95 * accentScale, this.wid[i] * 0.95 * accentScale,
+          this.cr[i], this.cg[i], this.cb[i], accentFade,
         );
       } else if (k === PK_ARROW || k === PK_FIRE_ARROW) {
         // 3D 화살 메시: 스프라이트 본체를 대체(후광 쿼드는 유지).
@@ -614,8 +847,8 @@ export class ProjectilePool {
         // 3D 검기 메시
         this.slashes.push(
           this.x[i], this.hy[i] + 0.2, this.z[i], theta,
-          this.len[i], 1.0, this.wid[i],
-          this.cr[i], this.cg[i], this.cb[i], fade,
+          this.len[i] * accentScale, accentScale, this.wid[i] * accentScale,
+          this.cr[i], this.cg[i], this.cb[i], accentFade,
         );
       } else if (k === PK_ORB) {
         // 3D 구체 메시
@@ -635,14 +868,8 @@ export class ProjectilePool {
         // 3D 기마(화염 돌격) 원뿔 메시
         this.cavalries.push(
           this.x[i], this.hy[i] + 0.5, this.z[i], theta,
-          this.len[i] * 0.8, 1.2, this.wid[i] * 1.2,
-          this.cr[i], this.cg[i], this.cb[i], fade,
-        );
-      } else {
-        // 기본 2D 스프라이트 폴백 (0~5 범위만 안전)
-        const artScale = this.len[i] * 1.18;
-        this.spriteBatches[k].push(
-          this.x[i], this.hy[i] + 0.055, this.z[i], theta, artScale, artScale, fade,
+          this.len[i] * 0.8 * accentScale, 1.2 * accentScale, this.wid[i] * 1.2 * accentScale,
+          this.cr[i], this.cg[i], this.cb[i], accentFade,
         );
       }
       w++;
@@ -652,7 +879,6 @@ export class ProjectilePool {
     this.colAttr.needsUpdate = true;
     this.kindAttr.needsUpdate = true;
     this.fadeAttr.needsUpdate = true;
-    for (const batch of this.spriteBatches) batch.end();
     this.arrows.end();
     this.slashes.end();
     this.orbs.end();

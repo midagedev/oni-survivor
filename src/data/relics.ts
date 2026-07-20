@@ -290,13 +290,13 @@ export const MASTERWORK_DEFS: MasterworkDef[] = [
   },
   {
     id: 'shuo',
-    name: '귀살대 보급마',
-    nameEn: 'Slayer Steed',
-    hanja: '軍馬',
+    name: '카스가이 까마귀의 깃',
+    nameEn: 'Kasugai Crow Feather',
+    hanja: '鎹鴉羽',
     desc: '공격력 +15%, 이동속도 +10%',
     descEn: 'Attack +15%, Move speed +10%',
-    lore: '기병이 타던 사나운 명마. 렌고쿠 가문 등에서 애용하던 말로 전장의 흙바닥을 힘차게 달리며 돌진력을 더한다.',
-    loreEn: "A warhorse bred for rapid responses. It speeds up exploration and gives extra strength to charges.",
+    lore: '임무 길을 안내하는 카스가이 까마귀가 남긴 검은 깃. 위험을 먼저 감지해 대원의 발걸음과 칼끝을 재촉한다.',
+    loreEn: 'A black feather left by a Kasugai crow. Its warning guides the slayer toward danger with sharper steps and strikes.',
     apply: (s) => {
       s.damageMul *= 1.15;
       s.speedMul *= 1.1;

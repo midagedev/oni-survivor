@@ -11,6 +11,7 @@ import type { EnemyPool } from './enemies';
 import type { SpatialHash } from './collision';
 import type { DamageText } from '../gfx/damageText';
 import type { ParticleSystem } from '../gfx/particles';
+import { resolvedDamage } from './damagePolicy';
 
 const CAP = 64;
 const TICK = 0.25; // 도트 대미지 주기
@@ -198,8 +199,9 @@ export class ZonePool {
         const dz = enemies.z[j] - pz;
         const rr = rad + enemies.radius[j];
         if (dx * dx + dz * dz > rr * rr) continue;
-        const died = enemies.damageAt(j, dmg);
-        damageText.spawn(dmg, enemies.x[j], enemies.scale[j] * 0.7, enemies.z[j], false);
+        const dealt = resolvedDamage(dmg, enemies.boss[j] === 1, enemies.groggy[j] === 1, 'zone');
+        const died = enemies.damageAt(j, dealt);
+        damageText.spawn(dealt, enemies.x[j], enemies.scale[j] * 0.7, enemies.z[j], false);
         if (died) onKill(j);
       }
     }

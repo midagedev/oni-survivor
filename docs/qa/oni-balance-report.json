@@ -1,0 +1,24 @@
+{
+  "seed": 20260720,
+  "unit": "in-game seconds",
+  "headlessFpsReported": false,
+  "early": {
+    "boss": "enmu",
+    "encounterMinute": 3,
+    "ttk": 30.105833333357282,
+    "target": [
+      20,
+      65
+    ]
+  },
+  "final": {
+    "boss": "muzan",
+    "encounterMinute": 9,
+    "ttk": 66.2999999999397,
+    "target": [
+      25,
+      90
+    ]
+  },
+  "errors": []
+}

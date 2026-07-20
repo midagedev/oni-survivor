@@ -42,6 +42,8 @@ export class Ground {
     geo.rotateX(-Math.PI / 2);
     const mat = new MeshBasicMaterial({ map: this.tex, toneMapped: true });
     // 언릿 지면이 동적 광원 필드를 받도록 셰이더에 라이트 항을 주입(파이프라인은 그대로 유지).
+    // onBeforeCompile 변형을 Three의 프로그램 캐시가 기본 MeshBasicMaterial과 혼동하지 않게 한다.
+    mat.customProgramCacheKey = () => 'oni-ground-light-field-v1';
     mat.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, light);
       shader.vertexShader = shader.vertexShader

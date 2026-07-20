@@ -13,33 +13,38 @@ import {
   SRGBColorSpace,
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import {
-  ATTACK_GUANDAO,
-  ATTACK_HALBERD,
-  ATTACK_SPEAR,
-  ATTACK_ZHANGBA,
-  RetroAttackSpriteFx,
-  type AttackSpriteKind,
-} from './attackSprites';
 import { TelegraphBatch } from './telegraph';
 import { KOStarBatch } from './koStar';
 import {
-  GlowMeshBatch,
-  makeWaterStreamGeometry,
+  TECHNIQUE_VISUALS,
+  TechniqueSpriteRenderer,
+  type TechniqueTheme,
+} from './techniqueSprites';
+import {
   makeClawGeometry,
-  makeNeedleGeometry,
   makeCompassGeometry,
-  makeThornGeometry,
-  makeDualBladeGeometry,
-  makeFlameDragonGeometry,
   makeSunDiscGeometry,
   makeLightningBoltGeometry,
   makeRibbonSwordGeometry,
-  makeButterflyGeometry,
   makeMoonCrescentGeometry,
   makeBloodLotusGeometry,
 } from './meshProjectiles';
-import type { LightUniforms } from './lightField';
+import type { LightUniforms, TechniqueLightKind } from './lightField';
+import {
+  TechniqueAccentBatch,
+  TechniqueTrailBatch,
+  makeButterflyNeedleAccentGeometry,
+  makeFlameHeadAccentGeometry,
+  makeFlowerPetalArcGeometry,
+  makeMistRibbonGeometry,
+  makeSoundBurstGeometry,
+  makeStoneImpactGeometry,
+  makeWaterRibbonAccentGeometry,
+  makeWindBandGeometry,
+  type TechniqueProjection,
+} from './techniqueAccents';
+
+type TechniqueMeshTheme = TechniqueTheme | 'ribbon' | 'claw' | 'moon' | 'compass';
 
 interface Slot {
   mesh: Mesh;
@@ -92,9 +97,9 @@ export class EffectsSystem {
   private readonly flashes: Slot[] = [];
   private fCur = 0;
   private flashThisFrame = 0; // #40 프레임당 flash 상한 카운터
-  private readonly attackSprites: RetroAttackSpriteFx;
   private readonly telegraph: TelegraphBatch; // 보스 패턴 지면 텔레그래프(#40 14.6)
   private readonly koStar: KOStarBatch; // KO 홈런 별(#45 19.2)
+  readonly techniqueSprites: TechniqueSpriteRenderer;
 
   // #18 무쌍 스펙터클 프리미티브
   private readonly decals: DecalSlot[] = []; // 장수 문장/팔괘진 지면 데칼
@@ -124,34 +129,70 @@ export class EffectsSystem {
   spawnDecal: ((x: number, z: number, radius: number, r: number, g: number, b: number) => void) | null = null;
   // 무쌍 우선순위 광원 (run이 LightField.spawn(prio=true)로 주입). 전투 광원에 밀리지 않음.
   spawnMusouLight: ((x: number, z: number, r: number, g: number, b: number, radius: number, life: number) => void) | null = null;
+  // 프레임 단위 기술 광원 후보. PointLight를 생성하지 않고 LightField가 화면에 중요한 후보만 고른다.
+  submitTechniqueLight: ((
+    theme: TechniqueTheme,
+    x: number,
+    z: number,
+    radius: number,
+    intensity?: number,
+    kind?: TechniqueLightKind,
+    priority?: number,
+  ) => void) | null = null;
 
-  // 귀멸의 칼날 3D 호흡 기술 전용 발광 메시 배치
-  private glowWater: GlowMeshBatch | null = null;
-  private glowFlame: GlowMeshBatch | null = null;
-  private glowSun: GlowMeshBatch | null = null;
-  private glowThunder: GlowMeshBatch | null = null;
-  private glowRibbon: GlowMeshBatch | null = null;
-  private glowButterfly: GlowMeshBatch | null = null;
-  private glowClaw: GlowMeshBatch | null = null;
-  private glowMoon: GlowMeshBatch | null = null;
-  private glowBlood: GlowMeshBatch | null = null;
-  private glowCompass: GlowMeshBatch | null = null;
+  // 귀멸의 칼날 3D 호흡 기술 전용 배치. 본체 스프라이트 아래에서 깊이만 보태며
+  // additive/depthWrite=false로 서로 겹쳐도 다른 투사체를 가리지 않는다.
+  private readonly accentBatches: TechniqueAccentBatch[] = [];
+  private glowWater: TechniqueAccentBatch | null = null;
+  private glowFlame: TechniqueAccentBatch | null = null;
+  private glowSun: TechniqueAccentBatch | null = null;
+  private glowThunder: TechniqueAccentBatch | null = null;
+  private glowRibbon: TechniqueAccentBatch | null = null;
+  private glowButterfly: TechniqueAccentBatch | null = null;
+  private glowClaw: TechniqueAccentBatch | null = null;
+  private glowMoon: TechniqueAccentBatch | null = null;
+  private glowBlood: TechniqueAccentBatch | null = null;
+  private glowCompass: TechniqueAccentBatch | null = null;
+  private glowFlower: TechniqueAccentBatch | null = null;
+  private glowMist: TechniqueAccentBatch | null = null;
+  private glowWind: TechniqueAccentBatch | null = null;
+  private glowSound: TechniqueAccentBatch | null = null;
+  private glowStone: TechniqueAccentBatch | null = null;
+  private techniqueTrails: TechniqueTrailBatch | null = null;
+  private glowFrameOpen = false;
 
-  initGlowBatches(light: LightUniforms): void {
-    this.glowWater = new GlowMeshBatch(this.scene, makeWaterStreamGeometry(), 64, light);
-    this.glowFlame = new GlowMeshBatch(this.scene, makeFlameDragonGeometry(), 64, light);
-    this.glowSun = new GlowMeshBatch(this.scene, makeSunDiscGeometry(), 64, light);
-    this.glowThunder = new GlowMeshBatch(this.scene, makeLightningBoltGeometry(), 64, light);
-    this.glowRibbon = new GlowMeshBatch(this.scene, makeRibbonSwordGeometry(), 64, light);
-    this.glowButterfly = new GlowMeshBatch(this.scene, makeButterflyGeometry(), 64, light);
-    this.glowClaw = new GlowMeshBatch(this.scene, makeClawGeometry(), 64, light);
-    this.glowMoon = new GlowMeshBatch(this.scene, makeMoonCrescentGeometry(), 64, light);
-    this.glowBlood = new GlowMeshBatch(this.scene, makeBloodLotusGeometry(), 64, light);
-    this.glowCompass = new GlowMeshBatch(this.scene, makeCompassGeometry(), 64, light);
+  initGlowBatches(
+    light: LightUniforms,
+    mobile = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0,
+  ): void {
+    const add = (geometry: BufferGeometry, projection: TechniqueProjection): TechniqueAccentBatch => {
+      const batch = new TechniqueAccentBatch(this.scene, geometry, mobile ? 32 : 48, light, projection);
+      this.accentBatches.push(batch);
+      return batch;
+    };
+    this.glowWater = add(makeWaterRibbonAccentGeometry(), 'ribbon');
+    this.glowFlame = add(makeFlameHeadAccentGeometry(), 'head');
+    this.glowSun = add(makeSunDiscGeometry(), 'impact');
+    this.glowThunder = add(makeLightningBoltGeometry(), 'head');
+    this.glowRibbon = add(makeRibbonSwordGeometry(), 'ribbon');
+    this.glowButterfly = add(makeButterflyNeedleAccentGeometry(), 'head');
+    this.glowClaw = add(makeClawGeometry(), 'impact');
+    this.glowMoon = add(makeMoonCrescentGeometry(), 'ribbon'); // legacy moon caller only
+    this.glowBlood = add(makeBloodLotusGeometry(), 'impact');
+    this.glowCompass = add(makeCompassGeometry(), 'impact'); // legacy compass caller only
+    // These five used to share moon/compass meshes. Each now has a distinct silhouette and projection.
+    this.glowFlower = add(makeFlowerPetalArcGeometry(), 'ribbon');
+    this.glowMist = add(makeMistRibbonGeometry(), 'ribbon');
+    this.glowWind = add(makeWindBandGeometry(), 'ribbon');
+    this.glowSound = add(makeSoundBurstGeometry(), 'impact');
+    this.glowStone = add(makeStoneImpactGeometry(), 'impact');
+    this.techniqueTrails = new TechniqueTrailBatch(this.scene, mobile ? 384 : 640);
   }
 
+  // 생성 원화가 준비되기 전이나 본체 아래에 얇은 볼륨을 보태는 절제된 메시 폴백.
+  // beginFrame() 이후에만 push하여 인스턴스 커서가 렌더 전에 초기화되지 않게 한다.
   spawnTechniqueMesh(
-    theme: 'water' | 'flame' | 'sun' | 'thunder' | 'ribbon' | 'butterfly' | 'claw' | 'moon' | 'blood' | 'compass',
+    theme: TechniqueMeshTheme,
     x: number, y: number, z: number, theta: number,
     sx: number, sy: number, sz: number,
     r: number, g: number, b: number, fade = 1.0,
@@ -170,12 +211,14 @@ export class EffectsSystem {
         this.glowThunder?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
         break;
       case 'ribbon':
+      case 'love':
         this.glowRibbon?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
         break;
       case 'butterfly':
         this.glowButterfly?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
         break;
       case 'claw':
+      case 'beast':
         this.glowClaw?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
         break;
       case 'moon':
@@ -187,12 +230,152 @@ export class EffectsSystem {
       case 'compass':
         this.glowCompass?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
         break;
+      case 'flower':
+        this.glowFlower?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
+        break;
+      case 'mist':
+        this.glowMist?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
+        break;
+      case 'wind':
+        this.glowWind?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
+        break;
+      case 'sound':
+        this.glowSound?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
+        break;
+      case 'stone':
+        this.glowStone?.push(x, y, z, theta, sx, sy, sz, r, g, b, fade);
+        break;
     }
+  }
+
+  // 캐릭터/호흡법 이름으로 직접 선택하는 시그니처 원화. RGB 값으로 종류를 추측하지 않는다.
+  spawnTechnique(
+    theme: TechniqueTheme,
+    x: number,
+    z: number,
+    theta: number,
+    scaleX: number,
+    scaleZ: number,
+    duration = 0.28,
+    alpha = 0.95,
+    spin = 0,
+    growth = 0.1,
+    y = 0.72,
+  ): void {
+    this.techniqueSprites.spawn(
+      theme, x, y, z, theta, scaleX, scaleZ, duration, alpha, 0.08, spin, growth,
+    );
+
+    const profile = TECHNIQUE_VISUALS[theme];
+    const lightKind: TechniqueLightKind = profile.projection === 'impact' ? 'impact' : 'moving';
+    const visualSize = Math.max(1, Math.min(1.8, Math.max(scaleX, scaleZ) / 5));
+    this.submitTechniqueLight?.(
+      theme,
+      x,
+      z,
+      profile.lightRadius * visualSize,
+      alpha * (lightKind === 'impact' ? 0.9 : 0.62),
+      lightKind,
+      lightKind === 'impact' ? 1 : 0,
+    );
+
+    if (!this.glowFrameOpen) return;
+    const ready = this.techniqueSprites.isReady(theme);
+    const fallbackFade = alpha * (ready ? 0.16 : 0.72);
+    const fallbackScale = ready ? 0.42 : 0.72;
+    const sx = scaleX * fallbackScale;
+    const sz = scaleZ * fallbackScale;
+    switch (theme) {
+      case 'water':
+        this.spawnTechniqueMesh('water', x, y - 0.08, z, theta, sx, 0.52, sz * 0.72, 0.35, 1.15, 2.1, fallbackFade);
+        break;
+      case 'flame':
+        this.spawnTechniqueMesh('flame', x, y - 0.02, z, theta, sx, 0.72, sz * 0.62, 2.5, 0.75, 0.18, fallbackFade);
+        break;
+      case 'sun':
+        this.spawnTechniqueMesh('sun', x, y - 0.08, z, theta, sx, 0.55, sz, 2.5, 1.0, 0.25, fallbackFade);
+        break;
+      case 'thunder':
+        this.spawnTechniqueMesh('thunder', x, y + 0.02, z, theta, sx, 0.62, sz * 0.48, 2.5, 2.0, 0.35, fallbackFade);
+        break;
+      case 'love':
+        this.spawnTechniqueMesh('love', x, y - 0.04, z, theta, sx, 0.7, sz, 2.2, 0.65, 1.35, fallbackFade);
+        break;
+      case 'butterfly':
+        this.spawnTechniqueMesh('butterfly', x, y + 0.04, z, theta, sx, 0.56, sz * 0.48, 1.5, 0.65, 2.0, fallbackFade);
+        break;
+      case 'flower':
+        this.spawnTechniqueMesh('flower', x, y - 0.08, z, theta, sx, 0.5, sz, 2.0, 0.55, 0.9, fallbackFade);
+        break;
+      case 'beast':
+        this.spawnTechniqueMesh('beast', x, y - 0.08, z, theta, sx, 0.6, sz, 0.85, 1.35, 1.65, fallbackFade);
+        break;
+      case 'blood':
+        this.spawnTechniqueMesh('blood', x, y - 0.08, z, theta, sx, 0.68, sz, 2.3, 0.4, 0.9, fallbackFade);
+        break;
+      case 'mist':
+        this.spawnTechniqueMesh('mist', x, y - 0.04, z, theta, sx, 0.46, sz * 0.78, 0.8, 1.35, 1.55, fallbackFade * 0.8);
+        break;
+      case 'wind':
+        this.spawnTechniqueMesh('wind', x, y - 0.04, z, theta, sx, 0.54, sz, 0.45, 1.5, 0.7, fallbackFade);
+        break;
+      case 'sound':
+        this.spawnTechniqueMesh('sound', x, y - 0.08, z, theta, sx, 0.62, sz, 1.8, 1.25, 0.45, fallbackFade);
+        break;
+      case 'stone':
+        this.spawnTechniqueMesh('stone', x, y - 0.08, z, theta, sx, 0.72, sz, 1.15, 0.9, 0.5, fallbackFade);
+        break;
+    }
+  }
+
+  spawnTechniqueLine(
+    theme: TechniqueTheme,
+    x1: number,
+    z1: number,
+    x2: number,
+    z2: number,
+    width: number,
+    duration = 0.24,
+    alpha = 0.96,
+  ): void {
+    const dx = x2 - x1;
+    const dz = z2 - z1;
+    const length = Math.hypot(dx, dz) || 0.001;
+    this.spawnTechnique(
+      theme,
+      (x1 + x2) * 0.5,
+      (z1 + z2) * 0.5,
+      Math.atan2(-dz, dx),
+      length * 1.08,
+      width,
+      duration,
+      alpha,
+      0,
+      0.08,
+    );
+    this.spawnTechniqueTrail(theme, x1, z1, x2, z2, width * 0.72, alpha * 0.56);
+  }
+
+  // Projectile systems can submit actual previous/current positions here. One instanced shader batch
+  // turns them into family-specific ribbons/streaks/pulses and keeps the trail aligned to travel.
+  spawnTechniqueTrail(
+    theme: TechniqueTheme,
+    x1: number,
+    z1: number,
+    x2: number,
+    z2: number,
+    width: number,
+    alpha = 0.72,
+    phase = 0,
+    y = 0.34,
+  ): void {
+    if (!this.glowFrameOpen) return;
+    this.techniqueTrails?.push(theme, x1, z1, x2, z2, width, alpha, phase, y);
   }
 
   constructor(scene: Scene) {
     this.scene = scene;
-    this.attackSprites = new RetroAttackSpriteFx(scene);
+    this.techniqueSprites = new TechniqueSpriteRenderer(scene);
     this.telegraph = new TelegraphBatch(scene);
     this.koStar = new KOStarBatch(scene);
     // 지면 평행 유닛 쿼드 (+X로 뻗음): 찌르기
@@ -329,7 +512,7 @@ export class EffectsSystem {
     g = 0.95,
     b = 1.7,
     dur = 0.15,
-    showArt = true,
+    technique: TechniqueTheme | null = null,
   ): void {
     const s = this.thrusts[this.tCur];
     this.tCur = (this.tCur + 1) % this.thrusts.length;
@@ -340,10 +523,27 @@ export class EffectsSystem {
     s.mesh.position.set(px, 1.0, pz);
     s.mesh.rotation.y = Math.atan2(-dirZ, dirX);
     s.mesh.scale.set(length, 1, width);
-    (s.mat.uniforms.uColor.value as Color).setRGB(r, g, b);
-    s.mat.uniforms.uAlpha.value = 1;
-    // 3D 메시 전용: 2D 도트 스프라이트 오버레이 주석 처리
-    // if (showArt) this.attackSprites.spawn(ATTACK_SPEAR, px, pz, dirX, dirZ, length, width * 0.82, dur * 1.22);
+    // 생성 원화가 준비된 기술은 이 사각 그라디언트가 화면을 가르는 흰 쐐기로 보이지 않게
+    // 아주 얇은 바닥 광량만 남긴다. 로딩 전에는 폴백 역할을 유지한다.
+    const authoredReady = technique !== null && this.techniqueSprites.isReady(technique);
+    const meshLevel = technique === null ? 1 : authoredReady ? 0.055 : 0.24;
+    (s.mat.uniforms.uColor.value as Color).setRGB(r * meshLevel, g * meshLevel, b * meshLevel);
+    s.mat.uniforms.uAlpha.value = authoredReady ? 0.42 : 1;
+    if (technique !== null) {
+      const linear = technique === 'thunder' || technique === 'mist';
+      const artX = length * 1.08;
+      const artZ = linear ? Math.max(width * 1.5, 1.8) : Math.max(width * 1.7, length * 0.52);
+      this.spawnTechnique(
+        technique,
+        px + dirX * length * 0.46,
+        pz + dirZ * length * 0.46,
+        Math.atan2(-dirZ, dirX),
+        artX,
+        artZ,
+        dur * 1.55,
+        0.96,
+      );
+    }
   }
 
   spawnDoubleThrust(
@@ -357,10 +557,10 @@ export class EffectsSystem {
     g = 1.0,
     b = 0.7,
     dur = 0.16,
+    technique: TechniqueTheme | null = null,
   ): void {
-    this.spawnThrust(px, pz, dirX, dirZ, length, width, r, g, b, dur, false);
-    this.spawnThrust(px, pz, -dirX, -dirZ, length, width, r, g, b, dur, false);
-    // this.attackSprites.spawn(ATTACK_ZHANGBA, px, pz, dirX, dirZ, length * 2.15, width * 0.9, dur * 1.2);
+    this.spawnThrust(px, pz, dirX, dirZ, length, width, r, g, b, dur, technique);
+    this.spawnThrust(px, pz, -dirX, -dirZ, length, width, r, g, b, dur, technique);
   }
 
   // 부채꼴 슬래시 아크 (언월도/방천화극/참마검). halfAngle=반각(라디안).
@@ -375,7 +575,7 @@ export class EffectsSystem {
     g = 0.9,
     b = 0.5,
     dur = 0.22,
-    artKind: AttackSpriteKind = ATTACK_GUANDAO,
+    technique: TechniqueTheme | null = null,
   ): void {
     const s = this.arcs[this.aCur];
     this.aCur = (this.aCur + 1) % this.arcs.length;
@@ -386,30 +586,24 @@ export class EffectsSystem {
     s.mesh.position.set(px, 0.6, pz);
     s.mesh.rotation.y = Math.atan2(-dirZ, dirX);
     s.mesh.scale.setScalar(radius);
-    (s.mat.uniforms.uColor.value as Color).setRGB(r, g, b);
+    const authoredReady = technique !== null && this.techniqueSprites.isReady(technique);
+    const meshLevel = technique === null ? 1 : authoredReady ? 0.06 : 0.22;
+    (s.mat.uniforms.uColor.value as Color).setRGB(r * meshLevel, g * meshLevel, b * meshLevel);
     s.mat.uniforms.uHalf.value = halfAngle;
-    s.mat.uniforms.uT.value = 0;
+    s.mat.uniforms.uT.value = authoredReady ? 0.18 : 0;
 
-    const theta = Math.atan2(-dirZ, dirX);
-    if (r > 2.0 && g < 1.0) {
-      this.spawnTechniqueMesh('flame', px, 0.4, pz, theta, radius * 0.9, 0.8, radius * 0.9, r, g, b, 0.95);
-    } else if (b > 1.8 && r < 1.0) {
-      this.spawnTechniqueMesh('water', px, 0.4, pz, theta, radius * 0.9, 0.8, radius * 0.9, r, g, b, 0.95);
-    } else if (r > 2.0 && g > 1.8) {
-      this.spawnTechniqueMesh('sun', px, 0.4, pz, theta, radius, 1.0, radius, r, g, b, 0.95);
-    } else if (r > 1.0 && b > 1.5) {
-      this.spawnTechniqueMesh('butterfly', px, 0.4, pz, theta, radius * 0.85, 0.8, radius * 0.85, r, g, b, 0.95);
-    } else if (r > 1.5 && g < 0.8 && b > 1.0) {
-      this.spawnTechniqueMesh('ribbon', px, 0.4, pz, theta, radius * 0.9, 0.8, radius * 0.9, r, g, b, 0.95);
-    } else {
-      this.spawnTechniqueMesh('moon', px, 0.4, pz, theta, radius * 0.85, 0.8, radius * 0.85, r, g, b, 0.95);
+    if (technique !== null) {
+      this.spawnTechnique(
+        technique,
+        px,
+        pz,
+        Math.atan2(-dirZ, dirX),
+        radius * 1.72,
+        radius * 1.72,
+        dur * 1.32,
+        0.96,
+      );
     }
-    // 3D 메시 전용: 2D 도트 스프라이트 오버레이 주석 처리
-    // const artScale = artKind === ATTACK_HALBERD ? 2.05 : 1.45;
-    // this.attackSprites.spawn(
-    //   artKind === ATTACK_HALBERD ? ATTACK_HALBERD : ATTACK_GUANDAO,
-    //   px, pz, dirX, dirZ, radius * artScale, radius * artScale, dur * 1.1,
-    // );
   }
 
   // 확장 충격파 링.
@@ -586,20 +780,58 @@ export class EffectsSystem {
     this.spawnFlash(x, z, r, g, b, 1.5);
   }
 
+  // 프레임의 게임플레이 방출보다 먼저 호출한다. update()가 모든 방출 뒤 end()를 수행한다.
+  beginFrame(): void {
+    for (const batch of this.accentBatches) batch.begin();
+    this.techniqueTrails?.begin();
+    this.glowFrameOpen = true;
+  }
+
+  beginTechniqueRender(): void {
+    this.techniqueSprites.begin();
+  }
+
+  endTechniqueRender(): void {
+    this.techniqueSprites.end();
+  }
+
+  reset(): void {
+    this.techniqueSprites.reset();
+    // A retry reuses this EffectsSystem instance. Retire every legacy pool as well as the
+    // authored-technique batches so delayed rings, boss telegraphs, meteors, and KO stars from
+    // the previous run cannot resume on the first simulation tick of the next one.
+    for (const pool of [
+      this.thrusts,
+      this.arcs,
+      this.rings,
+      this.bolts,
+      this.chains,
+      this.flashes,
+      this.fireWalls,
+    ]) {
+      for (const slot of pool) this.retire(slot);
+    }
+    for (const slot of this.decals) {
+      slot.active = false;
+      slot.mesh.visible = false;
+    }
+    for (const slot of this.meteors) {
+      slot.active = false;
+      slot.mesh.visible = false;
+    }
+    this.ringQActive.fill(0);
+    this.telegraph.reset();
+    this.koStar.reset();
+    this.tCur = this.aCur = this.rCur = this.bCur = this.cCur = 0;
+    this.fCur = this.dCur = this.fwCur = this.mCur = this.rqCur = 0;
+    this.flashThisFrame = 0;
+    this.beginFrame();
+    this.endGlowFrame();
+  }
+
   update(dt: number): void {
     this.flashThisFrame = 0; // #40: 프레임당 flash 스폰 카운터 리셋(대량 처치 킬플래시 누적 상한)
-    this.glowWater?.begin();
-    this.glowFlame?.begin();
-    this.glowSun?.begin();
-    this.glowThunder?.begin();
-    this.glowRibbon?.begin();
-    this.glowButterfly?.begin();
-    this.glowClaw?.begin();
-    this.glowMoon?.begin();
-    this.glowBlood?.begin();
-    this.glowCompass?.begin();
-
-    this.attackSprites.update(dt);
+    this.techniqueSprites.update(dt);
     this.telegraph.update(dt);
     this.koStar.update(dt);
     this.tickThrust(dt);
@@ -613,16 +845,14 @@ export class EffectsSystem {
     this.tickSimple(this.bolts, dt);
     this.tickSimple(this.chains, dt);
 
-    this.glowWater?.end();
-    this.glowFlame?.end();
-    this.glowSun?.end();
-    this.glowThunder?.end();
-    this.glowRibbon?.end();
-    this.glowButterfly?.end();
-    this.glowClaw?.end();
-    this.glowMoon?.end();
-    this.glowBlood?.end();
-    this.glowCompass?.end();
+    this.endGlowFrame();
+  }
+
+  private endGlowFrame(): void {
+    if (!this.glowFrameOpen) return;
+    for (const batch of this.accentBatches) batch.end();
+    this.techniqueTrails?.end();
+    this.glowFrameOpen = false;
   }
 
   private tickDecals(dt: number): void {

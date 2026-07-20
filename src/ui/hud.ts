@@ -84,6 +84,7 @@ export class Hud {
   private lastCombo = 0;
   private wasReady = false;
   private readonly touch: boolean;
+  private readonly onViewportResize = (): void => this.reflowQuote();
 
   constructor(touch = false) {
     this.touch = touch;
@@ -105,12 +106,14 @@ export class Hud {
     ].join(';');
 
     this.timerEl = document.createElement('div');
+    this.timerEl.className = 'hud-timer';
     this.timerEl.style.cssText =
       'color:#f0e4c0;font-size:34px;letter-spacing:3px;text-shadow:0 2px 8px rgba(0,0,0,0.8);font-variant-numeric:tabular-nums;';
     this.timerEl.textContent = '00:00';
     top.appendChild(this.timerEl);
 
     const stats = document.createElement('div');
+    stats.className = 'hud-stats';
     stats.style.cssText =
       'display:flex;gap:20px;color:#c9cdda;font-size:15px;letter-spacing:1px;align-items:center;';
     this.levelEl = document.createElement('div');
@@ -127,6 +130,7 @@ export class Hud {
     top.appendChild(stats);
 
     const xpBar = document.createElement('div');
+    xpBar.className = 'hud-xp';
     xpBar.style.cssText =
       'width:min(70vw,520px);height:7px;background:rgba(20,22,30,0.85);border:1px solid rgba(232,198,103,0.3);border-radius:4px;overflow:hidden;';
     this.xpFill = document.createElement('div');
@@ -172,17 +176,21 @@ export class Hud {
       'box-shadow:0 3px 16px rgba(0,0,0,0.5),0 0 14px rgba(232,198,103,0.1)',
     ].join(';');
     const objHead = document.createElement('div');
+    objHead.className = 'hud-objective-head';
     objHead.style.cssText =
       'display:flex;gap:12px;align-items:baseline;justify-content:center;flex-wrap:wrap;max-width:100%;';
     this.objTitle = document.createElement('div');
+    this.objTitle.className = 'hud-objective-title';
     this.objTitle.style.cssText =
       'color:#f4e6bd;font-size:17px;letter-spacing:2px;text-align:center;line-height:1.25;text-shadow:0 1px 6px rgba(0,0,0,0.8);';
     this.objCountdown = document.createElement('div');
+    this.objCountdown.className = 'hud-objective-countdown';
     this.objCountdown.style.cssText =
       'display:none;color:#e8c667;font-size:15px;letter-spacing:1px;font-variant-numeric:tabular-nums;';
     objHead.appendChild(this.objTitle);
     objHead.appendChild(this.objCountdown);
     this.objSub = document.createElement('div');
+    this.objSub.className = 'hud-objective-sub';
     this.objSub.style.cssText =
       'display:none;color:#b9b18c;font-size:12px;letter-spacing:1px;text-align:center;line-height:1.3;';
     this.objBarTrack = document.createElement('div');
@@ -215,8 +223,10 @@ export class Hud {
       'transform-origin:top left',
     ].join(';');
     const wRow = document.createElement('div');
+    wRow.className = 'hud-slot-row';
     wRow.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap;max-width:220px;';
     const pRow = document.createElement('div');
+    pRow.className = 'hud-slot-row';
     pRow.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap;max-width:220px;';
     this.slotBar.appendChild(wRow);
     this.slotBar.appendChild(pRow);
@@ -302,6 +312,7 @@ export class Hud {
 
     // 배너 레이어 (마일스톤/경고/무쌍 한자)
     this.bannerLayer = document.createElement('div');
+    this.bannerLayer.className = 'hud-banner-layer';
     this.bannerLayer.style.cssText = [
       'position:fixed',
       'inset:0',
@@ -317,6 +328,7 @@ export class Hud {
     // 원군 대사 레이어 — 상단 배치(조이스틱/무쌍 버튼이 있는 하단 회피, #31).
     // top은 보스바 유무에 맞춰 quote()에서 조정. 상단 HUD(z20) 위, 중앙 배너(z32) 아래.
     this.quoteLayer = document.createElement('div');
+    this.quoteLayer.className = 'hud-quote-layer';
     this.quoteLayer.style.cssText = [
       'position:fixed',
       'top:calc(env(safe-area-inset-top,0px) + 96px)',
@@ -343,6 +355,10 @@ export class Hud {
       'box-shadow:inset 0 0 120px 24px rgba(255,180,60,0.55),inset 0 0 40px 8px rgba(255,120,30,0.5)',
     ].join(';');
     document.body.appendChild(this.feverEl);
+
+    // 회전·주소창 축소 등 실제 visual viewport 변화에도 메시지 스택을 다시 맞춘다.
+    window.addEventListener('resize', this.onViewportResize);
+    window.visualViewport?.addEventListener('resize', this.onViewportResize);
   }
 
   // 콤보 피버 화면 연출 on/off (진입 시 맥동 시작, 해제 시 페이드).
@@ -366,6 +382,7 @@ export class Hud {
     this.root.style.display = v ? 'flex' : 'none';
     this.slotBar.style.display = v ? 'flex' : 'none';
     this.bottom.style.display = v ? 'flex' : 'none';
+    if (v) this.reflowQuote();
     if (!v) {
       this.comboEl.style.display = 'none';
       this.bossWrap.style.display = 'none';
@@ -459,15 +476,25 @@ export class Hud {
     }
   }
 
-  // 대사 박스(quoteLayer) 상단 오프셋 재계산. 목표 패널이 보이면 그 실제 하단 아래로,
-  // 아니면 보스바 유무 기준의 기존 오프셋으로. getBoundingClientRect가 모바일 축소·보스바를 모두 반영.
+  // 대사 박스와 모바일 배너 스택의 상단 오프셋 재계산. touch HUD/목표 패널은 실제 상단 HUD 하단을
+  // 기준으로 삼아 boss/quest/dialogue가 서로 덮지 않게 하고, desktop 기본 배치는 그대로 유지한다.
   private reflowQuote(): void {
-    if (this.objVisible) {
-      const bottom = this.objWrap.getBoundingClientRect().bottom;
-      this.quoteLayer.style.top = `${Math.round(bottom + 8)}px`;
+    const rootBottom = this.root.getBoundingClientRect().bottom;
+    // 목표 패널의 짧은 등장 transform 동안 child rect가 root rect를 몇 px 벗어날 수 있어 둘 중 큰 값을 쓴다.
+    const objectiveBottom = this.objVisible ? this.objWrap.getBoundingClientRect().bottom : 0;
+    const hudBottom = Math.max(rootBottom, objectiveBottom);
+    let quoteTop: number;
+    if ((this.touch || this.objVisible) && hudBottom > 0) {
+      quoteTop = Math.round(hudBottom + 8);
+      this.quoteLayer.style.top = `${quoteTop}px`;
     } else {
       this.quoteLayer.style.top = `calc(env(safe-area-inset-top,0px) + ${this.bossActiveNow ? 164 : 96}px)`;
+      // desktop에서는 CSS가 이 값을 쓰지 않으며, hidden 상태 fallback은 다음 visible reflow에서 갱신된다.
+      quoteTop = this.bossActiveNow ? 164 : 96;
     }
+    const quoteHeight = this.quoteLayer.offsetHeight;
+    const bannerTop = quoteTop + (quoteHeight > 0 ? quoteHeight + 8 : 0);
+    this.bannerLayer.style.setProperty('--hud-banner-top', `${Math.round(bannerTop)}px`);
   }
 
   // 무기/패시브 슬롯 갱신 (변경 시에만 호출 → 프레임당 할당 회피). 신규 슬롯은 반짝임.
@@ -477,10 +504,10 @@ export class Hud {
     const pRow = (this.slotBar as unknown as { _p: HTMLDivElement })._p;
     this.renderSlots(wRow, weapons, WEAPON_SLOTS);
     this.renderSlots(pRow, passives, PASSIVE_SLOTS);
-    // 무기 슬롯 만석 최초 도달 → "병법 만진" 배너 1회 (한자 공통, 라벨만 언어별).
+    // 호흡 슬롯 만석 최초 도달 → 숙련 배너 1회.
     if (!this.weaponsFullSeen && weapons.length >= WEAPON_SLOTS) {
       this.weaponsFullSeen = true;
-      const label = getLang() === 'en' ? 'Full Arsenal' : '병법 만진';
+      const label = getLang() === 'en' ? 'Breathing Mastery' : '호흡 극의';
       this.banner(`${label} 兵法滿陣`, '#e8c667', 54, 1700);
     }
   }
@@ -662,6 +689,7 @@ export class Hud {
     const item = this.bannerQueue.splice(best, 1)[0];
     this.bannerPlaying = true;
     const el = document.createElement('div');
+    el.className = 'hud-banner';
     el.textContent = item.text;
     el.style.cssText = [
       'position:absolute',
@@ -710,25 +738,31 @@ export class Hud {
       'white-space:normal',
     ].join(';');
     const who = document.createElement('b');
+    who.className = 'battle-quote-who';
     who.textContent = name;
     who.style.cssText = 'color:#7ec8ff;white-space:nowrap;letter-spacing:2px;flex-shrink:0;';
     const lineEl = document.createElement('span');
+    lineEl.className = 'battle-quote-line';
     lineEl.textContent = `“${line}”`;
     lineEl.style.cssText = 'line-height:1.4;';
     el.appendChild(who);
     el.appendChild(lineEl);
     this.quoteLayer.appendChild(el);
-    // 위에서 미끄러져 들어오고, 잠깐 머문 뒤 위로 사라짐.
+    this.reflowQuote();
+    // 아래쪽에서 짧게 떠오른다. 상단에서 내려오면 등장 transform 중 목표 패널을 침범하므로 위쪽 이동은 피한다.
     const anim = el.animate(
       [
-        { transform: 'translateY(-12px)', opacity: 0 },
+        { transform: 'translateY(8px)', opacity: 0 },
         { transform: 'translateY(0)', opacity: 1, offset: 0.15 },
         { transform: 'translateY(0)', opacity: 1, offset: 0.82 },
-        { transform: 'translateY(-6px)', opacity: 0 },
+        { transform: 'translateY(4px)', opacity: 0 },
       ],
       { duration: durationMs, easing: 'ease-out' },
     );
-    anim.onfinish = () => el.remove();
+    anim.onfinish = () => {
+      el.remove();
+      this.reflowQuote();
+    };
   }
 
   // 오의 / 무쌍난무 대형 반신 일러스트 컷인 연출 (Secret Technique Half-Screen Anime Cut-In)
