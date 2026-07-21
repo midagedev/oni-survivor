@@ -1,5 +1,5 @@
-// 무기(병법) 해금 — heroUnlocks 패턴 재사용. 메타 진행 루프.
-// 해금형 무기는 시작 풀에서 제외되고, 조건 달성 시 편입 + 토스트 + 도감 갱신.
+// 공용 지원 장비 해금 — heroUnlocks 패턴 재사용. 메타 진행 루프.
+// 해금형 장비는 지원 풀에서 제외되고, 조건 달성 시 편입 + 토스트 + 도감 갱신.
 // 해금 조건은 모두 기존 SaveData 필드에서 파생(단조 증가) → 별도 저장 없이도 판정 가능.
 // SaveData의 unlockedWeapons는 도감/토스트용 캐시.
 //
@@ -16,17 +16,12 @@ export interface WeaponUnlockProgress {
   bosses: string[]; // 처치한 보스 도감 (save.bosses)
 }
 
-// 해금형 무기 id (표시 순서). 여기 없는 무기는 항상 해금(기본 시작 풀).
-export const WEAPON_UNLOCK_ORDER = ['cavalry', 'caltrop', 'poison'];
+// 해금형 지원 장비 id (표시 순서). 여기 없는 지원 장비는 항상 해금.
+export const WEAPON_UNLOCK_ORDER = ['caltrop', 'poison'];
 
 // 조건 임계치
 const CALTROP_KILLS = 1000; // 철질려: 누적 1,000킬
 const POISON_SURVIVE = 480; // 독천: 한 런 8분(480초)+ 생존
-
-// DESIGN 13.1의 "화약통(火藥)"은 무기가 아니라 전장 오브젝트(objects.ts)라 그대로 이동 불가.
-// 초반 풀 압축(빌드 일관성 개선) 취지를 살려 스펙터클 소환기 '서량철기(cavalry)'를
-// 첫 보스 처치 해금으로 옮긴다. 다른 무기로 바꾸려면 이 id만 교체하면 된다.
-export const FIRST_BOSS_WEAPON = 'cavalry';
 
 export function isWeaponUnlocked(id: string, p: WeaponUnlockProgress): boolean {
   switch (id) {
@@ -34,8 +29,6 @@ export function isWeaponUnlocked(id: string, p: WeaponUnlockProgress): boolean {
       return p.totalKills >= CALTROP_KILLS;
     case 'poison':
       return p.best.time >= POISON_SURVIVE;
-    case FIRST_BOSS_WEAPON:
-      return p.bosses.length >= 1;
     default:
       return true; // 그 외 무기는 기본 해금
   }
@@ -59,8 +52,6 @@ export function weaponUnlockText(id: string, p: WeaponUnlockProgress): string {
       const time = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
       return en ? `Best survival ${time} / 8:00` : `최고 생존 ${time} / 8:00`;
     }
-    case FIRST_BOSS_WEAPON:
-      return en ? 'Defeat your first boss' : '첫 보스 처치';
     default:
       return '';
   }
@@ -70,7 +61,7 @@ export function weaponUnlockText(id: string, p: WeaponUnlockProgress): string {
 //   WEAPON_DEFS[id]      = def           (data/weapons.ts, 카드/도감/공유카드 공통)
 //   WEAPON_DESC_EN[id]   = descEn        (core/i18n.ts, 영문 카드 설명)
 // 영문 무기명 NAME_EN.weapon[id]만 비공개라 리드가 수동 2줄 추가(배선 스니펫 참조).
-// twinring(쌍륜)은 해금 조건 없음(WEAPON_UNLOCK_ORDER 미포함 → isWeaponUnlocked 기본 true).
+// twinring(등꽃 투척륜)은 해금 조건 없음(WEAPON_UNLOCK_ORDER 미포함 → isWeaponUnlocked 기본 true).
 export interface NewWeaponMeta {
   def: WeaponDef;
   nameEn: string;
@@ -103,12 +94,12 @@ export const NEW_WEAPONS: Record<string, NewWeaponMeta> = {
   twinring: {
     def: {
       id: 'twinring',
-      name: '쌍일륜',
-      hanja: '雙日輪',
+      name: '등꽃 투척륜',
+      hanja: '藤投輪',
       maxLevel: 8,
-      desc: '전방 투척 쌍일륜 · 왕복하며 2회 관통 타격',
+      desc: '귀살대 공용 등꽃 투척구 · 왕복하며 2회 관통 타격',
     },
-    nameEn: 'Twin Nichirin Rings',
-    descEn: 'Nichirin chakrams; pierce twice on the round trip',
+    nameEn: 'Wisteria Throwing Rings',
+    descEn: 'Corps support rings; pierce twice on the round trip',
   },
 };

@@ -60,6 +60,12 @@ export class SpatialHash {
 // 투사체가 보스에 닿지 못해 데미지 스펀지가 됨. 전량 락온은 잡몹 과밀 유발(과보정)이므로,
 // 발사 시각의 일부(≈42%)만 보스로 향하게 하여 "유효 히트 일부가 보스로" 간다. (enemies.boss는 run이 전달하는 풀에 존재)
 let aimFrame = 0;
+
+// 모듈 수명과 런 수명을 분리한다. 새 seeded run이 이전 플레이의 조준 duty 위상을 물려받지 않게 한다.
+export function resetAimFrame(): void {
+  aimFrame = 0;
+}
+
 export function findNearestEnemy(
   enemies: { alive: Uint8Array; x: Float32Array; z: Float32Array; boss?: Uint8Array },
   hash: SpatialHash,

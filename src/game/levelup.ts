@@ -14,11 +14,17 @@ export interface CardView {
   rare?: boolean; // 희귀(진화 가능/희귀 패시브) → 금테
   count?: string; // 슬롯 카운트 병기 ("무기 4/6" 등) — 만석 선택압 체감(DESIGN 13.4)
   evoHint?: string; // 진화 임박 서브텍스트 ("進化 임박 — 현철갑주 필요") — 빌드 목표 가시화(DESIGN 13.3)
+  kind?: 'lineage' | 'branch' | 'support' | 'training' | 'reward';
+  ownerHeroId?: string;
+  lineage?: string;
+  form?: string;
+  mastery?: string;
+  visionHint?: string;
 }
 
 export class LevelUp {
   private readonly root: HTMLDivElement;
-  private readonly cardEls: HTMLDivElement[] = [];
+  private readonly cardEls: HTMLButtonElement[] = [];
   private readonly rerollBtn: HTMLButtonElement;
   private readonly titleEl: HTMLDivElement;
   private readonly hintEl: HTMLDivElement;
@@ -42,7 +48,8 @@ export class LevelUp {
     const row = document.createElement('div');
     row.className = 'levelup-row';
     for (let i = 0; i < 3; i++) {
-      const card = document.createElement('div');
+      const card = document.createElement('button');
+      card.type = 'button';
       card.className = 'levelup-card';
       const idx = i;
       card.addEventListener('click', () => this.pick(idx));
@@ -85,6 +92,11 @@ export class LevelUp {
         el.style.boxShadow = c.rare
           ? '0 0 26px rgba(255,220,120,0.4),inset 0 0 0 1px rgba(255,220,120,0.4)'
           : '0 0 18px rgba(232,198,103,0.12),inset 0 0 0 1px rgba(232,198,103,0.12)';
+        el.dataset.owner = c.ownerHeroId ?? '';
+        el.dataset.lineage = c.lineage ?? '';
+        el.dataset.kind = c.kind ?? '';
+        el.dataset.form = c.form ?? '';
+        el.setAttribute('aria-label', [c.lineage, c.form ?? c.title, c.mastery, c.desc].filter(Boolean).join(' · '));
         const badge = c.badge
           ? `<div class="lc-badge" style="background:${c.accent}22;color:${c.accent};border-color:${c.accent}66;">${c.badge}</div>`
           : '';
@@ -93,14 +105,20 @@ export class LevelUp {
         const full = cm ? cm[1] === cm[2] : false;
         const count = c.count ? `<span class="lc-count${full ? ' full' : ''}">${c.count}</span>` : '';
         const evoHint = c.evoHint ? `<div class="lc-evohint">${c.evoHint}</div>` : '';
+        const lineage = c.lineage ? `<div class="lc-lineage">${c.lineage}</div>` : '';
+        const form = c.form ? `<div class="lc-form">${c.form}</div>` : '';
+        const mastery = c.mastery ? `<div class="lc-mastery">${c.mastery}</div>` : '';
+        const vision = c.visionHint ? `<div class="lc-vision">${c.visionHint}</div>` : '';
         el.innerHTML =
           badge +
+          lineage +
           `<div class="lc-symbol" style="color:${c.accent};border-color:${c.accent};box-shadow:0 0 14px ${c.accent}55;">${c.symbol}</div>` +
           `<div class="lc-tag" style="color:${c.accent};">${c.tag}${count}</div>` +
           `<div class="lc-title">${c.title}</div>` +
           `<div class="lc-hanja" style="color:${c.accent};">${c.hanja}</div>` +
+          form + mastery +
           `<div class="lc-desc">${c.desc}</div>` +
-          evoHint +
+          evoHint + vision +
           `<div class="lc-num">${i + 1}</div>`;
         // 순차 슬라이드+스케일 등장
         el.animate(
@@ -112,9 +130,16 @@ export class LevelUp {
         );
       } else {
         el.style.display = 'none';
+        el.dataset.owner = '';
+        el.dataset.lineage = '';
+        el.dataset.kind = '';
+        el.dataset.form = '';
       }
     }
-    this.titleEl.innerHTML = `${t('levelupTitle')} <span>選一</span>`;
+    const branchPick = cards.length === 2 && cards.every((c) => c.kind === 'branch');
+    this.titleEl.innerHTML = branchPick
+      ? `${cards[0]?.lineage ?? t('levelupTitle')} <span>분기 선택 · 二擇一</span>`
+      : `${t('levelupTitle')} <span>選一</span>`;
     this.hintEl.textContent = t('levelupHint');
     this.rerollBtn.textContent = t('reroll', { n: gold });
     this.rerollBtn.style.opacity = canReroll ? '1' : '0.4';

@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "qa:visual": "playwright test tests/oni-visual.spec.ts",
     "qa:bot": "playwright test tests/oni-bot.spec.ts --project=desktop",
-    "qa:balance": "playwright test tests/oni-balance.spec.ts --project=desktop"
+    "qa:balance": "playwright test tests/oni-balance.spec.ts --project=desktop",
+    "qa:progression": "playwright test tests/oni-progression.spec.ts",
+    "qa": "playwright test"
   },
   "dependencies": {
     "three": "^0.185.1"

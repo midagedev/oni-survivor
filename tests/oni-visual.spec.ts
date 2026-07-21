@@ -113,6 +113,8 @@ function inspectPng(buffer: Buffer) {
 }
 
 test('active play renders premium technique art without runtime errors', async ({ page }, testInfo) => {
+  // 데스크톱은 맵 여정 증거 3장을 추가로 저장하므로 전체 QA 병렬 부하를 감안한다.
+  test.setTimeout(75_000);
   const runtime = watchRuntime(page);
   await openReadyGame(page);
 

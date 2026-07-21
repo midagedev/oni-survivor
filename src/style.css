@@ -798,9 +798,43 @@ canvas {
   align-items: center;
   gap: clamp(5px, 1.4vh, 12px);
   transition: transform 0.08s, border-color 0.12s, box-shadow 0.12s;
+  color: inherit;
+  font: inherit;
+  appearance: none;
 }
 .levelup-card:hover {
   transform: translateY(-4px);
+}
+.levelup-card:focus-visible {
+  outline: 3px solid #fff2c0;
+  outline-offset: 3px;
+}
+.lc-lineage {
+  max-width: calc(100% - 54px);
+  color: #cfd4df;
+  font-size: clamp(9px, 1.45vh, 11px);
+  line-height: 1.25;
+  letter-spacing: 0.6px;
+  text-align: center;
+}
+.lc-form {
+  color: #f1dba4;
+  font-size: clamp(10px, 1.6vh, 12px);
+  line-height: 1.3;
+  text-align: center;
+}
+.lc-mastery {
+  color: #9fa7b8;
+  font-size: clamp(9px, 1.4vh, 10.5px);
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+.lc-vision {
+  color: #ffe7a0;
+  font-size: clamp(9px, 1.4vh, 10.5px);
+  padding-top: 4px;
+  border-top: 1px solid rgba(232, 198, 103, 0.2);
+  text-align: center;
 }
 .lc-badge {
   position: absolute;
@@ -891,6 +925,143 @@ canvas {
   margin-top: auto;
   color: #5a6070;
   font-size: clamp(16px, 2.6vh, 22px);
+}
+
+.hud-lineage-rail {
+  display: grid;
+  grid-template-columns: repeat(8, 17px) 38px;
+  gap: 3px;
+  align-items: center;
+}
+.hud-lineage-title {
+  font-size: 11px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hud-lineage-title span {
+  opacity: .75;
+}
+.hud-lineage-branches {
+  color: #b8bcc8;
+  font-size: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hud-lineage-rail i,
+.hud-lineage-rail b {
+  height: 17px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 50%;
+  color: #686f7f;
+  font-size: 8px;
+  font-style: normal;
+  background: rgba(255,255,255,.04);
+}
+.hud-lineage-rail i.on {
+  color: #0b0c11;
+  border-color: var(--a);
+  background: var(--a);
+  box-shadow: 0 0 7px var(--a);
+}
+.hud-lineage-rail b {
+  border-radius: 5px;
+  letter-spacing: 1px;
+}
+.hud-lineage-rail b.ready {
+  color: #101117;
+  border-color: var(--a);
+  background: var(--a);
+  box-shadow: 0 0 9px var(--a);
+}
+
+.lineage-codex-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+.lineage-codex-cell {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #3b414d;
+  border-color: color-mix(in srgb, var(--lineage-accent) 55%, #323642);
+  border-radius: 10px;
+  background: #101117;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--lineage-accent) 8%, #101117), rgba(9,10,15,.86));
+  text-align: left;
+}
+.lineage-codex-title {
+  color: var(--lineage-accent);
+  font-size: 14px;
+  line-height: 1.35;
+}
+.lineage-codex-title span {
+  margin-left: 4px;
+  color: #c6cad5;
+  font-size: 11px;
+}
+.lineage-form-rail {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(22px, 1fr));
+  gap: 4px;
+  margin: 10px 0 8px;
+}
+.lineage-form-node {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.lineage-form-node b {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #111319;
+  background: var(--lineage-accent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--lineage-accent) 55%, transparent);
+  font-size: 10px;
+}
+.lineage-form-node span {
+  max-width: 100%;
+  color: #9fa5b3;
+  font-size: 8px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lineage-forks {
+  display: grid;
+  gap: 3px;
+  color: #aeb4c1;
+  font-size: 10px;
+}
+.lineage-forks b,
+.lineage-secret b,
+.lineage-ultimate b {
+  color: var(--lineage-accent);
+  font-weight: 700;
+}
+.lineage-secret,
+.lineage-ultimate {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  color: #e1e3e9;
+  font-size: 10.5px;
+}
+.build-chip.lineage {
+  color: #ffe8a0;
+  border-color: rgba(232,198,103,.5);
+  background: rgba(232,198,103,.12);
 }
 .levelup-bottom {
   display: flex;
@@ -1022,8 +1193,39 @@ canvas {
   .codex-grid,
   .ach-grid,
   .wpn-grid,
-  .mw-grid {
+  .mw-grid,
+  .lineage-codex-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .levelup-row {
+    justify-content: flex-start;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    padding-inline: calc((100% - min(78vw, 300px)) / 2);
+  }
+  .levelup-title {
+    max-width: calc(100vw - 32px);
+    font-size: clamp(15px, 5vw, 19px);
+    line-height: 1.35;
+    letter-spacing: 2px;
+  }
+  .levelup-title span {
+    display: block;
+    margin-top: 2px;
+    letter-spacing: 1.5px;
+  }
+  .levelup-row::-webkit-scrollbar {
+    display: none;
+  }
+  .levelup-card {
+    flex: 0 0 min(78vw, 300px);
+    max-width: none;
+    min-width: 260px;
+    max-height: 66dvh;
+    overflow-y: auto;
+    scroll-snap-align: center;
   }
   .records {
     grid-template-columns: repeat(2, 1fr);
@@ -1036,10 +1238,53 @@ canvas {
   }
 }
 
-/* 390px portrait에서 6칸 슬롯(200px)이 중앙 타이머를 침범하지 않도록 좌측 레일만 축소한다. */
+/* 세로 모바일: 핵심 계보 글자를 축소하지 않고 중앙 타이머 아래로 내린다. */
 @media (max-width: 420px) {
   .hud-slots {
-    transform: scale(0.64);
+    top: calc(env(safe-area-inset-top, 0px) + 82px) !important;
+    transform: none;
+    gap: 4px !important;
+  }
+  .hud-lineage {
+    width: 170px;
+    max-width: 170px !important;
+    padding: 5px 6px !important;
+  }
+  .hud-lineage-title {
+    font-size: 10px;
+  }
+  .hud-lineage-branches {
+    font-size: 9px;
+  }
+  .hud-lineage-rail {
+    grid-template-columns: repeat(8, 14px) 32px;
+    gap: 2px;
+  }
+  .hud-lineage-rail i,
+  .hud-lineage-rail b {
+    height: 16px;
+    font-size: 8px;
+  }
+  .hud-slot-row {
+    max-width: 170px !important;
+    gap: 3px !important;
+  }
+  .hud-slot-row > div {
+    width: 25px !important;
+    height: 25px !important;
+    font-size: 13px !important;
+  }
+  .lineage-codex-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .levelup-card,
+  .hud-lineage-rail i,
+  .hud-lineage-rail b {
+    animation: none !important;
+    transition: none !important;
   }
 }
 

@@ -14,6 +14,7 @@ import { openSharePreview } from './shareCard';
 import type { SaveData } from '../core/save';
 import type { RunResult } from '../game/run';
 import type { Atlas } from '../gfx/atlas';
+import { HERO_SKILL_TREES, SUPPORT_WEAPON_IDS, branchFor, skillTreeFor } from '../data/skillTrees';
 
 // 결과 확정 시 App이 계산해 넘기는 공유/업적 정보.
 export interface ShareInfo {
@@ -245,7 +246,9 @@ export class Screens {
           card.appendChild(lock);
         }
         const wname = WEAPON_DEFS[h.startWeapon]?.name ?? h.startWeapon;
+        const tree = skillTreeFor(id);
         card.appendChild(el('div', 'hero-name', `${nameOf('hero', id, h.name)}<span class="hanja">${h.hanja}</span>`));
+        card.appendChild(el('div', 'hero-line', `${getLang() === 'en' ? 'Lineage' : '고유 계보'} <span class="k">${tree.lineage} ${tree.hanja}</span>`));
         card.appendChild(el('div', 'hero-line', `${t('weaponLabel')} <span class="k">${nameOf('weapon', h.startWeapon, wname)}</span>`));
         card.appendChild(el('div', 'hero-line', getLang() === 'en' ? HERO_BONUS_EN[id] ?? h.bonusText : h.bonusText));
         card.appendChild(el('div', 'hero-musou', this.musouText(id)));
@@ -270,23 +273,9 @@ export class Screens {
   }
 
   private musouText(id: string): string {
-    if (getLang() === 'en') return HERO_MUSOU_EN[id] ?? 'Musou';
-    const map: Record<string, string> = {
-      tanjiro: '무쌍 히노카미 카구라·원무 — 회전 태양 화염륜',
-      tomioka: '무쌍 나기(凪) — 거대 물 소용돌이 참격',
-      nezuko: '무쌍 폭혈 — 전화면 혈폭 + 혈염 장판',
-      kanroji: '무쌍 사랑의 호흡 — 유연한 채찍검 광역 난무',
-      shinobu: '무쌍 나비의 춤 — 전방위 독나비 폭풍',
-      kanao: '무쌍 피안주안 — 집중 참격과 방사 나비',
-      rengoku: '무쌍 염호 — 조종 가능 무적 화염 돌격',
-      zenitsu: '무쌍 벽력일섬·육련 — 번개 순보 연쇄 참격',
-      inosuke: '무쌍 저돌맹진 — 8방향 무적 이도류 돌진',
-      tokito: '무쌍 안개의 호흡 — 안개 순보 다중 참격',
-      uzui: '무쌍 음의 호흡 — 전화면 폭발 리듬 충격파',
-      sanemi: '무쌍 바람의 호흡 — 회오리 칼바람 참격',
-      himejima: '무쌍 바위의 호흡 — 전체 스턴 후 철구 강타',
-    };
-    return map[id] ?? '무쌍난무';
+    const u = skillTreeFor(id).ultimate;
+    if (getLang() === 'en') return `Ultimate ${u.name} ${u.hanja} — ${HERO_MUSOU_EN[id] ?? u.desc}`;
+    return `오의 ${u.name} ${u.hanja} — ${u.desc}`;
   }
 
   // ===== 결과 =====
@@ -330,14 +319,14 @@ export class Screens {
           .join(' · ');
         s.appendChild(el('div', 'ach-toast hero-unlock-toast', `${t('heroUnlockGet')} <b>${names}</b>`));
       }
-      // 신규 호흡법 해금 토스트 — 라벨만 언어별, 기술명 nameOf/한자 공통.
+      // 신규 공용 지원 장비 해금 토스트.
       if (share.newWeapons && share.newWeapons.length > 0) {
         const names = share.newWeapons
           .map((id) => (WEAPON_DEFS[id] ? `${nameOf('weapon', id, WEAPON_DEFS[id].name)} ${WEAPON_DEFS[id].hanja}` : null))
           .filter((x): x is string => !!x)
           .join(' · ');
         if (names) {
-          const label = getLang() === 'en' ? 'New breathing art unlocked' : '신규 호흡법 해금';
+          const label = getLang() === 'en' ? 'New support gear unlocked' : '신규 지원 장비 해금';
           s.appendChild(el('div', 'ach-toast weapon-unlock-toast', `${label} — <b>${names}</b>`));
         }
       }
@@ -371,6 +360,12 @@ export class Screens {
 
       // 빌드 요약 (이름 언어별)
       const bs = el('div', 'build-summary');
+      const resultTree = skillTreeFor(result.heroId);
+      bs.appendChild(el('div', 'build-chip lineage', `${resultTree.lineage} <b>${resultTree.hanja}</b>`));
+      for (const branchId of result.lineageBranches ?? []) {
+        const b = branchFor(result.heroId, branchId);
+        if (b) bs.appendChild(el('div', 'build-chip lineage', `${b.name} <b>${b.hanja}</b>`));
+      }
       for (const w of result.weapons) {
         bs.appendChild(el('div', 'build-chip w', `${nameOf('weapon', w.id, WEAPON_DEFS[w.id]?.name ?? w.id)} <b>Lv${w.level}</b>`));
       }
@@ -544,13 +539,45 @@ export class Screens {
     }
     wrap.appendChild(grid);
 
-    // 호흡법 도감 — 보유 기술 + 진화 비전.
+    // 캐릭터 고유 계보 — 다른 대원의 기술을 섞지 않고 형/분기/비전/오의를 한 줄로 읽는다.
     const en = getLang() === 'en';
-    wrap.appendChild(el('div', 'controls-hint', en ? 'Breathing Arts 呼吸法' : '호흡법 도감 呼吸法'));
+    wrap.appendChild(el('div', 'controls-hint', en ? 'Hero Lineages 系譜' : '캐릭터 고유 계보 系譜'));
+    const lineageGrid = el('div', 'lineage-codex-grid');
+    for (const heroId of HERO_ORDER) {
+      const hero = HEROES[heroId];
+      const tree = HERO_SKILL_TREES[heroId];
+      if (!hero || !tree) continue;
+      const cell = el('div', 'lineage-codex-cell');
+      cell.dataset.owner = heroId;
+      cell.style.setProperty('--lineage-accent', tree.accent);
+      cell.appendChild(el('div', 'lineage-codex-title', `${nameOf('hero', heroId, hero.name)} · ${tree.lineage} <span>${tree.hanja}</span>`));
+      const rail = el('div', 'lineage-form-rail');
+      tree.forms.forEach((node, i) => {
+        const n = el('div', 'lineage-form-node');
+        n.dataset.stage = String(i + 1);
+        n.appendChild(el('b', '', String(i + 1)));
+        n.appendChild(el('span', '', node.name));
+        n.title = `${node.name} ${node.hanja}`;
+        rail.appendChild(n);
+      });
+      cell.appendChild(rail);
+      const forks = el('div', 'lineage-forks');
+      for (const fork of tree.forks) {
+        forks.appendChild(el('div', '', `<b>제${fork.targetLevel}단계 분기</b> ${fork.branches[0].name} / ${fork.branches[1].name}`));
+      }
+      cell.appendChild(forks);
+      cell.appendChild(el('div', 'lineage-secret', `<b>秘傳</b> ${tree.secret.name} ${tree.secret.hanja}`));
+      cell.appendChild(el('div', 'lineage-ultimate', `<b>奧義</b> ${tree.ultimate.name} ${tree.ultimate.hanja}`));
+      lineageGrid.appendChild(cell);
+    }
+    wrap.appendChild(lineageGrid);
+
+    // 공용 지원 장비는 호흡법과 별도 분류한다.
+    wrap.appendChild(el('div', 'controls-hint', en ? 'Corps Support Gear 支援' : '귀살대 공용 지원 장비 支援'));
     const wpnGrid = el('div', 'wpn-grid');
-    for (const id in WEAPON_DEFS) {
+    for (const id of SUPPORT_WEAPON_IDS) {
       const d = WEAPON_DEFS[id];
-      if (d.evolution) continue; // 진화 무기는 아래 비전 섹션에서 레시피로
+      if (!d) continue;
       // 미해금 무기는 실루엣(???)+조건 텍스트로 노출(욕망 설계, DESIGN 13.1).
       const locked = WEAPON_UNLOCK_ORDER.includes(id) && !isWeaponUnlocked(id, save);
       const cell = el('div', locked ? 'wpn-cell locked' : 'wpn-cell');
@@ -565,15 +592,14 @@ export class Screens {
     }
     wrap.appendChild(wpnGrid);
 
-    // 진화 비전(레시피): 베이스 MAX + 파트너 패시브 → 진화 무기
+    // 비전 각성: 베이스 MAX + 두 계보 분기 → 캐릭터 고유 비전
     wrap.appendChild(el('div', 'controls-hint', en ? 'Evolutions 秘傳' : '진화 비전 秘傳'));
     const maxLabel = en ? 'MAX' : 'MAX';
     const evoGrid = el('div', 'wpn-grid');
     for (const rule of EVOLUTIONS) {
       const to = WEAPON_DEFS[rule.to];
       const from = WEAPON_DEFS[rule.from];
-      const pas = PASSIVE_BY_ID[rule.passive];
-      if (!to || !from || !pas) continue;
+      if (!to || !from) continue;
       const cell = el('div', 'wpn-cell evo');
       cell.appendChild(el('div', 'wpn-name', `${nameOf('weapon', rule.to, to.name)} <span class="wh">${to.hanja}</span>`));
       cell.appendChild(el('div', 'wpn-desc', en ? WEAPON_DESC_EN[rule.to] ?? to.desc : to.desc));
@@ -581,7 +607,7 @@ export class Screens {
         el(
           'div',
           'wpn-recipe',
-          `${nameOf('weapon', rule.from, from.name)} <b>${maxLabel}</b> + ${nameOf('passive', rule.passive, pas.name)}`,
+          `${nameOf('weapon', rule.from, from.name)} <b>${maxLabel}</b> + ${en ? '2 lineage forks' : '계보 분기 2개'}`,
         ),
       );
       evoGrid.appendChild(cell);
@@ -608,9 +634,11 @@ export class Screens {
 
     // 업적 목록 (이름/설명 언어별, 한자 공통)
     const earned = save.achievements ?? [];
-    wrap.appendChild(el('div', 'controls-hint', `${t('achSection')} (${earned.length}/${ACHIEVEMENTS.length})`));
+    const visibleAchievements = ACHIEVEMENTS.filter((a) => !a.legacy || earned.includes(a.id));
+    const visibleEarned = visibleAchievements.filter((a) => earned.includes(a.id)).length;
+    wrap.appendChild(el('div', 'controls-hint', `${t('achSection')} (${visibleEarned}/${visibleAchievements.length})`));
     const achGrid = el('div', 'ach-grid');
-    for (const a of ACHIEVEMENTS) {
+    for (const a of visibleAchievements) {
       const done = earned.includes(a.id);
       const aName = en ? ACH_EN[a.id]?.name ?? a.name : a.name;
       const aDesc = en ? ACH_EN[a.id]?.desc ?? a.desc : a.desc;

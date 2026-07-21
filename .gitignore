@@ -18,5 +18,6 @@ tests/*
 !tests/oni-visual.spec.ts
 !tests/oni-bot.spec.ts
 !tests/oni-balance.spec.ts
+!tests/oni-progression.spec.ts
 test-results/
 playwright-report/

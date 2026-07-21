@@ -64,7 +64,8 @@ async function snapshot(page: Page): Promise<BotSnapshot> {
 }
 
 test('WASD sweep advances the run, detects softlocks, and retries after defeat', async ({ page }, testInfo) => {
-  test.setTimeout(40_000);
+  // 전체 QA 병렬 부하에서도 결과 화면의 재출진까지 검증할 시간을 보장한다.
+  test.setTimeout(90_000);
   const runtime = watchRuntime(page);
   await page.goto('./', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.__THREE_GAME_DIAGNOSTICS__?.ready === true);

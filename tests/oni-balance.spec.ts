@@ -93,11 +93,12 @@ test('representative builds keep early and final boss TTK in readable envelopes'
   await page.waitForFunction(() => window.__THREE_GAME_DIAGNOSTICS__?.ready === true);
   await page.evaluate(() => window.__THREE_GAME_TEST_HOOKS__?.seed?.(20260720));
 
-  await prepare(page, [['spear', 4], ['crossbow', 3], ['baiyu', 2]], 180, 'enmu');
+  // 실제 탄지로 빌드: 고유 계보 + 귀살대 공용 지원 장비만 사용한다.
+  await prepare(page, [['spear', 4], ['orbit', 3], ['twinring', 2]], 180, 'enmu');
   const enmuTtk = await measureTtk(page, false, 70);
 
   await prepare(page, [
-    ['spear', 6], ['crossbow', 5], ['baiyu', 5], ['cavalry', 5], ['mist', 4], ['sound', 4],
+    ['hinokami', 8], ['orbit', 8], ['caltrop', 7], ['poison', 7], ['twinring', 7],
   ], 540, 'muzan');
   const muzanTtk = await measureTtk(page, true, 100);
 

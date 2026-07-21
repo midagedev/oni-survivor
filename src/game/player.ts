@@ -8,6 +8,7 @@ import { CELL_W } from '../data/spriteManifest';
 import { PASSIVE_BY_ID } from '../data/passives';
 import { RELIC_BY_ID, MASTERWORK_BY_ID } from '../data/relics';
 import type { MetaMods } from '../data/upgrades';
+import type { LineageModifiers } from '../data/skillTrees';
 
 export type BuffKind = 'attack' | 'speed' | 'musou';
 
@@ -26,6 +27,8 @@ export interface PlayerStats {
   rangeMul: number; // 사거리/투사체 속도
   areaMul: number; // 광역 효과 반경
   dmgTakenMul: number; // 받는 피해 배수 (여포)
+  musouPowerMul: number; // 고유 계보가 오의 피해에만 주는 배수
+  musouChargeMul: number; // 고유 계보가 오의 충전에만 주는 배수
 }
 
 const ANIM_FPS = 8;
@@ -59,6 +62,10 @@ export class Player {
   private relicIds: string[] = []; // 보유 저주 유물
   private masterworkIds: string[] = []; // 명기(양성, 보스 드랍 — 상한 없음)
   private curPassives: Record<string, number> = {}; // 마지막 재계산에 쓴 패시브(버프 만료 재계산용)
+  private lineage: LineageModifiers = {
+    damageMul: 1, cooldownMul: 1, speedMul: 1, maxHpMul: 1, rangeMul: 1, areaMul: 1,
+    dmgReduction: 0, projectileBonus: 0, musouPowerMul: 1, musouChargeMul: 1,
+  };
   private buffAttackT = 0; // 사당 공격 버프 잔여(초)
   private buffSpeedT = 0; // 사당 이속 버프 잔여
   private buffMusouT = 0; // 사당 무쌍충전 버프 잔여
@@ -166,6 +173,8 @@ export class Player {
       rangeMul: 1,
       areaMul: 1,
       dmgTakenMul: 1,
+      musouPowerMul: 1,
+      musouChargeMul: 1,
     };
     this.blockPx = hero.charIndex * 4 * CELL_W;
     this.resetStats({});
@@ -200,6 +209,12 @@ export class Player {
     this.meta = meta;
   }
 
+  // 런 안에서 선택한 캐릭터 고유 계보 분기. 전체를 다시 계산해 누적 곱 오차를 막는다.
+  setLineageModifiers(mods: LineageModifiers): void {
+    this.lineage = mods;
+    this.recomputeStats(this.curPassives);
+  }
+
   // 스탯을 장수 base로 리셋한 뒤 보유 패시브를 전부 재적용. 누적 드리프트 없음.
   resetStats(passives: Record<string, number>): void {
     this.curPassives = passives;
@@ -218,10 +233,20 @@ export class Player {
     s.rangeMul = h.rangeMul;
     s.areaMul = 1;
     s.dmgTakenMul = h.dmgTakenMul;
+    s.musouPowerMul = 1;
+    s.musouChargeMul = 1;
     for (const id in passives) {
       const def = PASSIVE_BY_ID[id];
       if (def) def.apply(s, passives[id]);
     }
+    const l = this.lineage;
+    // 공격 계열 분기 수치는 run이 서명 무기/비전에만 잠시 적용한다.
+    // 이동·생존·오의 계열만 플레이어 본체에 남겨 공용 지원 장비로 공격 보너스가 새지 않게 한다.
+    s.speedMul *= l.speedMul;
+    s.maxHpMul *= l.maxHpMul;
+    s.dmgReduction = Math.min(0.8, s.dmgReduction + l.dmgReduction);
+    s.musouPowerMul *= l.musouPowerMul;
+    s.musouChargeMul *= l.musouChargeMul;
     // 메타 강화는 base+패시브 위에 곱해진다(누적 드리프트 없음: 매번 base부터 재계산).
     if (this.meta) {
       s.damageMul *= this.meta.damageMul;

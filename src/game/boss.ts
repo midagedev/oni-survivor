@@ -309,7 +309,7 @@ export class Boss {
     } else if (this.dashState === 2) {
       this.dashT -= dt;
       ctx.particles.dust(en.x[i], en.z[i]); // 먼지 웨이브
-      if (Math.random() < 0.4) ctx.effects.spawnDecal?.(en.x[i], en.z[i], 2.6, 2.2, 0.9, 0.35);
+      if (ctx.rng.next() < 0.4) ctx.effects.spawnDecal?.(en.x[i], en.z[i], 2.6, 2.2, 0.9, 0.35);
       if (this.dashT <= 0) {
         this.dashState = 0;
         en.damage[i] = this.def!.contact;
@@ -340,7 +340,7 @@ export class Boss {
     const en = ctx.enemies;
     if (this.dashState === 2) {
       this.dashT -= dt;
-      if (Math.random() < 8 * dt) {
+      if (ctx.rng.next() < 8 * dt) {
         const a = ctx.rng.next() * Math.PI * 2;
         enemyProj.spawn(en.x[i], en.z[i], Math.cos(a), Math.sin(a), 8, 12, false, EK_LIGHTNING);
       }

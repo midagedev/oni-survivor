@@ -24,7 +24,7 @@ import { DecalPool } from '../gfx/decals';
 import { Player } from './player';
 import { EnemyPool, ENEMY_CAP, SHEET_SGRADE, SHEET_APRIORITY } from './enemies';
 import { Spawner } from './spawner';
-import { findNearestEnemy, SpatialHash } from './collision';
+import { findNearestEnemy, resetAimFrame, SpatialHash } from './collision';
 import { GemPool } from './pickups';
 import {
   PK_ARROW,
@@ -78,6 +78,16 @@ import { lordName, lordAppearLine, lordDeathLine, siegeQuestLine, siegeBanner } 
 import { factionNarration, hulaoNarration, minibossHail } from '../data/narration';
 import { LandmarkSystem, WATCHTOWER_RANGE_MUL, BEACON_ATTACK_MUL } from './landmarks';
 import { resolvedDamage } from './damagePolicy';
+import {
+  SUPPORT_WEAPON_IDS,
+  aggregateLineageModifiers,
+  branchFor,
+  signatureOwner,
+  skillTreeFor,
+  ultimateFor,
+  type LineageBranch,
+  type LineageModifiers,
+} from '../data/skillTrees';
 
 type State = 'attract' | 'play' | 'levelup' | 'paused' | 'dead' | 'victory';
 
@@ -98,6 +108,7 @@ export interface RunResult {
   masterworks: string[]; // 이번 런에서 획득한 명기 id (도감 이력 누적용)
   endless: boolean; // 무한 모드 진입 여부(10분 승리 후 계속 전투)
   canContinue: boolean; // 결과 화면에서 "계속 싸운다"(무한 진입) 가능 여부
+  lineageBranches: string[]; // 이번 런에서 선택한 캐릭터 고유 계보 분기
   luoyang: 'none' | 'captured' | 'held' | 'fallen'; // 무한성 결전 도달 결과(칭호 판정). siegeEvents 파생.
 }
 
@@ -105,9 +116,11 @@ export interface RunResult {
 export interface RunHooks {
   onEnd: (result: RunResult) => void; // 사망/승리 시
   onPause: () => void; // Esc 일시정지 → App이 메뉴 표시
+  onUltimateChanged?: (profile: ReturnType<typeof ultimateFor>) => void;
 }
 
-const MAX_WEAPONS = 6;
+// 고유 호흡 1칸 + 공용 지원 장비 4칸. 다른 대원의 기술은 절대 이 슬롯에 들어오지 않는다.
+const MAX_WEAPONS = 5;
 const MAX_PASSIVES = 6;
 const REROLL_COST = 50;
 const RUN_LENGTH = 600; // 10분
@@ -116,6 +129,7 @@ const BOULDER_MAX_HP = 120;
 type Choice =
   | { kind: 'newWeapon'; id: string }
   | { kind: 'upWeapon'; id: string }
+  | { kind: 'lineageBranch'; id: string; targetLevel: 3 | 6 }
   | { kind: 'newPassive'; id: string }
   | { kind: 'upPassive'; id: string }
   | { kind: 'relic'; id: string }
@@ -178,7 +192,9 @@ export class Run {
   private readonly treasure: TreasurePool;
   private weapons: Weapon[];
   private passives: Record<string, number> = {};
-  private availableWeapons: Set<string> | null = null; // 시작 풀 해금 필터(null=전체 허용)
+  private availableWeapons: Set<string> | null = null; // 공용 지원 장비 해금 필터(null=전체 허용)
+  private lineageBranches: string[] = [];
+  private lineageMods: LineageModifiers = aggregateLineageModifiers('tanjiro', []);
 
   private readonly combo: Combo;
   private readonly musou: Musou;
@@ -261,6 +277,7 @@ export class Run {
   private readonly damageFlash: HTMLDivElement;
   private curChoices: Choice[] = [];
   private readonly moveOut = { x: 0, z: 0 };
+  private readonly dashStepOut = { x: 0, z: 0 };
   private lastAttackWeapon = '';
   private lastAttackX = 0;
   private lastAttackZ = 1;
@@ -343,8 +360,9 @@ export class Run {
     );
     this.musou = new Musou(this.hero.id, () => {
       this.musouFreezeT = 1.2; // 1.2초 동안 일러스트 컷인을 위한 시간정지 연출 활성화
-      this.hud.banner('奧義 · 全集中', '#ffe9a8', 96, 1200, 3);
-      this.hud.musouCutin(this.hero);
+      const ultimate = ultimateFor(this.hero.id, this.lineageBranches);
+      this.hud.banner(`${ultimate.name} ${ultimate.hanja}`, ultimate.color, 72, 1200, 3);
+      this.hud.musouCutin(this.hero, ultimate);
       this.sayHero(2600);
       audio.sfx('musou');
     });
@@ -448,6 +466,11 @@ export class Run {
       particles: this.particles,
       stats: this.player.stats,
       rng,
+      lineageBranches: this.lineageBranches,
+      clearEnemyProjectiles: (x: number, z: number, radius: number) =>
+        this.enemyProj.clearInRadius(x, z, radius),
+      resolveMovement: (fromX, fromZ, toX, toZ, radius, out) =>
+        this.resolveDashPath(fromX, fromZ, toX, toZ, radius, out),
       onKill: (i: number) => this.handleKill(i),
       onAttack: (weaponId: string, dirX: number, dirZ: number) => {
         this.lastAttackWeapon = weaponId;
@@ -671,6 +694,7 @@ export class Run {
     this.hero = h;
     this.player.setHero(h);
     this.musou.setHero(h.id);
+    this.hud.setUltimate(ultimateFor(h.id));
   }
 
   // 타이틀/선택/상점 배경용 어트랙트 모드(적 없이 지면+반딧불만, 플레이어 숨김).
@@ -750,7 +774,11 @@ export class Run {
 
   private restart(): void {
     this.resetPools();
+    resetAimFrame();
     this.passives = {};
+    this.lineageBranches = [];
+    this.lineageMods = aggregateLineageModifiers(this.hero.id, this.lineageBranches);
+    this.player.setLineageModifiers(this.lineageMods);
     this.player.reset(this.passives);
     this.player.mesh.visible = true;
     this.weapons = [createWeapon(this.hero.startWeapon)];
@@ -793,14 +821,32 @@ export class Run {
 
   // 좌상단 무기/패시브 슬롯 바 갱신 (변경 시에만 호출).
   private refreshLoadout(): void {
+    const tree = skillTreeFor(this.hero.id);
     const wv: SlotView[] = [];
     for (const w of this.weapons) {
-      wv.push({ id: w.id, glyph: (WEAPON_DEFS[w.id]?.hanja ?? '?')[0], level: w.level, accent: '#e8c667' });
+      const signature = w.id === tree.signatureWeapon || w.id === tree.secret.weaponId;
+      wv.push({
+        id: w.id,
+        glyph: (WEAPON_DEFS[w.id]?.hanja ?? '?')[0],
+        level: w.level,
+        accent: signature ? tree.accent : '#8bc7b5',
+        label: signature ? tree.lineage : WEAPON_DEFS[w.id]?.name,
+      });
     }
     const pv: SlotView[] = [];
     for (const id in this.passives) {
       pv.push({ id, glyph: (PASSIVE_BY_ID[id]?.hanja ?? '?')[0], level: this.passives[id], accent: '#7ec8ff' });
     }
+    const base = this.weapons.find((w) => w.id === tree.signatureWeapon);
+    const secretReady = this.weapons.some((w) => w.id === tree.secret.weaponId);
+    const chosenNames = this.lineageBranches
+      .map((id) => branchFor(this.hero.id, id)?.name)
+      .filter((x): x is string => !!x);
+    this.hud.setLineage(tree.lineage, tree.hanja, secretReady ? 8 : (base?.level ?? 8), secretReady, tree.accent, chosenNames);
+    const ultimate = ultimateFor(this.hero.id, this.lineageBranches);
+    this.musou.setLineageBranches(this.lineageBranches);
+    this.hud.setUltimate(ultimate);
+    this.hooks.onUltimateChanged?.(ultimate);
     this.hud.setLoadout(wv, pv);
   }
 
@@ -909,7 +955,7 @@ export class Run {
     const gdt = dt * this.timeScale;
     const edt = gdt * this.musou.enemyTimeScale; // 적 전용 dt (무쌍 슬로우)
     this.frameKills = 0;
-    this.musou.chargeMul = this.player.musouBuffed ? 2 : 1; // 사당 '무쌍 충전' 버프
+    this.musou.chargeMul = (this.player.musouBuffed ? 2 : 1) * this.player.stats.musouChargeMul;
 
     // === 시뮬레이션 ===
     this.gameTime += gdt;
@@ -1030,6 +1076,7 @@ export class Run {
     this.ctx.pz = this.player.z;
     this.ctx.faceX = this.player.faceX;
     this.ctx.faceZ = this.player.faceZ;
+    this.ctx.lineageBranches = this.lineageBranches;
 
     // 보스 패턴 (적 dt)
     this.ctx.dt = edt;
@@ -1081,7 +1128,29 @@ export class Run {
     if (this.landmarks.beaconBuffActive()) {
       this.player.stats.damageMul = savedDamageMul * BEACON_ATTACK_MUL;
     }
-    for (let i = 0; i < this.weapons.length; i++) this.weapons[i].update(this.ctx);
+    const tree = skillTreeFor(this.hero.id);
+    const activeDamageMul = this.player.stats.damageMul;
+    const activeRangeMul = this.player.stats.rangeMul;
+    const activeCooldownMul = this.player.stats.cooldownMul;
+    const activeAreaMul = this.player.stats.areaMul;
+    const activeProjectileBonus = this.player.stats.projectileBonus;
+    for (let i = 0; i < this.weapons.length; i++) {
+      const weapon = this.weapons[i];
+      const isSignature = weapon.id === tree.signatureWeapon || weapon.id === tree.secret.weaponId;
+      if (isSignature) {
+        this.player.stats.damageMul = activeDamageMul * this.lineageMods.damageMul;
+        this.player.stats.rangeMul = activeRangeMul * this.lineageMods.rangeMul;
+        this.player.stats.cooldownMul = activeCooldownMul * this.lineageMods.cooldownMul;
+        this.player.stats.areaMul = activeAreaMul * this.lineageMods.areaMul;
+        this.player.stats.projectileBonus = activeProjectileBonus + this.lineageMods.projectileBonus;
+      }
+      weapon.update(this.ctx);
+      this.player.stats.damageMul = activeDamageMul;
+      this.player.stats.rangeMul = activeRangeMul;
+      this.player.stats.cooldownMul = activeCooldownMul;
+      this.player.stats.areaMul = activeAreaMul;
+      this.player.stats.projectileBonus = activeProjectileBonus;
+    }
     this.player.stats.rangeMul = savedRangeMul;
     this.player.stats.damageMul = savedDamageMul;
     this.projectiles.update(
@@ -1137,13 +1206,6 @@ export class Run {
     const preMusouX = this.player.x;
     const preMusouZ = this.player.z;
     if (this.musou.update(dt, this.ctx, this.player)) this.cinematics.onMusouEnd();
-    // 기유의 잔잔한 물결(凪): 무쌍 중 9.5m 반경 내 모든 적 투사체 소멸 및 푸른 시각 표식 생성
-    if (this.musou.active && this.hero.id === 'tomioka') {
-      this.enemyProj.clearInCircle(this.player.x, this.player.z, 9.5, this.particles);
-      if (Math.random() < 3.5 * dt) {
-        this.effects.spawnTelegraph(0, this.player.x, this.player.z, 0, 19, 19, 0, 0.45); // 0 = TG_CIRCLE
-      }
-    }
     this.map.resolveMovement(
       preMusouX, preMusouZ, this.player.x, this.player.z, this.player.radius, this.moveOut,
     );
@@ -1898,6 +1960,38 @@ export class Run {
     this.gateRushHorizontal = gate.horizontal;
   }
 
+  // 오의 순보/돌진은 0.7m 이하 구간으로 나눠 성벽·봉쇄문을 통과하지 못하게 한다.
+  private resolveDashPath(
+    fromX: number,
+    fromZ: number,
+    toX: number,
+    toZ: number,
+    radius: number,
+    out: { x: number; z: number },
+  ): boolean {
+    const dx = toX - fromX;
+    const dz = toZ - fromZ;
+    const distance = Math.hypot(dx, dz);
+    const steps = Math.max(1, Math.ceil(distance / 0.7));
+    let x = fromX;
+    let z = fromZ;
+    for (let step = 1; step <= steps; step++) {
+      const targetX = fromX + dx * (step / steps);
+      const targetZ = fromZ + dz * (step / steps);
+      const hit = this.map.resolveMovement(x, z, targetX, targetZ, radius, this.dashStepOut);
+      x = this.dashStepOut.x;
+      z = this.dashStepOut.z;
+      if (hit) {
+        out.x = x;
+        out.z = z;
+        return true;
+      }
+    }
+    out.x = x;
+    out.z = z;
+    return false;
+  }
+
   private readonly onCollect = (value: number): void => {
     const feverMul = this.combo.fever ? 1.5 : 1; // 콤보 피버 시 XP 1.5배
     this.xp += value * this.player.stats.xpMul * feverMul;
@@ -1951,9 +2045,11 @@ export class Run {
   // 진화 가능하면 실행하고 진화 무기 이름 반환, 아니면 null.
   private tryEvolve(): string | null {
     for (const rule of EVOLUTIONS) {
+      if (rule.heroId !== this.hero.id) continue;
       const w = this.weapons.find((x) => x.id === rule.from);
       if (!w || w.level < 8) continue;
-      if ((this.passives[rule.passive] ?? 0) < 1) continue;
+      const tree = skillTreeFor(this.hero.id);
+      if (!tree.forks.every((fork) => fork.branches.some((b) => this.lineageBranches.includes(b.id)))) continue;
       if (this.weapons.some((x) => x.id === rule.to)) continue;
       const idx = this.weapons.indexOf(w);
       this.weapons[idx] = createWeapon(rule.to);
@@ -1979,10 +2075,11 @@ export class Run {
   private openCards(): void {
     this.curChoices = this.buildChoices();
     const views = this.curChoices.map((c) => this.cardView(c));
+    const mandatoryFork = this.curChoices.length === 2 && this.curChoices.every((c) => c.kind === 'lineageBranch');
     this.levelup.open(
       views,
       Math.floor(this.gold),
-      !this.rerolledThisLevel && this.gold >= REROLL_COST,
+      !mandatoryFork && !this.rerolledThisLevel && this.gold >= REROLL_COST,
       (i) => this.pickCard(i),
       () => this.reroll(),
     );
@@ -1996,9 +2093,24 @@ export class Run {
   }
 
   private buildChoices(): Choice[] {
+    const tree = skillTreeFor(this.hero.id);
+    const signature = this.weapons.find((w) => w.id === tree.signatureWeapon);
+
+    // Lv3/Lv6은 무작위 카드가 아니라 캐릭터 전용 2갈래 수련을 반드시 선택한다.
+    // 선택 자체가 해당 단계의 형 습득이므로 별도의 업그레이드 카드를 중복 소비하지 않는다.
+    if (signature && signature.level < 8) {
+      const fork = tree.forks.find((f) => f.targetLevel === signature.level + 1);
+      const chosen = fork?.branches.some((b) => this.lineageBranches.includes(b.id));
+      if (fork && !chosen) {
+        return fork.branches.map((b) => ({ kind: 'lineageBranch', id: b.id, targetLevel: fork.targetLevel }));
+      }
+    }
+
     const pool: Choice[] = [];
     for (const w of this.weapons) {
-      if (w.level < 8 && WEAPON_DEFS[w.id] && !WEAPON_DEFS[w.id].evolution) {
+      const isSignature = w.id === tree.signatureWeapon;
+      const isSupport = (SUPPORT_WEAPON_IDS as readonly string[]).includes(w.id);
+      if ((isSignature || isSupport) && w.level < 8 && WEAPON_DEFS[w.id] && !WEAPON_DEFS[w.id].evolution) {
         pool.push({ kind: 'upWeapon', id: w.id });
       }
     }
@@ -2007,9 +2119,7 @@ export class Run {
       if (def && this.passives[id] < def.maxLevel) pool.push({ kind: 'upPassive', id });
     }
     if (this.weapons.length < MAX_WEAPONS) {
-      for (const id in WEAPON_DEFS) {
-        const def = WEAPON_DEFS[id];
-        if (def.evolution) continue;
+      for (const id of SUPPORT_WEAPON_IDS) {
         if (this.availableWeapons && !this.availableWeapons.has(id)) continue; // 미해금 무기 제외
         if (this.weapons.some((w) => w.id === id)) continue;
         pool.push({ kind: 'newWeapon', id });
@@ -2049,52 +2159,93 @@ export class Run {
       if (relic) out[rng.int(out.length)] = { kind: 'relic', id: relic.id };
       this.forceRelicNext = false;
     }
+    // 유물 교체 이후에도 고유 형 성장 한 장은 반드시 남긴다.
+    const signatureUpgrade = pool.find((c) => c.kind === 'upWeapon' && c.id === tree.signatureWeapon);
+    if (signatureUpgrade && !out.some((c) => c.kind === 'upWeapon' && c.id === tree.signatureWeapon)) {
+      const replace = out.findIndex((c) => c.kind !== 'relic');
+      out[replace >= 0 ? replace : out.length - 1] = signatureUpgrade;
+    }
     return out;
   }
 
   private cardView(c: Choice): CardView {
     const en = getLang() === 'en';
+    const tree = skillTreeFor(this.hero.id);
+    if (c.kind === 'lineageBranch') {
+      const b = branchFor(this.hero.id, c.id) as LineageBranch;
+      const form = tree.forms[c.targetLevel - 1];
+      return {
+        title: b.name,
+        hanja: b.hanja,
+        desc: `${b.desc} ${b.effect}`,
+        tag: `고유 계보 · 제${c.targetLevel}단계`,
+        accent: tree.accent,
+        symbol: b.hanja[0],
+        badge: '분기',
+        rare: true,
+        kind: 'branch',
+        ownerHeroId: this.hero.id,
+        lineage: `${this.hero.name} · ${tree.lineage}`,
+        form: form.name,
+        mastery: `형 ${c.targetLevel}/8 · 선택 후 되돌릴 수 없음`,
+        visionHint: `비전 ${tree.secret.hanja}까지 ${8 - c.targetLevel}단계`,
+      };
+    }
     if (c.kind === 'newWeapon') {
       const d = WEAPON_DEFS[c.id];
-      return { title: nameOf('weapon', c.id, d.name), hanja: d.hanja, desc: en ? WEAPON_DESC_EN[c.id] ?? d.desc : d.desc, tag: `${t('catWeapon')} · ${t('tagNew')}`, accent: '#e8c667', symbol: d.hanja[0], badge: t('tagNew'), count: `${en ? 'Weapons' : '무기'} ${this.weapons.length}/${MAX_WEAPONS}` };
+      return { title: nameOf('weapon', c.id, d.name), hanja: d.hanja, desc: en ? WEAPON_DESC_EN[c.id] ?? d.desc : d.desc, tag: `${en ? 'Support gear' : '공용 보조 장비'} · ${t('tagNew')}`, accent: '#8bc7b5', symbol: d.hanja[0], badge: t('tagNew'), count: `${en ? 'Gear' : '장비'} ${this.weapons.length - 1}/${MAX_WEAPONS - 1}`, kind: 'support' };
     }
     if (c.kind === 'upWeapon') {
       const d = WEAPON_DEFS[c.id];
       const w = this.weapons.find((x) => x.id === c.id)!;
       const willMax = w.level + 1 >= 8;
-      // 진화 임박 힌트(DESIGN 13.3): MAX 도달 시 파트너 패시브 보유 여부로 레시피 노출
+      const signature = c.id === tree.signatureWeapon;
+      const nextForm = signature ? tree.forms[w.level] : undefined;
+      // Lv8 완전 숙련 뒤에는 랜덤 패시브 없이 계보 완성만으로 비전을 각성한다.
       let evoHint: string | undefined;
       if (willMax) {
-        const rule = EVOLUTIONS.find((r) => r.from === c.id);
+        const rule = EVOLUTIONS.find((r) => r.heroId === this.hero.id && r.from === c.id);
         if (rule && !this.weapons.some((x) => x.id === rule.to)) {
-          const pName = nameOf('passive', rule.passive, PASSIVE_BY_ID[rule.passive]?.name ?? rule.passive);
-          const hasPartner = (this.passives[rule.passive] ?? 0) >= 1;
-          evoHint = hasPartner
-            ? (en ? 'Evolution ready · elite chest 進化' : '進化 준비 완료 · 정예 보물상자')
-            : (en ? `Evolve soon · needs ${pName} 進化` : `進化 임박 · ${pName} 필요`);
+          evoHint = en
+            ? 'Secret Art ready · open a treasure chest 秘傳'
+            : '秘傳 각성 준비 완료 · 보물상자에서 개화';
         }
       }
       return {
-        title: nameOf('weapon', c.id, d.name),
-        hanja: d.hanja,
-        desc: en ? WEAPON_DESC_EN[c.id] ?? d.desc : d.desc,
-        tag: `${t('catWeapon')} ${willMax ? t('tagMax') : t('tagUp')} Lv${w.level}→${w.level + 1}`,
-        accent: '#e8a94a',
-        symbol: d.hanja[0],
+        title: nextForm?.name ?? nameOf('weapon', c.id, d.name),
+        hanja: nextForm?.hanja ?? d.hanja,
+        desc: signature
+          ? `${d.desc} · 계보 숙련으로 피해·사거리·타이밍이 함께 성장합니다.`
+          : (en ? WEAPON_DESC_EN[c.id] ?? d.desc : d.desc),
+        tag: signature
+          ? `고유 형 ${willMax ? '완성' : '습득'} · Lv${w.level}→${w.level + 1}`
+          : `${en ? 'Support gear' : '보조 장비'} ${willMax ? t('tagMax') : t('tagUp')} Lv${w.level}→${w.level + 1}`,
+        accent: signature ? tree.accent : '#8bc7b5',
+        symbol: (nextForm?.hanja ?? d.hanja)[0],
         badge: willMax ? t('tagMax') : t('tagUp'),
         rare: willMax, // Lv8 도달 → 진화 조건 근접 강조
-        count: `${en ? 'Weapons' : '무기'} ${this.weapons.length}/${MAX_WEAPONS}`,
+        count: signature ? undefined : `${en ? 'Gear' : '장비'} ${this.weapons.length - 1}/${MAX_WEAPONS - 1}`,
         evoHint,
+        kind: signature ? 'lineage' : 'support',
+        ownerHeroId: signature ? this.hero.id : undefined,
+        lineage: signature ? `${this.hero.name} · ${tree.lineage}` : undefined,
+        form: signature ? nextForm?.name : undefined,
+        mastery: signature ? `형 ${w.level + 1}/8` : undefined,
+        visionHint: signature
+          ? (willMax
+            ? `비전 ${tree.secret.hanja} · 보물상자에서 각성`
+            : `비전 ${tree.secret.hanja}까지 ${8 - (w.level + 1)}단계`)
+          : undefined,
       };
     }
     if (c.kind === 'newPassive') {
       const d = PASSIVE_BY_ID[c.id];
-      return { title: nameOf('passive', c.id, d.name), hanja: d.hanja, desc: d.desc(1), tag: `${t('catPassive')} · ${t('tagNew')}`, accent: '#7ec8ff', symbol: d.hanja[0], badge: t('tagNew'), rare: d.rare, count: `${en ? 'Passives' : '패시브'} ${Object.keys(this.passives).length}/${MAX_PASSIVES}` };
+      return { title: nameOf('passive', c.id, d.name), hanja: d.hanja, desc: d.desc(1), tag: `${en ? 'Total Concentration training' : '전집중 수련'} · ${t('tagNew')}`, accent: '#7ec8ff', symbol: d.hanja[0], badge: t('tagNew'), rare: d.rare, count: `${en ? 'Training' : '수련'} ${Object.keys(this.passives).length}/${MAX_PASSIVES}`, kind: 'training' };
     }
     if (c.kind === 'upPassive') {
       const d = PASSIVE_BY_ID[c.id];
       const lvl = this.passives[c.id];
-      return { title: nameOf('passive', c.id, d.name), hanja: d.hanja, desc: d.desc(lvl + 1), tag: `${t('catPassive')} ${t('tagUp')} Lv${lvl}→${lvl + 1}`, accent: '#7ec8ff', symbol: d.hanja[0], badge: t('tagUp'), rare: d.rare, count: `${en ? 'Passives' : '패시브'} ${Object.keys(this.passives).length}/${MAX_PASSIVES}` };
+      return { title: nameOf('passive', c.id, d.name), hanja: d.hanja, desc: d.desc(lvl + 1), tag: `${en ? 'Total Concentration training' : '전집중 수련'} ${t('tagUp')} Lv${lvl}→${lvl + 1}`, accent: '#7ec8ff', symbol: d.hanja[0], badge: t('tagUp'), rare: d.rare, count: `${en ? 'Training' : '수련'} ${Object.keys(this.passives).length}/${MAX_PASSIVES}`, kind: 'training' };
     }
     if (c.kind === 'relic') {
       const d = RELIC_BY_ID[c.id];
@@ -2136,6 +2287,20 @@ export class Run {
     } else if (c.kind === 'upWeapon') {
       const w = this.weapons.find((x) => x.id === c.id);
       if (w) w.level = Math.min(8, w.level + 1);
+    } else if (c.kind === 'lineageBranch') {
+      const tree = skillTreeFor(this.hero.id);
+      const valid = tree.forks.some((fork) =>
+        fork.targetLevel === c.targetLevel && fork.branches.some((b) => b.id === c.id),
+      );
+      const w = this.weapons.find((x) => x.id === tree.signatureWeapon);
+      if (valid && w && w.level + 1 === c.targetLevel && !this.lineageBranches.includes(c.id)) {
+        this.lineageBranches.push(c.id);
+        w.level = c.targetLevel;
+        this.lineageMods = aggregateLineageModifiers(this.hero.id, this.lineageBranches);
+        this.player.setLineageModifiers(this.lineageMods);
+        const b = branchFor(this.hero.id, c.id);
+        if (b) this.hud.banner(`${b.name} ${b.hanja}`, tree.accent, 48, 1500, 1);
+      }
     } else if (c.kind === 'newPassive') {
       this.passives[c.id] = 1;
       this.player.recomputeStats(this.passives);
@@ -2242,6 +2407,7 @@ export class Run {
       masterworks: [...this.masterworkIds],
       endless: this.endless,
       canContinue: victory && !this.endless && this.bossesKilled.has('muzan'),
+      lineageBranches: [...this.lineageBranches],
       luoyang:
         this.siegeEvents.defended > 0 ? 'held'
         : this.siegeEvents.lost > 0 ? 'fallen'
@@ -2258,6 +2424,16 @@ export class Run {
   testGiveWeapon(id: string, level = 8): void {
     if (!WEAPON_DEFS[id]) return;
     const targetLevel = Math.max(1, Math.min(8, Math.round(level)));
+    const tree = skillTreeFor(this.hero.id);
+    if (id === tree.secret.weaponId && signatureOwner(id) === this.hero.id) {
+      const baseIdx = this.weapons.findIndex((x) => x.id === tree.signatureWeapon);
+      const evolved = createWeapon(id);
+      evolved.level = targetLevel;
+      if (baseIdx >= 0) this.weapons[baseIdx] = evolved;
+      else this.weapons.unshift(evolved);
+      this.refreshLoadout();
+      return;
+    }
     const w = this.weapons.find((x) => x.id === id);
     if (w) {
       w.level = targetLevel;
@@ -2476,6 +2652,21 @@ export class Run {
       goldEarned: Math.floor(this.goldEarned),
       maxCombo: this.maxCombo,
       hero: this.hero.id,
+      lineage: {
+        id: skillTreeFor(this.hero.id).lineage,
+        branches: [...this.lineageBranches],
+        signatureWeapon: skillTreeFor(this.hero.id).signatureWeapon,
+        musouPowerMul: this.player.stats.musouPowerMul,
+        musouChargeMul: this.player.stats.musouChargeMul,
+      },
+      weaponProgress: this.weapons.map((w) => ({ id: w.id, level: w.level })),
+      currentChoices: this.curChoices.map((c) => ({
+        ...c,
+        ownerHeroId:
+          c.kind === 'lineageBranch' || (c.kind === 'upWeapon' && c.id === skillTreeFor(this.hero.id).signatureWeapon)
+            ? this.hero.id
+            : null,
+      })),
       alive: this.enemies.aliveCount,
       worldProps: this.world.visibleProps,
       worldObjects: this.objects.visibleCount,
@@ -2516,6 +2707,9 @@ export class Run {
       weapons: this.weapons.map((w) => `${w.id}:${w.level}`),
       passives: { ...this.passives },
       musou: this.musou.gauge,
+      musouActive: this.musou.active,
+      musouDamage: this.musou.lastCastDamage,
+      musouFinishers: this.musou.finisherCount,
       bossActive: this.boss.active,
       bossHp01: this.boss.hpFrac(this.ctx), // #47 QA: 보스 HP 비율(직접 DPS 측정용)
       bossX: this.boss.idx >= 0 ? this.enemies.x[this.boss.idx] : 0,

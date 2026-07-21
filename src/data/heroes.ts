@@ -17,7 +17,6 @@ export interface HeroDef {
   dmgTakenMul: number; // 받는 피해 배수
   startWeapon: string;
   bonusText: string; // 고유 보너스 설명(UI)
-  musou: string; // 무쌍난무 종류 키
 }
 
 export const HEROES: Record<string, HeroDef> = {
@@ -38,7 +37,6 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'spear',
     bonusText: '이동속도 +10%',
-    musou: 'rengoku',
   },
   tomioka: {
     id: 'tomioka',
@@ -57,7 +55,6 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'guandao',
     bonusText: '공격력 +12%',
-    musou: 'tomioka',
   },
   nezuko: {
     id: 'nezuko',
@@ -76,7 +73,6 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'fire',
     bonusText: '최대체력 +15%',
-    musou: 'nezuko',
   },
   kanroji: {
     id: 'kanroji',
@@ -95,7 +91,6 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'love',
     bonusText: '이동속도 +5% & 공격력 +8%',
-    musou: 'kanroji',
   },
   shinobu: {
     id: 'shinobu',
@@ -114,7 +109,6 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'crossbow',
     bonusText: '사거리 +15% & 쿨다운 -5%',
-    musou: 'shinobu',
   },
   kanao: {
     id: 'kanao',
@@ -133,7 +127,6 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'baiyu',
     bonusText: '사거리 +12% & 이동속도 +10%',
-    musou: 'kanao',
   },
   rengoku: {
     id: 'rengoku',
@@ -152,7 +145,6 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1.12,
     startWeapon: 'cavalry',
     bonusText: '공격력 +28%, 받는 피해 +12%',
-    musou: 'rengoku',
   },
   zenitsu: {
     id: 'zenitsu',
@@ -171,7 +163,6 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'thunder',
     bonusText: '이동속도 +12% & 쿨다운 -8%',
-    musou: 'tanjiro',
   },
   inosuke: {
     id: 'inosuke',
@@ -190,7 +181,6 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'zhangba',
     bonusText: '공격력 +12% & 최대체력 +5%',
-    musou: 'tanjiro',
   },
   tokito: {
     id: 'tokito',
@@ -209,7 +199,6 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'mist',
     bonusText: '쿨다운 -10% & 공격력 +8%',
-    musou: 'tomioka',
   },
   uzui: {
     id: 'uzui',
@@ -228,7 +217,6 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'sound',
     bonusText: '이동속도 +10% & 공격력 +8%',
-    musou: 'nezuko',
   },
   sanemi: {
     id: 'sanemi',
@@ -247,7 +235,6 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 1,
     startWeapon: 'wind',
     bonusText: '공격력 +15% & 이동속도 +5%',
-    musou: 'tomioka',
   },
   himejima: {
     id: 'himejima',
@@ -266,6 +253,5 @@ export const HEROES: Record<string, HeroDef> = {
     dmgTakenMul: 0.92,
     startWeapon: 'stone',
     bonusText: '최대체력 +15% & 받는 피해 -8%',
-    musou: 'nezuko',
   },
 };

@@ -1,4 +1,5 @@
 import type { Input } from '../core/input';
+import type { UltimateProfile } from '../data/skillTrees';
 
 // 모바일 터치 컨트롤: 좌측 플로팅 가상 조이스틱 + 우측 무쌍 버튼.
 // 조이스틱은 터치 시작점 기준으로 떠오르고(반경 60px·데드존 10%), Input.joy에 축을 쓴다.
@@ -18,6 +19,8 @@ export class Joystick {
   private readonly knob: HTMLDivElement;
   private readonly musouBtn: HTMLDivElement;
   private readonly musouRing: HTMLDivElement;
+  private readonly musouGlyph: HTMLSpanElement;
+  private readonly musouLabel: HTMLSpanElement;
   private readonly pauseBtn: HTMLButtonElement;
   private movePointer = -1;
   private startX = 0;
@@ -118,9 +121,11 @@ export class Joystick {
       'line-height:1',
     ].join(';');
     const coreGlyph = document.createElement('span');
+    this.musouGlyph = coreGlyph;
     coreGlyph.textContent = '극';
     coreGlyph.style.cssText = 'font-size:24px;font-weight:800;text-shadow:0 0 8px rgba(232,198,103,0.45)';
     const coreLabel = document.createElement('span');
+    this.musouLabel = coreLabel;
     coreLabel.textContent = '필살';
     coreLabel.style.cssText = 'margin-top:3px;font-size:11px;font-weight:700;letter-spacing:2px';
     core.append(coreGlyph, coreLabel);
@@ -202,6 +207,16 @@ export class Joystick {
     this.musouBtn.style.display = v ? 'flex' : 'none';
     this.pauseBtn.style.display = v ? 'flex' : 'none';
     if (!v) this.endMove();
+  }
+
+  setUltimate(ultimate: UltimateProfile): void {
+    const label = `오의 ${ultimate.name} ${ultimate.hanja}`;
+    this.musouBtn.setAttribute('aria-label', label);
+    this.musouBtn.title = label;
+    this.musouGlyph.textContent = ultimate.crest;
+    this.musouGlyph.style.color = ultimate.color;
+    this.musouLabel.textContent = ultimate.name.replace(/^(오의|제\d+형)\s*[·:：]?\s*/, '').slice(0, 7);
+    this.musouLabel.style.color = ultimate.color;
   }
 
   // 무쌍 게이지 갱신 (0..100, ready).
