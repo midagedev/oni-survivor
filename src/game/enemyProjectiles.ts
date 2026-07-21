@@ -231,6 +231,23 @@ export class EnemyProjectilePool {
     return counts;
   }
 
+  // 나기 같은 방어형 고유 기술이 일정 반경의 적 투사체만 지운다.
+  // 제거 슬롯은 즉시 free-list로 돌려 풀 누수를 막는다.
+  clearInRadius(cx: number, cz: number, radius: number): number {
+    const r2 = radius * radius;
+    let cleared = 0;
+    for (let i = 0; i < CAP; i++) {
+      if (this.alive[i] === 0) continue;
+      const dx = this.x[i] - cx;
+      const dz = this.z[i] - cz;
+      if (dx * dx + dz * dz > r2) continue;
+      this.alive[i] = 0;
+      this.free[this.freeTop++] = i;
+      cleared++;
+    }
+    return cleared;
+  }
+
   reset(): void {
     this.alive.fill(0);
     for (let i = 0; i < CAP; i++) this.free[i] = CAP - 1 - i;

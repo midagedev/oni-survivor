@@ -25,7 +25,7 @@ export default defineConfig({
   projects: [
     {
       name: 'desktop',
-      testMatch: /oni-(visual|bot|balance)\.spec\.ts/,
+      testMatch: /oni-(visual|bot|balance|progression)\.spec\.ts/,
       use: {
         browserName: 'chromium',
         viewport: { width: 1440, height: 900 },
@@ -34,7 +34,7 @@ export default defineConfig({
     },
     {
       name: 'mobile',
-      testMatch: /oni-visual\.spec\.ts/,
+      testMatch: /oni-(visual|progression)\.spec\.ts/,
       use: {
         browserName: 'chromium',
         viewport: { width: 390, height: 844 },

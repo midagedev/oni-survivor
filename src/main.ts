@@ -18,6 +18,7 @@ import { isHeroUnlocked, unlockedHeroIds } from './data/heroUnlocks';
 import { unlockedWeaponIds, isWeaponUnlocked } from './data/weaponUnlocks';
 import { WEAPON_DEFS } from './data/weapons';
 import { rng } from './core/rng';
+import { SUPPORT_WEAPON_IDS, skillTreeFor } from './data/skillTrees';
 
 type Scene = 'title' | 'select' | 'run' | 'result' | 'shop' | 'pause';
 
@@ -52,6 +53,7 @@ loadAtlas()
       {
         onEnd: (result) => onRunEnd(result),
         onPause: () => onPause(),
+        onUltimateChanged: (profile) => joystick.setUltimate(profile),
       },
       touch,
     );
@@ -95,9 +97,9 @@ loadAtlas()
       audio.playBgm('title');
       screens.showShop(save, tab);
     }
-    // isWeaponUnlocked는 미게이트 무기에 기본 true → 기본 풀 + 해금분 = 시작 풀
-    function availableStartWeapons(s: SaveData): string[] {
-      return Object.keys(WEAPON_DEFS).filter((id) => !WEAPON_DEFS[id].evolution && isWeaponUnlocked(id, s));
+    // 다른 대원의 호흡은 런 풀로 넘기지 않고, 해금된 귀살대 지원 장비만 전달한다.
+    function availableSupportWeapons(s: SaveData): string[] {
+      return SUPPORT_WEAPON_IDS.filter((id) => !!WEAPON_DEFS[id] && isWeaponUnlocked(id, s));
     }
     function startRun(heroId: string, bypassUnlock = false): void {
       if (!bypassUnlock && !isHeroUnlocked(heroId, save)) return;
@@ -105,7 +107,8 @@ loadAtlas()
       lastResult = null;
       scene = 'run';
       screens.hide();
-      run.beginRun(heroId, computeMeta(save.upgrades), availableStartWeapons(save));
+      run.beginRun(heroId, computeMeta(save.upgrades), availableSupportWeapons(save));
+      joystick.setUltimate(skillTreeFor(heroId).ultimate);
       joystick.setVisible(touch);
     }
     function onRunEnd(result: RunResult): void {

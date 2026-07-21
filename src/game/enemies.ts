@@ -6,7 +6,7 @@ import { SpatialHash } from './collision';
 import { EK_ARROW, EK_STRATEGIST, type EnemyProjectilePool } from './enemyProjectiles';
 import type { EffectsSystem } from '../gfx/effects';
 import type { BattlefieldMap } from './battlefieldMap';
-import { rng } from '../core/rng';
+import { Rng, rng } from '../core/rng';
 
 export const ENEMY_CAP = 1024;
 const ANIM_FPS = 8;
@@ -14,6 +14,7 @@ const SEP_STRENGTH = 7;
 const FLASH_DECAY = 7;
 const KB_DECAY = 8; // 넉백 속도 감쇠
 const MAX_CONCURRENT_PATTERNS = 3;
+const SPAWN_RNG_SEED = 0x51a7e5ed;
 
 export const BEHAVIOR_NONE = 0;
 export const BEHAVIOR_CHARGE = 1;
@@ -99,6 +100,9 @@ export class EnemyPool {
   private readonly uv = { u: 0, v: 0 };
   private readonly nav = { x: 0, z: 0 };
   private readonly moved = { x: 0, z: 0 };
+  // 생성 직후 애니메이션/공격 위상만 담당하는 독립 RNG.
+  // 전역 RNG 소비 순서와 분리하고 reset에서 같은 상태로 되감아 seeded replay를 보장한다.
+  private readonly spawnRng = new Rng(SPAWN_RNG_SEED);
 
   constructor() {
     for (let i = 0; i < ENEMY_CAP; i++) this.free[i] = ENEMY_CAP - 1 - i;
@@ -134,7 +138,7 @@ export class EnemyPool {
     this.blockPy[i] = blockPy;
     this.dir[i] = 0;
     this.frame[i] = 0;
-    this.animTime[i] = Math.random() * 0.5;
+    this.animTime[i] = this.spawnRng.next() * 0.5;
     this.flash[i] = 0;
     this.hitPunch[i] = 0;
     this.tr[i] = 1;
@@ -144,10 +148,10 @@ export class EnemyPool {
     this.kbz[i] = 0;
     this.kbResist[i] = 0;
     this.ranged[i] = 0;
-    this.atkTimer[i] = 0.5 + Math.random();
+    this.atkTimer[i] = 0.5 + this.spawnRng.next();
     this.behavior[i] = BEHAVIOR_NONE;
     this.patternState[i] = PATTERN_IDLE;
-    this.patternT[i] = 0.8 + Math.random() * 1.8;
+    this.patternT[i] = 0.8 + this.spawnRng.next() * 1.8;
     this.aimX[i] = 0;
     this.aimZ[i] = 1;
     this.shieldHits[i] = 0;
@@ -177,6 +181,7 @@ export class EnemyPool {
   }
 
   reset(): void {
+    this.spawnRng.seed(SPAWN_RNG_SEED);
     this.alive.fill(0);
     for (let i = 0; i < ENEMY_CAP; i++) {
       this.free[i] = ENEMY_CAP - 1 - i;

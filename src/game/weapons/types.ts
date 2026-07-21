@@ -32,6 +32,17 @@ export interface WeaponContext {
   rng: Rng;
   musouActive?: boolean;
   musouKey?: string;
+  // 현재 영웅이 선택한 고유 계보 분기. 서명 무기만 패턴을 바꾸는 데 사용한다.
+  lineageBranches: readonly string[];
+  clearEnemyProjectiles: (x: number, z: number, radius: number) => number;
+  resolveMovement: (
+    fromX: number,
+    fromZ: number,
+    toX: number,
+    toZ: number,
+    radius: number,
+    out: { x: number; z: number },
+  ) => boolean;
   // 적 처치 시 호출(파티클/젬/킬 카운트는 run이 처리)
   onKill: (index: number) => void;
   onAttack: (weaponId: string, dirX: number, dirZ: number) => void;

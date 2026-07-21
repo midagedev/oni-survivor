@@ -23,6 +23,7 @@ export interface Achievement {
   hanja: string;
   desc: string;
   priority: number; // 공유 카드 대표 칭호 선정 우선순위(클수록 우선)
+  legacy?: boolean; // 구버전에서 획득한 경우에만 표시하는 영속 ID
   check: (c: AchievementCtx) => boolean;
 }
 
@@ -75,11 +76,20 @@ export const ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'master_smith',
-    name: '전설의 도공',
-    hanja: '傳說刀工',
-    desc: '한 런에서 진화 무기 3종 이상',
+    name: '천하명장',
+    hanja: '天下名匠',
+    desc: '구버전에서 진화 무기 3종 완성',
+    priority: 60,
+    legacy: true,
+    check: () => false,
+  },
+  {
+    id: 'secret_heir',
+    name: '비전 계승자',
+    hanja: '秘傳繼承',
+    desc: '캐릭터 고유 계보의 비전 해방',
     priority: 70,
-    check: (c) => evolutionCount(c.weapons) >= 3,
+    check: (c) => evolutionCount(c.weapons) >= 1,
   },
   {
     id: 'combo_master',

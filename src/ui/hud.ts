@@ -1,9 +1,10 @@
 import { t, getLang } from '../core/i18n';
 import type { HeroDef } from '../data/heroes';
 import type { CompanionDef } from '../data/companions';
+import type { UltimateProfile } from '../data/skillTrees';
 
 // 슬롯 프레임 캡 (DESIGN 13.4). run.ts의 MAX_WEAPONS/MAX_PASSIVES와 동일.
-const WEAPON_SLOTS = 6;
+const WEAPON_SLOTS = 5;
 const PASSIVE_SLOTS = 6;
 
 export interface HudState {
@@ -30,6 +31,7 @@ export interface SlotView {
   glyph: string; // 한자 1자
   level: number;
   accent: string;
+  label?: string;
 }
 
 // 공성 목표 HUD 패널(#50). 텍스트는 run이 ko/en 완성해 넘긴다(i18n 무접촉 계약).
@@ -78,9 +80,10 @@ export class Hud {
   private readonly feverEl: HTMLDivElement;
   private feverOn = false;
   private readonly slotBar: HTMLDivElement;
+  private readonly lineageHeader: HTMLDivElement;
   private readonly bottom: HTMLDivElement;
   private readonly seenSlots = new Set<string>();
-  private weaponsFullSeen = false; // 무기 6칸 만석 배너 1회 트리거용
+  private weaponsFullSeen = false; // 고유 기술+지원 장비 5칸 만석 배너 1회 트리거용
   private lastCombo = 0;
   private wasReady = false;
   private readonly touch: boolean;
@@ -222,12 +225,16 @@ export class Hud {
       'z-index:20',
       'transform-origin:top left',
     ].join(';');
+    this.lineageHeader = document.createElement('div');
+    this.lineageHeader.className = 'hud-lineage';
+    this.lineageHeader.style.cssText = 'display:flex;flex-direction:column;gap:3px;max-width:220px;padding:6px 8px;border:1px solid rgba(232,198,103,.3);border-radius:8px;background:rgba(9,10,15,.74);';
     const wRow = document.createElement('div');
     wRow.className = 'hud-slot-row';
     wRow.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap;max-width:220px;';
     const pRow = document.createElement('div');
     pRow.className = 'hud-slot-row';
     pRow.style.cssText = 'display:flex;gap:4px;flex-wrap:wrap;max-width:220px;';
+    this.slotBar.appendChild(this.lineageHeader);
     this.slotBar.appendChild(wRow);
     this.slotBar.appendChild(pRow);
     (this.slotBar as unknown as { _w: HTMLDivElement })._w = wRow;
@@ -498,7 +505,22 @@ export class Hud {
   }
 
   // 무기/패시브 슬롯 갱신 (변경 시에만 호출 → 프레임당 할당 회피). 신규 슬롯은 반짝임.
-  // 좌상단은 무기 6칸/패시브 6칸 고정 프레임 — 빈칸이 보여 "채워간다/꽉 찼다"가 체감된다(DESIGN 13.4).
+  setLineage(name: string, hanja: string, stage: number, secretReady: boolean, accent: string, branches: string[]): void {
+    this.lineageHeader.style.borderColor = `${accent}88`;
+    this.lineageHeader.innerHTML =
+      `<div class="hud-lineage-title" style="color:${accent}">고유 계보 · ${name} <span>${hanja}</span></div>` +
+      `<div class="hud-lineage-rail" aria-label="형 숙련 ${stage}/8">` +
+      Array.from({ length: 8 }, (_, i) => `<i class="${i < stage ? 'on' : ''}" style="--a:${accent}">${i + 1}</i>`).join('') +
+      `<b class="${secretReady ? 'ready' : ''}" style="--a:${accent}">秘傳</b></div>` +
+      (branches.length > 0 ? `<div class="hud-lineage-branches">${branches.join(' · ')}</div>` : '');
+  }
+
+  setUltimate(ultimate: UltimateProfile): void {
+    this.musouHint.textContent = `SPACE · ${ultimate.name} ${ultimate.hanja}`;
+    this.musouHint.style.color = ultimate.color;
+  }
+
+  // 좌상단은 고유 계보 1칸 + 지원 장비 4칸/수련 6칸. 빈칸도 성장 목표로 보인다.
   setLoadout(weapons: SlotView[], passives: SlotView[]): void {
     const wRow = (this.slotBar as unknown as { _w: HTMLDivElement })._w;
     const pRow = (this.slotBar as unknown as { _p: HTMLDivElement })._p;
@@ -507,8 +529,8 @@ export class Hud {
     // 호흡 슬롯 만석 최초 도달 → 숙련 배너 1회.
     if (!this.weaponsFullSeen && weapons.length >= WEAPON_SLOTS) {
       this.weaponsFullSeen = true;
-      const label = getLang() === 'en' ? 'Breathing Mastery' : '호흡 극의';
-      this.banner(`${label} 兵法滿陣`, '#e8c667', 54, 1700);
+      const label = getLang() === 'en' ? 'Support Formation Complete' : '지원 편성 완성';
+      this.banner(`${label} 支援滿陣`, '#8bc7b5', 50, 1500);
     }
   }
 
@@ -549,6 +571,7 @@ export class Hud {
         el.style.background = 'rgba(14,15,21,0.8)';
         glyph.style.color = s.accent;
         glyph.textContent = s.glyph;
+        el.title = s.label ?? s.id;
         lvEl.style.display = '';
         lvEl.textContent = String(s.level);
         if (!this.seenSlots.has(s.id)) {
@@ -571,6 +594,7 @@ export class Hud {
         glyph.textContent = '·';
         lvEl.style.display = 'none';
         lvEl.textContent = '';
+        el.title = '';
       }
     }
   }
@@ -578,6 +602,7 @@ export class Hud {
   resetSlots(): void {
     this.seenSlots.clear();
     this.weaponsFullSeen = false;
+    this.lineageHeader.textContent = '';
     const wRow = (this.slotBar as unknown as { _w: HTMLDivElement })._w;
     const pRow = (this.slotBar as unknown as { _p: HTMLDivElement })._p;
     wRow.textContent = '';
@@ -766,7 +791,7 @@ export class Hud {
   }
 
   // 오의 / 무쌍난무 대형 반신 일러스트 컷인 연출 (Secret Technique Half-Screen Anime Cut-In)
-  musouCutin(hero: HeroDef): void {
+  musouCutin(hero: HeroDef, ultimate: UltimateProfile): void {
     const cutin = document.createElement('div');
     cutin.style.cssText = [
       'position:fixed',
@@ -777,7 +802,7 @@ export class Hud {
       'align-items:center',
       'justify-content:center',
       'overflow:hidden',
-      'animation:musouCutinAnim 2.0s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+      'animation:musouCutinAnim 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
     ].join(';');
 
     const beam = document.createElement('div');
@@ -785,7 +810,7 @@ export class Hud {
       'position:absolute',
       'width:160%',
       'height:260px',
-      'background:linear-gradient(90deg, transparent, rgba(255,220,130,0.85), rgba(255,100,60,0.95), transparent)',
+      `background:linear-gradient(90deg, transparent, ${ultimate.color}, rgba(255,255,255,0.92), ${ultimate.color}, transparent)`,
       'transform:rotate(-12deg) scaleY(1.4)',
       'box-shadow:0 0 60px rgba(255,200,80,0.9), inset 0 0 40px rgba(255,255,255,0.9)',
     ].join(';');
@@ -838,11 +863,15 @@ export class Hud {
     titleEl.textContent = `${hero.name} ${hero.hanja}`;
 
     const subEl = document.createElement('div');
-    subEl.style.cssText = 'color:#ffffff;font-size:46px;letter-spacing:8px;font-weight:900;text-shadow:0 0 28px rgba(255,80,40,1);';
-    subEl.textContent = '奧義 · 全集中 奥義';
+    subEl.style.cssText = `color:#ffffff;font-size:clamp(25px,4vw,44px);letter-spacing:4px;font-weight:900;text-shadow:0 0 28px ${ultimate.color};line-height:1.08;`;
+    subEl.textContent = ultimate.name;
+
+    const secretEl = document.createElement('div');
+    secretEl.style.cssText = `color:${ultimate.color};font-size:clamp(18px,2.5vw,28px);letter-spacing:5px;font-weight:800;text-shadow:0 0 18px ${ultimate.color};`;
+    secretEl.textContent = ultimate.hanja;
 
     textWrap.appendChild(titleEl);
-    textWrap.appendChild(subEl);
+    textWrap.append(subEl, secretEl);
     card.appendChild(textWrap);
     cutin.appendChild(card);
 
@@ -853,7 +882,7 @@ export class Hud {
         @keyframes musouCutinAnim {
           0% { opacity:0; transform:scale(1.15) translateX(-30px); }
           12% { opacity:1; transform:scale(1) translateX(0); }
-          80% { opacity:1; transform:scale(1) translateX(0); }
+          72% { opacity:1; transform:scale(1) translateX(0); }
           100% { opacity:0; transform:scale(0.95) translateX(-30px); }
         }
       `;
@@ -861,7 +890,7 @@ export class Hud {
     }
 
     document.body.appendChild(cutin);
-    setTimeout(() => cutin.remove(), 2000);
+    setTimeout(() => cutin.remove(), 1200);
   }
 
   // 보스 등장 시 거대 반신 일러스트 컷인 연출 (Boss Spawn Half-Screen Anime Cut-In)
